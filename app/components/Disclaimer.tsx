@@ -17,7 +17,6 @@ export const Disclaimer: FC<DisclaimerProps> = ({ className }) => {
 			<a className="underline" href="https://developers.cloudflare.com/calls/">
 				Cloudflare Calls
 			</a>
-			.
 			<br />
 			<a className="underline" href="https://liuu.org/">
 				Powered by Kenneth Liu and Cloudflare Infrastructure
