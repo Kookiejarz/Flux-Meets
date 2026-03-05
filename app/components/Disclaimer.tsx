@@ -9,23 +9,19 @@ export const Disclaimer: FC<DisclaimerProps> = ({ className }) => {
 	return (
 		<p
 			className={cn(
-				'text-xs text-zinc-400 dark:text-zinc-500 max-w-prose',
+				'max-w-prose text-xs leading-relaxed text-zinc-400 dark:text-zinc-500',
 				className
 			)}
 		>
-			Orange Meets is a demo application built using{' '}
+			Orange-neo is an application built using{' '}
 			<a className="underline" href="https://developers.cloudflare.com/calls/">
 				Cloudflare Calls
 			</a>
-			. To build your own WebRTC application using Cloudflare Calls, get started
-			in the{' '}
-			<a
-				className="underline"
-				href="https://dash.cloudflare.com/?to=/:account/calls"
-			>
-				Cloudflare Dashboard
-			</a>
 			.
+			<br />
+			<a className="underline" href="https://liuu.org/">
+				Powered by Kenneth Liu and Cloudflare Infrastructure
+			</a>
 		</p>
 	)
 }
