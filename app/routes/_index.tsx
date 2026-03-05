@@ -31,7 +31,7 @@ export default function Index() {
 	const { data } = useUserMetadata(username)
 
 	return (
-		<div className="flex flex-col items-center justify-center h-full p-4 mx-auto">
+		<div className="flex flex-col items-center justify-center h-full p-4 mx-auto group">
 			<div className="flex-1"></div>
 			<div className="space-y-6 sm:min-w-96">
 				<div>
@@ -50,40 +50,42 @@ export default function Index() {
 						)}
 					</div>
 				</div>
-				<div>
-					<ButtonLink
-						to="/new"
-						className="text-sm"
-						onClick={(e) => {
-							// We shouldn't need a whole server visit to start a new room,
-							// so let's just do a redirect here
-							e.preventDefault()
-							navigate(`/${nanoid(8)}`)
-							// if someone clicks the link to create a new room
-							// before the js has loaded then we'll use a server side redirect
-							// (in new.tsx) to send the user to a new room
-						}}
-					>
-						New Room
-					</ButtonLink>
+				<div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+					<div>
+						<ButtonLink
+							to="/new"
+							className="text-sm"
+							onClick={(e) => {
+								// We shouldn't need a whole server visit to start a new room,
+								// so let's just do a redirect here
+								e.preventDefault()
+								navigate(`/${nanoid(8)}`)
+								// if someone clicks the link to create a new room
+								// before the js has loaded then we'll use a server side redirect
+								// (in new.tsx) to send the user to a new room
+							}}
+						>
+							New Room
+						</ButtonLink>
+					</div>
+					<details className="cursor-pointer mt-6">
+						<summary className="text-zinc-500 dark:text-zinc-400">
+							Or join a room
+						</summary>
+						<Form
+							className="grid items-end gap-4 grid-cols-[1fr_auto] w-full pt-4"
+							method="post"
+						>
+							<div className="space-y-2">
+								<Label htmlFor="room">Room name</Label>
+								<Input name="room" id="room" required />
+							</div>
+							<Button className="text-xs" type="submit" displayType="secondary">
+								Join
+							</Button>
+						</Form>
+					</details>
 				</div>
-				<details className="cursor-pointer">
-					<summary className="text-zinc-500 dark:text-zinc-400">
-						Or join a room
-					</summary>
-					<Form
-						className="grid items-end gap-4 grid-cols-[1fr_auto] w-full pt-4"
-						method="post"
-					>
-						<div className="space-y-2">
-							<Label htmlFor="room">Room name</Label>
-							<Input name="room" id="room" required />
-						</div>
-						<Button className="text-xs" type="submit" displayType="secondary">
-							Join
-						</Button>
-					</Form>
-				</details>
 			</div>
 			<div className="flex flex-col justify-end flex-1">
 				<Disclaimer className="pt-6" />

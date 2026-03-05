@@ -3,6 +3,7 @@ import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
 import { json } from '@remix-run/cloudflare'
 import { useNavigate, useParams, useSearchParams } from '@remix-run/react'
 import { useObservableAsValue } from 'partytracks/react'
+import { useState } from 'react'
 import invariant from 'tiny-invariant'
 import { AudioIndicator } from '~/components/AudioIndicator'
 import { Button } from '~/components/Button'
@@ -10,6 +11,7 @@ import { CameraButton } from '~/components/CameraButton'
 import { CopyButton } from '~/components/CopyButton'
 import { Disclaimer } from '~/components/Disclaimer'
 import { Icon } from '~/components/Icon/Icon'
+import { Input } from '~/components/Input'
 import { MicButton } from '~/components/MicButton'
 
 import { SelfView } from '~/components/SelfView'
@@ -54,6 +56,9 @@ export default function Lobby() {
 	const sessionError = useObservableAsValue(partyTracks.sessionError$)
 	trackRefreshes()
 
+	const [isEditingName, setIsEditingName] = useState(false)
+	const [editedRoomName, setEditedRoomName] = useState(roomName || '')
+
 	const joinedUsers = new Set(
 		room.otherUsers.filter((u) => u.tracks.audio).map((u) => u.name)
 	).size
@@ -62,12 +67,51 @@ export default function Lobby() {
 
 	const [params] = useSearchParams()
 
+	const handleNameChange = () => {
+		if (editedRoomName && editedRoomName !== roomName) {
+			navigate(
+				`/${editedRoomName.replace(/ /g, '-')}${
+					params.size > 0 ? '?' + params.toString() : ''
+				}`
+			)
+		}
+		setIsEditingName(false)
+	}
+
 	return (
 		<div className="flex flex-col items-center justify-center h-full p-4">
 			<div className="flex-1"></div>
 			<div className="space-y-4 w-96">
-				<div>
-					<h1 className="text-3xl font-bold">{roomName}</h1>
+				<div className="space-y-1">
+					{isEditingName ? (
+						<div className="flex items-center gap-2">
+							<Input
+								autoFocus
+								value={editedRoomName}
+								onChange={(e) => setEditedRoomName(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') handleNameChange()
+									if (e.key === 'Escape') {
+										setEditedRoomName(roomName || '')
+										setIsEditingName(false)
+									}
+								}}
+								onBlur={handleNameChange}
+								className="text-2xl font-bold h-10"
+							/>
+						</div>
+					) : (
+						<div
+							className="group flex items-center gap-2 cursor-pointer"
+							onClick={() => setIsEditingName(true)}
+						>
+							<h1 className="text-3xl font-bold break-all">{roomName}</h1>
+							<Icon
+								type="pencil"
+								className="w-5 h-5 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity"
+							/>
+						</div>
+					)}
 					<p className="text-sm text-zinc-500 dark:text-zinc-400">
 						{`${joinedUsers} ${
 							joinedUsers === 1 ? 'user' : 'users'
