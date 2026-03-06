@@ -268,7 +268,12 @@ function Room({ room, userMedia }: RoomProps) {
 	const pushedAudioTrack$ = useMemo(
 		() =>
 			partyTracks.push(userMedia.publicAudioTrack$, {
-				sendEncodings$: of([{ networkPriority: 'high' }]),
+				sendEncodings$: of([
+					{
+						networkPriority: 'high',
+						maxBitrate: 128_000, // 128kbps for high quality audio
+					},
+				]),
 			}),
 		[partyTracks, userMedia.publicAudioTrack$]
 	)
@@ -284,6 +289,7 @@ function Room({ room, userMedia }: RoomProps) {
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 	const [captionsEnabled, setCaptionsEnabled] = useState(false)
+	const [moqEnabled, setMoqEnabled] = useState(false)
 
 	useSpeechToText({
 		enabled: captionsEnabled && joined,
@@ -336,6 +342,8 @@ function Room({ room, userMedia }: RoomProps) {
 		maxWebcamQualityLevel,
 		captionsEnabled,
 		setCaptionsEnabled,
+		moqEnabled,
+		setMoqEnabled,
 		traceLink,
 		userMedia,
 		userDirectoryUrl,

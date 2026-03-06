@@ -124,10 +124,15 @@ export default function useUserMedia(options: {
 	const micDevices = useObservableAsValue(mic.devices$, [])
 	const cameraDevices = useObservableAsValue(camera.devices$, [])
 
+	useObservable(mic.broadcastTrack$, (t) => {
+		if (t) setAudioUnavailableReason(undefined)
+	})
+	useObservable(camera.broadcastTrack$, (t) => {
+		if (t) setVideoUnavailableReason(undefined)
+	})
+
 	useEffect(() => {
 		// Auto-start if possible. This handles cases where permission was already granted.
-		// On mobile, this might fail if a user gesture is required, but we also have
-		// the "Allow access" button in EnsurePermissions which provides that gesture.
 		mic.startBroadcasting()
 		camera.startBroadcasting()
 	}, [])

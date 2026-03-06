@@ -53,6 +53,8 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		maxWebcamBitrate,
 		maxWebcamFramerate,
 		maxWebcamQualityLevel,
+		moqEnabled,
+		setMoqEnabled,
 	} = useRoomContext()
 
 	return (
@@ -174,6 +176,29 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							checked={suppressNoise}
 							onCheckedChange={setSuppressNoise}
 						/>
+
+						<div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 my-2"></div>
+
+						<Label className="md:text-right" htmlFor="moq">
+							<div className="flex flex-col md:items-end">
+								<span>Media over QUIC</span>
+								<span className="text-[10px] text-orange-500 font-black uppercase tracking-wider">
+									Experimental
+								</span>
+							</div>
+						</Label>
+						<div className="flex items-center gap-4">
+							<Toggle
+								id="moq"
+								checked={moqEnabled}
+								onCheckedChange={setMoqEnabled}
+							/>
+							{moqEnabled && (
+								<span className="text-xs text-zinc-500 animate-pulse">
+									Draft-14 Relay Active
+								</span>
+							)}
+						</div>
 					</div>
 				</DialogContent>
 			</Portal>

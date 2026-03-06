@@ -35,6 +35,7 @@ import { useShowDebugInfoShortcut } from '~/hooks/useShowDebugInfoShortcut'
 import useSounds from '~/hooks/useSounds'
 import useStageManager from '~/hooks/useStageManager'
 import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
+import { useMoQ } from '~/hooks/useMoQ'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import isNonNullable from '~/utils/isNonNullable'
@@ -95,6 +96,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		room,
 		captionsEnabled,
 		setCaptionsEnabled,
+		moqEnabled,
+		setMoqEnabled,
 		e2eeSafetyNumber,
 		e2eeOnJoin,
 	} = useRoomContext()
@@ -119,6 +122,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	const [raisedHand, setRaisedHand] = useState(false)
 	const speaking = useIsSpeaking(userMedia.audioStreamTrack)
 	const [chatOpen, setChatOpen] = useState(false)
+
+	const moqStatus = useMoQ(moqEnabled)
 
 	useMount(() => {
 		if (otherUsers.length > 5) {
@@ -165,6 +170,27 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 
 	const gridGap = 12
 	const dispatchToast = useDispatchToast()
+
+	useEffect(() => {
+		if (moqEnabled) {
+			dispatchToast(
+				'Experimental: Media over QUIC mode enabled. Attempting to connect to Cloudflare Draft-14 Relay...',
+				{ id: 'moq-enabled' }
+			)
+		}
+	}, [moqEnabled, dispatchToast])
+
+	useEffect(() => {
+		if (moqStatus.state === 'connected') {
+			dispatchToast('🚀 MoQ: Successfully connected to Cloudflare Relay!', {
+				id: 'moq-status',
+			})
+		} else if (moqStatus.state === 'error') {
+			dispatchToast(`❌ MoQ Connection Error: ${moqStatus.error}`, {
+				id: 'moq-status',
+			})
+		}
+	}, [moqStatus, dispatchToast])
 
 	useEffect(() => {
 		if (e2eeSafetyNumber) {
