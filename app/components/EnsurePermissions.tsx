@@ -74,20 +74,30 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 									},
 								})
 								.then((ms) => {
-									const micId = ms.getAudioTracks()[0]?.getSettings().deviceId
-									const cameraId = ms.getVideoTracks()[0]?.getSettings().deviceId
-									
-									// Stop tracks immediately to free hardware
-									ms.getTracks().forEach((t) => t.stop())
+									// Explicitly fire devicechange so the rest of the app updates
+									navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
 
-									if (micId) props.onMicSelected(micId)
-									if (cameraId) props.onCameraSelected(cameraId)
+									navigator.mediaDevices.enumerateDevices().then((devices) => {
+										// iOS Safari track.getSettings().deviceId can be undefined, so fallback to the first device of that kind
+										const micId =
+											ms.getAudioTracks()[0]?.getSettings().deviceId ||
+											devices.find((d) => d.kind === 'audioinput')?.deviceId
+										const cameraId =
+											ms.getVideoTracks()[0]?.getSettings().deviceId ||
+											devices.find((d) => d.kind === 'videoinput')?.deviceId
 
-									// Trigger partytracks broadcasting synchronously to preserve user gesture context
-									mic.startBroadcasting()
-									camera.startBroadcasting()
+										// Stop tracks immediately to free hardware
+										ms.getTracks().forEach((t) => t.stop())
 
-									if (mountedRef.current) setPermissionState('granted')
+										if (micId) props.onMicSelected(micId)
+										if (cameraId) props.onCameraSelected(cameraId)
+
+										// Trigger partytracks broadcasting synchronously to preserve user gesture context
+										mic.startBroadcasting()
+										camera.startBroadcasting()
+
+										if (mountedRef.current) setPermissionState('granted')
+									})
 								})
 								.catch((err) => {
 									console.error('Permission request failed:', err)
