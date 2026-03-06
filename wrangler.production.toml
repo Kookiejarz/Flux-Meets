@@ -30,11 +30,6 @@ database_id = "a63ffd86-4a64-4e22-8337-f23c45a565f9"
 tag = "v1" # Should be unique for each entry
 new_classes = ["ChatRoom"]
 
-# Remove the deprecated RateLimiter class
-[[migrations]]
-tag = "v2"
-deleted_classes = ["RateLimiter"]
-
 [observability]
 enabled = true
 

@@ -8,15 +8,6 @@ account_id = "7829299e6cefc232ded8635f50b53462"
 [site]
   bucket = "./public"
 
-[[queues.producers]]
- queue = "orange-meets-feedback-queue"
- binding = "FEEDBACK_QUEUE"
-
-[[queues.consumers]]
- queue = "orange-meets-feedback-queue"
- max_batch_size = 10
- max_batch_timeout = 5
-
 [vars]
 CALLS_APP_ID = "bf67b659a7dad4da746fffcaa8e3ac56"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
