@@ -8,7 +8,9 @@ const { initLogging, processEvent } = wasm_bindgen
 
 // Load the Wasm file by awaiting the Promise returned by `wasm_bindgen`.
 async function initWasmInWorker() {
-	await wasm_bindgen({ module_or_path: '/e2ee/wasm-pkg/orange_mls_worker_bg.wasm' })
+	await wasm_bindgen({
+		module_or_path: '/e2ee/wasm-pkg/orange_mls_worker_bg.wasm',
+	})
 	initLogging()
 }
 const wasmIsReady = initWasmInWorker()

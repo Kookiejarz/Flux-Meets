@@ -108,7 +108,8 @@ export class ChatRoom extends Server<Env> {
 					// Notify the old connection and close it
 					this.sendMessage(otherConnection, {
 						type: 'error',
-						error: 'You joined from another tab or device. This session has been closed.',
+						error:
+							'You joined from another tab or device. This session has been closed.',
 					})
 					otherConnection.close(1011, 'Duplicate session')
 					// Clean up their storage immediately so they don't appear in the list
@@ -160,13 +161,13 @@ export class ChatRoom extends Server<Env> {
 		await this.cleanupOldConnections()
 		if (this.db && meeting) {
 			const updates: any = {}
-			
+
 			if (meeting.ended !== null) {
 				updates.ended = null
 			}
-			
+
 			if (!meeting.roomName) {
-				updates.roomName = this.id
+				updates.roomName = this.ctx.id.toString()
 			}
 
 			const userCount = (await this.getUsers()).size
@@ -203,10 +204,15 @@ export class ChatRoom extends Server<Env> {
 			try {
 				const result = await this.db.insert(Meetings).values({
 					id: meetingId,
-					roomName: this.id, // Partyserver's room name
+					roomName: this.ctx.id.toString(), // Partyserver's room name
 					peakUserCount: 1,
 				})
-				console.log('D1 Success: Created meeting record', meetingId, 'Result:', result)
+				console.log(
+					'D1 Success: Created meeting record',
+					meetingId,
+					'Result:',
+					result
+				)
 			} catch (e) {
 				console.error('D1 Error: Failed to create meeting record', e)
 			}
@@ -365,7 +371,7 @@ export class ChatRoom extends Server<Env> {
 					this.broadcastMessage(captionMessage)
 
 					// Trigger persistence and translation
-					this.handleCaption(connection, captionMessage).catch(err => {
+					this.handleCaption(connection, captionMessage).catch((err) => {
 						console.error('Secondary caption handler error:', err)
 					})
 				}
@@ -480,7 +486,7 @@ export class ChatRoom extends Server<Env> {
 					})
 
 					// Process DB and translation asynchronously
-					this.handleCaption(connection, data).catch(e => {
+					this.handleCaption(connection, data).catch((e) => {
 						console.error('Error handling caption:', e)
 					})
 					break

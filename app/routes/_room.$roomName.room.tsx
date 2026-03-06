@@ -28,12 +28,12 @@ import Toast, { useDispatchToast } from '~/components/Toast'
 import { Tooltip } from '~/components/Tooltip'
 import useBroadcastStatus from '~/hooks/useBroadcastStatus'
 import useIsSpeaking from '~/hooks/useIsSpeaking'
+import { useMoQ } from '~/hooks/useMoQ'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { useRoomUrl } from '~/hooks/useRoomUrl'
 import useSounds from '~/hooks/useSounds'
 import useStageManager from '~/hooks/useStageManager'
 import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
-import { useMoQ } from '~/hooks/useMoQ'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import isNonNullable from '~/utils/isNonNullable'
@@ -288,7 +288,13 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 								}}
 								displayType={captionsEnabled ? 'primary' : 'secondary'}
 							>
-								<Icon type={captionsEnabled ? 'chatBubbleBottomCenterText' : 'chatBubbleBottomCenterText'} />
+								<Icon
+									type={
+										captionsEnabled
+											? 'chatBubbleBottomCenterText'
+											: 'chatBubbleBottomCenterText'
+									}
+								/>
 								{!captionsEnabled && (
 									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
 										<div className="w-[1px] h-6 bg-current rotate-45 opacity-60" />
@@ -325,10 +331,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 							navigateToFeedbackPage={hasDb}
 							meetingId={meetingId}
 						/>
-						<CopyButton
-							className="text-sm px-3 py-2"
-							contentValue={roomUrl}
-						>
+						<CopyButton className="text-sm px-3 py-2" contentValue={roomUrl}>
 							<span className="hidden md:inline">Copy Link</span>
 						</CopyButton>
 						{showDebugInfo && meetingId && dashboardDebugLogsBaseUrl && (

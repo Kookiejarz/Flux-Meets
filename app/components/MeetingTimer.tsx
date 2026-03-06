@@ -36,4 +36,3 @@ export function MeetingTimer({ startTime }: { startTime?: number }) {
 		</Tooltip>
 	)
 }
-

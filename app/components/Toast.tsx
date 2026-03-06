@@ -1,4 +1,6 @@
 import * as ToastPrimitive from '@radix-ui/react-toast'
+import { AnimatePresence, motion } from 'framer-motion'
+import { nanoid } from 'nanoid'
 import {
 	createContext,
 	useCallback,
@@ -6,8 +8,6 @@ import {
 	useState,
 	type ReactNode,
 } from 'react'
-import { nanoid } from 'nanoid'
-import { AnimatePresence, motion } from 'framer-motion'
 
 interface Notification {
 	content: ReactNode
@@ -40,7 +40,8 @@ export const NotificationToastsProvider = (props: { children?: ReactNode }) => {
 
 	const dispatch = useCallback(
 		(content: ReactNode, options?: { duration?: number; id?: string }) => {
-			const id = options?.id ?? (typeof content === 'string' ? content : nanoid(14))
+			const id =
+				options?.id ?? (typeof content === 'string' ? content : nanoid(14))
 			setMessages((ms) => {
 				if (ms.some((m) => m.id === id)) return ms
 				return [

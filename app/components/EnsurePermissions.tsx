@@ -1,7 +1,7 @@
+import { useObservableAsValue } from 'partytracks/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { camera, mic } from '~/hooks/useUserMedia'
 import { Button } from './Button'
-import { useObservableAsValue } from 'partytracks/react'
 
 export interface EnsurePermissionsProps {
 	children?: ReactNode
@@ -35,7 +35,10 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 
 	// Monitor the broadcasting state of the global mic/camera objects
 	const micIsBroadcasting = useObservableAsValue(mic.isBroadcasting$, false)
-	const cameraIsBroadcasting = useObservableAsValue(camera.isBroadcasting$, false)
+	const cameraIsBroadcasting = useObservableAsValue(
+		camera.isBroadcasting$,
+		false
+	)
 	const micActiveDevice = useObservableAsValue(mic.activeDevice$)
 	const cameraActiveDevice = useObservableAsValue(camera.activeDevice$)
 
@@ -62,7 +65,13 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 			}, 5000) // 减少到 5 秒
 			return () => clearTimeout(timer)
 		}
-	}, [permissionState, justGranted, devicesReady, micIsBroadcasting, cameraIsBroadcasting])
+	}, [
+		permissionState,
+		justGranted,
+		devicesReady,
+		micIsBroadcasting,
+		cameraIsBroadcasting,
+	])
 
 	// Sync device IDs back to parent
 	useEffect(() => {
@@ -92,11 +101,12 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						Initialization Failed
 					</h1>
 					<p className="text-zinc-400 text-sm leading-relaxed">
-						We were unable to start your camera or microphone within the expected time.
+						We were unable to start your camera or microphone within the
+						expected time.
 					</p>
 					<div className="flex flex-col gap-2">
-						<Button 
-							className="w-full" 
+						<Button
+							className="w-full"
 							onClick={() => {
 								console.log('User chose to skip and continue anyway')
 								setInitTimeout(false)
@@ -105,8 +115,8 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						>
 							Continue Anyway
 						</Button>
-						<Button 
-							className="w-full" 
+						<Button
+							className="w-full"
 							displayType="secondary"
 							onClick={() => {
 								window.location.reload()
@@ -138,8 +148,8 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						<p>Mic: {micIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
 						<p>Camera: {cameraIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
 					</div>
-					<Button 
-						className="w-full mt-4" 
+					<Button
+						className="w-full mt-4"
 						displayType="secondary"
 						onClick={() => {
 							console.log('User chose to skip device initialization')
@@ -161,8 +171,8 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						Access Denied
 					</h1>
 					<p className="text-zinc-400 text-sm leading-relaxed">
-						You'll need to go into your browser settings and manually
-						re-enable permission for your camera and microphone to join the meeting.
+						You'll need to go into your browser settings and manually re-enable
+						permission for your camera and microphone to join the meeting.
 					</p>
 					<Button className="w-full" onClick={() => window.location.reload()}>
 						Try Reloading
@@ -180,65 +190,70 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						Media Access
 					</h1>
 					<p className="text-zinc-400 text-sm leading-relaxed">
-						To join the call, Flux Meet needs access to your camera and microphone.
+						To join the call, Flux Meet needs access to your camera and
+						microphone.
 					</p>
 				</div>
-				
-					<div className="relative group">
-						<div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-						<Button
-							className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-50"
-							onClick={() => {
-								console.log('Allow access clicked')
-								
-								// 防御性检查：确保代码只在客户端浏览器环境中运行
-								if (typeof window === 'undefined' || !navigator.mediaDevices) {
-									console.error('当前浏览器环境不支持访问媒体设备，请确保使用 HTTPS')
+
+				<div className="relative group">
+					<div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+					<Button
+						className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-50"
+						onClick={() => {
+							console.log('Allow access clicked')
+
+							// 防御性检查：确保代码只在客户端浏览器环境中运行
+							if (typeof window === 'undefined' || !navigator.mediaDevices) {
+								console.error(
+									'当前浏览器环境不支持访问媒体设备，请确保使用 HTTPS'
+								)
+								if (mountedRef.current) setPermissionState('denied')
+								return
+							}
+
+							// Safari is extremely sensitive to 'async' click handlers.
+							// We call getUserMedia directly to trigger the prompt.
+							navigator.mediaDevices
+								.getUserMedia({
+									audio: true,
+									video: { facingMode: 'user' }, // 默认请求前置摄像头
+								})
+								.then(async (stream) => {
+									console.log('getUserMedia success, stopping temp tracks...')
+									// IMPORTANT: Stop the temporary tracks FIRST to release
+									// the hardware before partytracks tries to acquire it.
+									// On iOS Safari, holding the device while calling
+									// getUserMedia again causes a NotReadableError.
+									stream.getTracks().forEach((t) => t.stop())
+
+									// Give iOS/mobile browsers time to fully release the camera/mic hardware
+									console.log('Waiting for hardware release...')
+									await new Promise((resolve) => setTimeout(resolve, 800))
+
+									console.log('Starting broadcasting...')
+									// Now start broadcasting — devices should be free
+									mic.startBroadcasting()
+									camera.startBroadcasting()
+
+									// Set permission state and mark as just granted
+									if (mountedRef.current) {
+										console.log(
+											'Permission granted, waiting for devices to start...'
+										)
+										setJustGranted(true) // 标记为刚刚授予
+										setPermissionState('granted')
+									}
+								})
+								.catch((err) => {
+									console.error('Permission request failed:', err)
 									if (mountedRef.current) setPermissionState('denied')
-									return
-								}
-								
-								// Safari is extremely sensitive to 'async' click handlers.
-								// We call getUserMedia directly to trigger the prompt.
-								navigator.mediaDevices
-									.getUserMedia({ 
-										audio: true, 
-										video: { facingMode: 'user' } // 默认请求前置摄像头
-									})
-									.then(async (stream) => {
-										console.log('getUserMedia success, stopping temp tracks...')
-										// IMPORTANT: Stop the temporary tracks FIRST to release
-										// the hardware before partytracks tries to acquire it.
-										// On iOS Safari, holding the device while calling
-										// getUserMedia again causes a NotReadableError.
-										stream.getTracks().forEach((t) => t.stop())
+								})
+						}}
+					>
+						Allow access
+					</Button>
+				</div>
 
-										// Give iOS/mobile browsers time to fully release the camera/mic hardware
-										console.log('Waiting for hardware release...')
-										await new Promise((resolve) => setTimeout(resolve, 800))
-
-										console.log('Starting broadcasting...')
-										// Now start broadcasting — devices should be free
-										mic.startBroadcasting()
-										camera.startBroadcasting()
-
-										// Set permission state and mark as just granted
-										if (mountedRef.current) {
-											console.log('Permission granted, waiting for devices to start...')
-											setJustGranted(true) // 标记为刚刚授予
-											setPermissionState('granted')
-										}
-									})
-									.catch((err) => {
-										console.error('Permission request failed:', err)
-										if (mountedRef.current) setPermissionState('denied')
-									})
-							}}
-						>
-							Allow access
-						</Button>
-					</div>
-				
 				<p className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
 					Secure & Encrypted Call
 				</p>

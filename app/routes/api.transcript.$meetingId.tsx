@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs } from '@remix-run/cloudflare'
+import { type LoaderFunctionArgs } from '@remix-run/cloudflare'
 import { eq } from 'drizzle-orm'
 import { getDb, Transcripts } from 'schema'
 

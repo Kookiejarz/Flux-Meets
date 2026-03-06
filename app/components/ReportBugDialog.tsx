@@ -14,7 +14,6 @@ import {
 } from './Dialog'
 import { Label } from './Label'
 import { TextArea } from './TextArea'
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 
 interface ReportBugDialogProps {
 	onOpenChange?: (open: boolean) => void
@@ -57,7 +56,9 @@ const ReportBugForm: FC<{}> = () => {
 	return data ? (
 		<div className="space-y-4">
 			<h2 className="text-xl font-bold">Thank you!</h2>
-			<p className="text-sm text-zinc-500 dark:text-zinc-400">Your report has been submitted!</p>
+			<p className="text-sm text-zinc-500 dark:text-zinc-400">
+				Your report has been submitted!
+			</p>
 		</div>
 	) : (
 		<div className="space-y-4 mt-4">

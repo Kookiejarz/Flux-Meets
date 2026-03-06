@@ -65,7 +65,9 @@ export const MicButton: FC<
 				<div className="fixed top-4 right-4 z-[120] bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-3 text-zinc-100 pointer-events-auto">
 					<div className="flex items-center gap-2 py-0.5">
 						<Icon type="micOff" className="text-orange-500 h-4 w-4" />
-						<span className="font-bold text-xs whitespace-nowrap">Talking while muted?</span>
+						<span className="font-bold text-xs whitespace-nowrap">
+							Talking while muted?
+						</span>
 						<button
 							onClick={() => {
 								toggle()
@@ -87,7 +89,11 @@ export const MicButton: FC<
 			>
 				<Button
 					displayType={
-						audioUnavailableReason ? 'danger' : audioEnabled ? 'secondary' : 'danger'
+						audioUnavailableReason
+							? 'danger'
+							: audioEnabled
+								? 'secondary'
+								: 'danger'
 					}
 					onClick={(e) => {
 						toggle()

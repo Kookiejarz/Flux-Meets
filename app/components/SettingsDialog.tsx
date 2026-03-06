@@ -72,7 +72,9 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 				<DialogContent className="max-w-2xl">
 					<DialogTitle>Settings</DialogTitle>
 					<VisuallyHidden>
-						<Description>Adjust your camera, microphone, and other meeting settings.</Description>
+						<Description>
+							Adjust your camera, microphone, and other meeting settings.
+						</Description>
 					</VisuallyHidden>
 					<div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-x-6 gap-y-6 mt-8 items-center">
 						<Label className="md:text-right" htmlFor="camera">

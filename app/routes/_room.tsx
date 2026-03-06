@@ -9,6 +9,7 @@ import { EnsureOnline } from '~/components/EnsureOnline'
 import { EnsurePermissions } from '~/components/EnsurePermissions'
 import { Icon } from '~/components/Icon/Icon'
 import { Spinner } from '~/components/Spinner'
+import type { ClientMessage } from '~/types/Messages'
 
 import { usePeerConnection } from '~/hooks/usePeerConnection'
 import useRoom from '~/hooks/useRoom'
@@ -16,8 +17,8 @@ import { type RoomContextType } from '~/hooks/useRoomContext'
 import { useRoomHistory } from '~/hooks/useRoomHistory'
 import { useSpeechToText } from '~/hooks/useSpeechToText'
 import { useStablePojo } from '~/hooks/useStablePojo'
-import { useWorkersAiASR } from '~/hooks/useWorkersAiASR'
 import useUserMedia from '~/hooks/useUserMedia'
+import { useWorkersAiASR } from '~/hooks/useWorkersAiASR'
 import type { TrackObject } from '~/utils/callsTypes'
 import { useE2EE } from '~/utils/e2ee'
 import { getIceServers } from '~/utils/getIceServers.server'
@@ -292,7 +293,9 @@ function Room({ room, userMedia }: RoomProps) {
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 	const [captionsEnabled, setCaptionsEnabled] = useState(false)
-	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>('browser')
+	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>(
+		'browser'
+	)
 	const [aiTranslationEnabled, setAiTranslationEnabled] = useState(true)
 	const [moqEnabled, setMoqEnabled] = useState(false)
 	const [chatMessages, setChatMessages] = useState<
@@ -315,8 +318,8 @@ function Room({ room, userMedia }: RoomProps) {
 
 	useWorkersAiASR({
 		enabled: captionsEnabled && joined && asrSource === 'workers-ai',
-		audioStreamTrack: userMedia.audioStreamTrack,
-		websocket: room.websocket,
+		audioStreamTrack: userMedia.audioStreamTrack ?? null,
+		websocket: room.websocket as any,
 	})
 
 	const { e2eeSafetyNumber, onJoin } = useE2EE({

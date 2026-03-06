@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Linkify from 'linkify-react'
 import { useEffect, useRef, useState } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
-import { playSound } from '~/utils/playSound'
 import { cn } from '~/utils/style'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
@@ -49,7 +48,10 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 		<div className="flex flex-col h-full bg-zinc-900 border-l border-white/10 w-full text-zinc-100 relative">
 			<div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
 				<div className="flex items-center gap-2">
-					<Icon type="chatBubbleLeftRight" className="w-5 h-5 text-orange-500" />
+					<Icon
+						type="chatBubbleLeftRight"
+						className="w-5 h-5 text-orange-500"
+					/>
 					<h2 className="text-lg font-semibold">In-call Messages</h2>
 				</div>
 				<Button

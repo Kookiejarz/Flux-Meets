@@ -20,7 +20,12 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 			<Button
 				displayType="danger"
 				onClick={() => {
-					console.log('Leave Button Clicked - meetingId:', meetingId, 'hasDb:', navigateToFeedbackPage)
+					console.log(
+						'Leave Button Clicked - meetingId:',
+						meetingId,
+						'hasDb:',
+						navigateToFeedbackPage
+					)
 					const params = new URLSearchParams()
 					if (meetingId) {
 						params.set('meetingId', meetingId)

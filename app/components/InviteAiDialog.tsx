@@ -4,7 +4,14 @@ import { useState, type ReactNode } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import type { ClientMessage } from '~/types/Messages'
 import { Button } from './Button'
-import { Description, Dialog, DialogContent, DialogOverlay, DialogTitle, Portal } from './Dialog'
+import {
+	Description,
+	Dialog,
+	DialogContent,
+	DialogOverlay,
+	DialogTitle,
+	Portal,
+} from './Dialog'
 
 const aiVoices = [
 	'Alloy',
@@ -37,7 +44,9 @@ export function InviteAiDialog(props: { children?: ReactNode }) {
 				<DialogContent>
 					<DialogTitle>Invite AI Assistant</DialogTitle>
 					<VisuallyHidden>
-						<Description>Configure the AI voice and instructions for the meeting.</Description>
+						<Description>
+							Configure the AI voice and instructions for the meeting.
+						</Description>
 					</VisuallyHidden>
 					<form
 						className="flex flex-col gap-4 mt-8"

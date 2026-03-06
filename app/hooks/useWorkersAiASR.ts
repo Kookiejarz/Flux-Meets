@@ -15,7 +15,11 @@ export function useWorkersAiASR({
 	const recorderRef = useRef<MediaRecorder | null>(null)
 
 	useEffect(() => {
-		if (!enabled || !audioStreamTrack || websocket.readyState !== WebSocket.OPEN) {
+		if (
+			!enabled ||
+			!audioStreamTrack ||
+			websocket.readyState !== WebSocket.OPEN
+		) {
 			if (recorderRef.current) {
 				recorderRef.current.stop()
 				recorderRef.current = null

@@ -47,7 +47,11 @@ export const CameraButton: FC<ButtonProps> = ({ onClick, ...rest }) => {
 		>
 			<Button
 				displayType={
-					videoUnavailableReason ? 'danger' : videoEnabled ? 'secondary' : 'danger'
+					videoUnavailableReason
+						? 'danger'
+						: videoEnabled
+							? 'secondary'
+							: 'danger'
 				}
 				onClick={(e) => {
 					if (audioOnlyMode) {
@@ -64,4 +68,5 @@ export const CameraButton: FC<ButtonProps> = ({ onClick, ...rest }) => {
 				<Icon type={videoEnabled ? 'videoOn' : 'videoOff'} />
 			</Button>
 		</Tooltip>
-	)}
+	)
+}

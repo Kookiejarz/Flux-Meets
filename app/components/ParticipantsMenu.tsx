@@ -7,7 +7,15 @@ import populateTraceLink from '~/utils/populateTraceLink'
 import { cn } from '~/utils/style'
 import { AudioIndicator } from './AudioIndicator'
 import { Button } from './Button'
-import { Description, Dialog, DialogContent, DialogOverlay, DialogTitle, Portal, Trigger } from './Dialog'
+import {
+	Description,
+	Dialog,
+	DialogContent,
+	DialogOverlay,
+	DialogTitle,
+	Portal,
+	Trigger,
+} from './Dialog'
 import { Icon } from './Icon/Icon'
 import { MuteUserButton } from './MuteUserButton'
 import { OptionalLink } from './OptionalLink'
@@ -118,11 +126,11 @@ export const ParticipantsDialog: FC<ParticipantDialogProps> = ({
 				<DialogOverlay />
 				<DialogContent>
 					<div className="space-y-4">
-						<DialogTitle>
-							{participantCount(otherUsers.length + 1)}
-						</DialogTitle>
+						<DialogTitle>{participantCount(otherUsers.length + 1)}</DialogTitle>
 						<VisuallyHidden>
-							<Description>List of all current meeting participants.</Description>
+							<Description>
+								List of all current meeting participants.
+							</Description>
 						</VisuallyHidden>
 						<ul className="space-y-2">
 							{allParticipants.map((p) =>
