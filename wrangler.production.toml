@@ -20,26 +20,20 @@ TURN_SERVICE_ID = "53fa66872a8636170428abae9b049193"
 EXPERIMENTAL_SIMULCAST_ENABLED = "false"
 BACKGROUND_IMAGE_URL = ""
 
-[[queues.producers]]
- queue = "orange-meets-feedback-queue"
- binding = "FEEDBACK_QUEUE"
-
-[[queues.consumers]]
- queue = "orange-meets-feedback-queue"
- # Required: this should match the name of the queue you created in step 3.
- # If you misspell the name, you will receive an error when attempting to publish your Worker.
- max_batch_size = 10 # optional: defaults to 10
- max_batch_timeout = 5 # optional: defaults to 5 seconds
-
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "orange-meets-db-production"
 database_id = "a63ffd86-4a64-4e22-8337-f23c45a565f9"
 
-# Indicate that you want the ChatRoom and RateLimiter classes to be callable as Durable Objects.
+# Durable Object migrations
 [[migrations]]
 tag = "v1" # Should be unique for each entry
-new_classes = ["ChatRoom", "RateLimiter"]
+new_classes = ["ChatRoom"]
+
+# Remove the deprecated RateLimiter class
+[[migrations]]
+tag = "v2"
+deleted_classes = ["RateLimiter"]
 
 [observability]
 enabled = true

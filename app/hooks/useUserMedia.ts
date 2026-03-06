@@ -291,6 +291,15 @@ export default function useUserMedia(options: {
 	cameraDeviceId?: string
 }) {
 	useEffect(() => {
+		return () => {
+			// Ensure hardware is released when leaving the room
+			mic.stopBroadcasting()
+			camera.stopBroadcasting()
+			screenshare.stopBroadcasting()
+		}
+	}, [])
+
+	useEffect(() => {
 		if (typeof window === 'undefined' || !navigator.mediaDevices) return
 		mic.enumerateDevices().catch((err) =>
 			console.error('Failed to enumerate mic devices:', err)
