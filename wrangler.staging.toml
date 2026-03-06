@@ -1,7 +1,7 @@
 name = "orange-meets-staging"
 
 account_id = "7829299e6cefc232ded8635f50b53462"
-main = "./build/index.js"
+main = "build/index.mjs"
 # https://developers.cloudflare.com/workers/platform/compatibility-dates
 compatibility_date = "2024-10-07"
 compatibility_flags = ["nodejs_compat"]
