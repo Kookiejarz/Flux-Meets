@@ -16,6 +16,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: 'npm'
+
+      - name: Cache Remix build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache
+            node_modules/.cache
+          key: ${{ runner.os }}-remix-build-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-remix-build-${{ hashFiles('package-lock.json') }}-
+            ${{ runner.os }}-remix-build-
 
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
