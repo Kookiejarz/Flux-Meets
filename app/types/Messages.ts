@@ -45,6 +45,11 @@ export type ServerMessage =
 			message: string
 	  }
 	| {
+			type: 'roomMessage'
+			from: string
+			message: string
+	  }
+	| {
 			type: 'muteMic'
 	  }
 	| {
@@ -78,6 +83,10 @@ export type ClientMessage =
 	| {
 			type: 'directMessage'
 			to: string
+			message: string
+	  }
+	| {
+			type: 'roomMessage'
 			message: string
 	  }
 	| {

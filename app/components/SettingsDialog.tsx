@@ -1,5 +1,6 @@
 import type { FC, ReactNode } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
+import { cn } from '~/utils/style'
 import { AudioInputSelector } from './AudioInputSelector'
 import { Button } from './Button'
 import {
@@ -15,7 +16,6 @@ import { Label } from './Label'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
 import { VideoInputSelector } from './VideoInputSelector'
-import { cn } from '~/utils/style'
 
 interface SettingsDialogProps {
 	onOpenChange?: (open: boolean) => void
@@ -80,8 +80,14 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 						</Label>
 						<div className="flex flex-wrap gap-2">
 							{[
-								{ label: 'Low', val: Math.max(100000, Math.floor(maxWebcamBitrate * 0.3)) },
-								{ label: 'Mid', val: Math.max(500000, Math.floor(maxWebcamBitrate * 0.6)) },
+								{
+									label: 'Low',
+									val: Math.max(100000, Math.floor(maxWebcamBitrate * 0.3)),
+								},
+								{
+									label: 'Mid',
+									val: Math.max(500000, Math.floor(maxWebcamBitrate * 0.6)),
+								},
 								{ label: 'Max', val: maxWebcamBitrate },
 							].map((tier) => (
 								<button

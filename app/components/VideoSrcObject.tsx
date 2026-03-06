@@ -25,7 +25,7 @@ export const VideoSrcObject = forwardRef<HTMLVideoElement, VideoSrcObjectProps>(
 			const mediaStream = new MediaStream([videoTrack])
 			video.srcObject = mediaStream
 
-			// Explicitly call play. In many browsers, autoplay attribute 
+			// Explicitly call play. In many browsers, autoplay attribute
 			// is not enough when the element is moved in the DOM.
 			video.play().catch((err) => {
 				// We can ignore AbortError as it's common during rapid re-renders

@@ -3,7 +3,6 @@ import { useObservable, useObservableAsValue } from 'partytracks/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useLocalStorage } from 'react-use'
 import blurVideoTrack from '~/utils/blurVideoTrack'
-import { mode } from '~/utils/mode'
 import noiseSuppression from '~/utils/noiseSuppression'
 
 export const errorMessageMap = {
@@ -127,7 +126,7 @@ export default function useUserMedia(options: {
 
 	useEffect(() => {
 		// Auto-start if possible. This handles cases where permission was already granted.
-		// On mobile, this might fail if a user gesture is required, but we also have 
+		// On mobile, this might fail if a user gesture is required, but we also have
 		// the "Allow access" button in EnsurePermissions which provides that gesture.
 		mic.startBroadcasting()
 		camera.startBroadcasting()

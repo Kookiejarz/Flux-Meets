@@ -13,14 +13,14 @@ export const Disclaimer: FC<DisclaimerProps> = ({ className }) => {
 				className
 			)}
 		>
-			🎬 Flux Meet is an application built using{' '}
-			<a className="underline" href="https://developers.cloudflare.com/calls/">
-				Cloudflare Calls
+			🎬 Flux Meet is an application powered by{' '}
+			<a className="underline" href="https://liuu.org/">
+				Yunheng Liu & Cloudflare Infrastructure
 			</a>
 			<br />
 			<span className="block text-center">
-				<a className="underline" href="https://liuu.org/">
-					Powered by Kenneth Liu and Cloudflare Infrastructure
+				<a className="underline" href="https://github.com/cloudflare/orange">
+					Special thanks to Cloudflare/Orange!
 				</a>
 			</span>
 		</p>

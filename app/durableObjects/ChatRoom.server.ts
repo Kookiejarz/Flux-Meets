@@ -170,12 +170,10 @@ export class ChatRoom extends Server<Env> {
 		await this.ctx.storage.put('meetingId', meetingId)
 		log({ eventName: 'startingMeeting', meetingId })
 		if (this.db) {
-			await this.db
-				.insert(Meetings)
-				.values({
-					id: meetingId,
-					peakUserCount: 1,
-				})
+			await this.db.insert(Meetings).values({
+				id: meetingId,
+				peakUserCount: 1,
+			})
 		}
 		return meetingId
 	}
@@ -327,14 +325,12 @@ export class ChatRoom extends Server<Env> {
 					break
 				}
 				case 'caption': {
-					this.broadcastMessage(
-						{
-							type: 'caption',
-							userId: connection.id,
-							text: data.text,
-							isFinal: data.isFinal,
-						}
-					)
+					this.broadcastMessage({
+						type: 'caption',
+						userId: connection.id,
+						text: data.text,
+						isFinal: data.isFinal,
+					})
 					break
 				}
 				case 'callsApiHistoryEntry': {
@@ -367,6 +363,23 @@ export class ChatRoom extends Server<Env> {
 					console.warn(
 						`User with id "${to}" not found, cannot send DM from "${fromUser!.name}"`
 					)
+					break
+				}
+				case 'roomMessage': {
+					const { message } = data
+					const fromUser = await this.ctx.storage.get<User>(
+						`session-${connection.id}`
+					)
+
+					for (const otherConnection of this.getConnections<User>()) {
+						if (otherConnection.id !== connection.id) {
+							this.sendMessage(otherConnection, {
+								type: 'roomMessage',
+								from: fromUser!.name,
+								message,
+							})
+						}
+					}
 					break
 				}
 				case 'muteUser': {

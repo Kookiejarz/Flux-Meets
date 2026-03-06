@@ -6,42 +6,44 @@ import { cn } from '~/utils/style'
 const displayTypeMap = {
 	primary: [
 		'text-white',
-		'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 active:bg-orange-800',
-		'border-orange-500 hover:border-orange-600 active:border-orange-700 active:border-orange-800',
+		'bg-orange-500 hover:bg-orange-600 active:bg-orange-700',
 	],
 	secondary: [
 		'text-zinc-900 dark:text-zinc-100',
-		'bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 active:bg-zinc-400 dark:active:bg-zinc-700',
-		'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600',
+		'bg-zinc-200/80 hover:bg-zinc-300/80 dark:bg-zinc-700/80 dark:hover:bg-zinc-600/80 active:bg-zinc-400/80 dark:active:bg-zinc-500/80',
+		'backdrop-blur-md',
 	],
 	ghost: [
-		'text-white hover:text-zinc-900',
-		'bg-transparent hover:bg-white',
-		'border-transparent hover:border-white',
+		'text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white',
+		'bg-transparent hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50',
 	],
-	danger: [
-		'text-white',
-		'bg-red-600 hover:bg-red-700 active:bg-red-800',
-		'border-red-600 hover:border-red-700 active:border-red-800',
-	],
+	danger: ['text-white', 'bg-red-500 hover:bg-red-600 active:bg-red-700'],
 }
 
 export type ButtonProps = Omit<React.JSX.IntrinsicElements['button'], 'ref'> & {
 	displayType?: keyof typeof displayTypeMap
 }
 
+const baseStyles = [
+	'inline-flex',
+	'items-center',
+	'justify-center',
+	'gap-2',
+	'rounded-full',
+	'font-medium',
+	'transition-all',
+	'duration-200',
+	'px-4',
+	'py-3',
+]
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 	({ className, displayType = 'primary', disabled, onClick, ...rest }, ref) => (
 		<button
 			className={cn(
-				'border-4',
-				'rounded',
-				'uppercase',
-				'font-bold',
-				'tracking-widest',
-				'py-[.5em] px-[1em]',
+				baseStyles,
 				disabled && 'cursor-not-allowed opacity-60',
-				displayTypeMap[displayType as keyof typeof displayTypeMap].join(' '),
+				displayTypeMap[displayType as keyof typeof displayTypeMap],
 				className
 			)}
 			aria-disabled={disabled}
@@ -63,14 +65,8 @@ export const ButtonLink = forwardRef<
 	// eslint-disable-next-line jsx-a11y/anchor-has-content
 	<Link
 		className={cn(
-			'inline-block',
-			'border-4',
-			'rounded',
-			'uppercase',
-			'font-bold',
-			'tracking-widest',
-			'py-[.5em] px-[1em]',
-			displayTypeMap[displayType as keyof typeof displayTypeMap].join(' '),
+			baseStyles,
+			displayTypeMap[displayType as keyof typeof displayTypeMap],
 			className
 		)}
 		{...rest}

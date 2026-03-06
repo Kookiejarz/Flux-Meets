@@ -7,7 +7,6 @@ import {
 	useNavigate,
 	useSearchParams,
 } from '@remix-run/react'
-import { nanoid } from 'nanoid'
 import React, { useEffect, useState } from 'react'
 import invariant from 'tiny-invariant'
 import { Button } from '~/components/Button'
@@ -20,7 +19,8 @@ import getUsername from '~/utils/getUsername.server'
 import { cn } from '~/utils/style'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
-	const directoryUrl = context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
+	const directoryUrl =
+		context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
 	const username = await getUsername(request)
 	invariant(username)
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
@@ -71,7 +71,10 @@ export const action: ActionFunction = async ({ request, context }) => {
 				},
 			})
 			if (response.status === 404) {
-				return json({ error: 'Room not found or has expired.' }, { status: 404 })
+				return json(
+					{ error: 'Room not found or has expired.' },
+					{ status: 404 }
+				)
 			}
 			if (!response.ok) {
 				console.error('Failed to check room existence:', response.status)
@@ -100,9 +103,7 @@ export default function Index() {
 		const error = searchParams.get('error') || actionData?.error
 		if (error) {
 			const message =
-				error === 'room-not-found'
-					? 'Room not found or has expired.'
-					: error
+				error === 'room-not-found' ? 'Room not found or has expired.' : error
 			dispatchToast(message, { id: 'room-error' })
 		}
 	}, [searchParams, actionData, dispatchToast])
@@ -118,7 +119,6 @@ export default function Index() {
 						🎬 Flux Meet
 					</h1>
 					<div className="flex flex-col items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity duration-700">
-
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
 							Welcome back,{' '}
 							<span className="text-orange-500">{data?.displayName}</span>
@@ -165,7 +165,9 @@ export default function Index() {
 						</Button>
 					</Form>
 					<p className="mt-4 text-center text-[10px] uppercase tracking-[0.3em] text-zinc-400 font-bold h-4">
-						{isCreatingNew ? 'A random ID will be generated' : `Ready to join "${roomNameInput}"`}
+						{isCreatingNew
+							? '© Yunheng Liu | 2026'
+							: `Ready to join "${roomNameInput}"`}
 					</p>
 				</div>
 			</div>

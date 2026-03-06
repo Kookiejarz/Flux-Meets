@@ -26,7 +26,8 @@ export function useSpeechToText({
 
 	useEffect(() => {
 		const SpeechRecognition =
-			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+			(window as any).SpeechRecognition ||
+			(window as any).webkitSpeechRecognition
 
 		if (!SpeechRecognition) {
 			console.warn('Speech Recognition API is not supported in this browser.')

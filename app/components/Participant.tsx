@@ -1,6 +1,6 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { useObservableAsValue } from 'partytracks/react'
-import React, { forwardRef, useMemo, useRef } from 'react'
+import React, { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { Flipped } from 'react-flip-toolkit'
 import { combineLatest, fromEvent, map, of, switchMap } from 'rxjs'
 import { useDeadPulledTrackMonitor } from '~/hooks/useDeadPulledTrackMonitor'
@@ -18,7 +18,7 @@ import { cn } from '~/utils/style'
 import { usePulledVideoTrack } from '../hooks/usePulledVideoTrack'
 import { AudioGlow } from './AudioGlow'
 import { AudioIndicator } from './AudioIndicator'
-import { Button } from './Button'
+import { CaptionDisplay } from './CaptionDisplay'
 import {
 	ConnectionIndicator,
 	getConnectionQuality,
@@ -31,8 +31,6 @@ import { usePulledAudioTrack } from './PullAudioTracks'
 import { Spinner } from './Spinner'
 import { Tooltip } from './Tooltip'
 import { VideoSrcObject } from './VideoSrcObject'
-import { CaptionDisplay } from './CaptionDisplay'
-import { useEffect, useState } from 'react'
 
 function useMid(track?: MediaStreamTrack) {
 	const { partyTracks } = useRoomContext()
@@ -138,9 +136,10 @@ export const Participant = forwardRef<
 	const audioMid = useMid(audioTrack)
 	const videoMid = useMid(videoTrack)
 
-	const [caption, setCaption] = useState<{ text: string; isFinal: boolean } | null>(
-		null
-	)
+	const [caption, setCaption] = useState<{
+		text: string
+		isFinal: boolean
+	} | null>(null)
 
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
@@ -177,10 +176,16 @@ export const Participant = forwardRef<
 				<div
 					className={cn(
 						'h-full mx-auto overflow-hidden text-white opacity-0 animate-fadeIn',
-						'relative max-w-[--participant-max-width] rounded-xl'
+						'relative max-w-[--participant-max-width] rounded-xl bg-zinc-800/50 ring-1 ring-white/10'
 					)}
 				>
-					{caption && <CaptionDisplay text={caption.text} isFinal={caption.isFinal} />}
+					{caption && (
+						<CaptionDisplay
+							text={caption.text}
+							isFinal={caption.isFinal}
+							userId={user.id}
+						/>
+					)}
 					{!isScreenShare && !user.tracks.videoEnabled && (
 						<div
 							className={cn(
@@ -202,7 +207,7 @@ export const Participant = forwardRef<
 										/>
 									</div>
 								) : (
-									<span className="relative grid w-full h-full uppercase rounded-full place-items-center bg-zinc-500">
+									<span className="relative grid w-full h-full uppercase rounded-full place-items-center bg-zinc-700 shadow-inner">
 										{isSpeaking && (
 											<AudioGlow
 												type="text"
@@ -250,23 +255,23 @@ export const Participant = forwardRef<
 						</div>
 					</HoverFade>
 					{audioTrack && !isScreenShare && (
-						<div className="absolute left-4 top-4">
+						<div className="absolute left-3 top-3 bg-black/40 backdrop-blur-md p-1.5 rounded-md">
 							{user.tracks.audioEnabled &&
 								user.tracks.videoEnabled &&
 								isSpeaking && <AudioIndicator audioTrack={audioTrack} />}
 
 							{!user.tracks.audioEnabled && !user.tracks.audioUnavailable && (
 								<Tooltip content="Mic is turned off">
-									<div className="indication-shadow">
-										<Icon type="micOff" />
+									<div>
+										<Icon type="micOff" className="w-4 h-4 text-white" />
 										<VisuallyHidden>Mic is muted</VisuallyHidden>
 									</div>
 								</Tooltip>
 							)}
 							{user.tracks.audioUnavailable && (
 								<Tooltip content="Mic is unavailable. User cannot unmute.">
-									<div className="indication-shadow">
-										<Icon type="micOff" className="text-red-400" />
+									<div>
+										<Icon type="micOff" className="w-4 h-4 text-red-400" />
 										<VisuallyHidden>Mic is muted</VisuallyHidden>
 									</div>
 								</Tooltip>
@@ -274,17 +279,17 @@ export const Participant = forwardRef<
 						</div>
 					)}
 					{data?.displayName && user.transceiverSessionId && (
-						<div className="flex items-center gap-2 absolute m-2 text-shadow left-1 bottom-1">
+						<div className="flex items-center gap-2 absolute m-3 left-0 bottom-0 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium">
 							<ConnectionIndicator quality={getConnectionQuality(packetLoss)} />
 							<OptionalLink
-								className="leading-none text-sm"
+								className="leading-none text-white/90"
 								href={populateTraceLink(user.transceiverSessionId, traceLink)}
 								target="_blank"
 								rel="noopener noreferrer"
 							>
 								{data.displayName}
 								{showDebugInfo && peerConnection && (
-									<span className="opacity-50">
+									<span className="opacity-50 font-normal">
 										{' '}
 										{[
 											audioMid && `audio mid: ${audioMid}`,
@@ -301,14 +306,14 @@ export const Participant = forwardRef<
 							</OptionalLink>
 						</div>
 					)}
-					<div className="absolute top-0 right-0 flex gap-4 p-4">
+					<div className="absolute top-0 right-0 flex gap-4 p-3">
 						{user.raisedHand && !isScreenShare && (
 							<Tooltip content="Hand is raised">
-								<div className="relative">
+								<div className="relative bg-orange-500/20 backdrop-blur-md p-1.5 rounded-md text-orange-400">
 									<div className="relative">
-										<Icon className="indication-shadow" type="handRaised" />
+										<Icon className="w-5 h-5" type="handRaised" />
 										<Icon
-											className="absolute top-0 left-0 text-orange-300 animate-ping"
+											className="absolute top-0 left-0 w-5 h-5 animate-ping"
 											type="handRaised"
 										/>
 										<VisuallyHidden>Hand is raised</VisuallyHidden>
@@ -320,7 +325,7 @@ export const Participant = forwardRef<
 					{(isSpeaking || user.raisedHand) && !isScreenShare && (
 						<div
 							className={cn(
-								'pointer-events-none absolute inset-0 h-full w-full border-4 border-orange-400',
+								'pointer-events-none absolute inset-0 h-full w-full ring-4 ring-inset ring-orange-500',
 								!pinned && 'rounded-xl'
 							)}
 						></div>

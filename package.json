@@ -29,6 +29,9 @@
 		"db:studio:production": "source .drizzle.env && DB_ID='125a3008-0a8a-4ada-a829-7d2eb2ef15bc' drizzle-kit studio"
 	},
 	"dependencies": {
+		"@dnd-kit/core": "^6.3.1",
+		"@dnd-kit/modifiers": "^9.0.0",
+		"@dnd-kit/utilities": "^3.2.2",
 		"@heroicons/react": "^2.1.5",
 		"@mediapipe/selfie_segmentation": "^0.1.1675465747",
 		"@radix-ui/react-alert-dialog": "^1.1.1",
@@ -49,7 +52,6 @@
 		"@tensorflow/tfjs-backend-webgl": "^4.22.0",
 		"@tensorflow/tfjs-converter": "^4.22.0",
 		"@tensorflow/tfjs-core": "^4.22.0",
-
 		"clsx": "^2.1.1",
 		"cookie": "^0.6.0",
 		"drizzle-orm": "0.45.1",

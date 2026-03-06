@@ -43,8 +43,11 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	}
 
 	const defaultResponse = json({
-		userDirectoryUrl: context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL,
-		backgroundImageUrl: context.env?.BACKGROUND_IMAGE_URL ?? (context as any).BACKGROUND_IMAGE_URL,
+		userDirectoryUrl:
+			context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL,
+		backgroundImageUrl:
+			context.env?.BACKGROUND_IMAGE_URL ??
+			(context as any).BACKGROUND_IMAGE_URL,
 	})
 
 	// we only care about verifying token freshness if request was a user
@@ -78,7 +81,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 
 export const meta: MetaFunction = () => [
 	{
-		title: 'Orange Meets',
+		title: '🎬 Flux Meet',
 	},
 ]
 
@@ -214,7 +217,8 @@ export const ErrorBoundary = () => {
 const queryClient = new QueryClient()
 
 export default function App() {
-	const { userDirectoryUrl, backgroundImageUrl } = useLoaderData<typeof loader>()
+	const { userDirectoryUrl, backgroundImageUrl } =
+		useLoaderData<typeof loader>()
 	return (
 		<Toast.Provider>
 			<Document backgroundImageUrl={backgroundImageUrl}>

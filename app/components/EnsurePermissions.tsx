@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { mic, camera } from '~/hooks/useUserMedia'
+import { camera, mic } from '~/hooks/useUserMedia'
 import { Button } from './Button'
 
 export interface EnsurePermissionsProps {
@@ -42,7 +42,9 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		return (
 			<div className="grid items-center h-full">
 				<div className="mx-auto space-y-2 max-w-80 text-center">
-					<h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Permission denied</h1>
+					<h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+						Permission denied
+					</h1>
 					<p className="text-zinc-600 dark:text-zinc-400">
 						You will need to go into your browser settings and manually
 						re-enable permission for your camera and microphone.
@@ -52,11 +54,16 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		)
 	}
 
-	if (permissionState === 'prompt' || permissionState === 'unable-to-determine') {
+	if (
+		permissionState === 'prompt' ||
+		permissionState === 'unable-to-determine'
+	) {
 		return (
 			<div className="grid items-center h-full">
 				<div className="mx-auto max-w-80 text-center">
-					<h1 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">Media Access</h1>
+					<h1 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+						Media Access
+					</h1>
 					<p className="mb-8 text-zinc-600 dark:text-zinc-400">
 						In order to use Orange Meets, you will need to grant permission to
 						your camera and microphone.
@@ -75,7 +82,9 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 								})
 								.then((ms) => {
 									// Explicitly fire devicechange so the rest of the app updates
-									navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
+									navigator.mediaDevices.dispatchEvent(
+										new Event('devicechange')
+									)
 
 									navigator.mediaDevices.enumerateDevices().then((devices) => {
 										// iOS Safari track.getSettings().deviceId can be undefined, so fallback to the first device of that kind

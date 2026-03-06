@@ -2,8 +2,7 @@ import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
 import { json, redirect } from '@remix-run/cloudflare'
 import { Outlet, useLoaderData, useParams } from '@remix-run/react'
 import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
-import { type Dispatch, type SetStateAction } from 'react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { of } from 'rxjs'
 import invariant from 'tiny-invariant'
 import { EnsureOnline } from '~/components/EnsureOnline'
@@ -222,7 +221,12 @@ function Room({ room, userMedia }: RoomProps) {
 		// Use user-selected quality, capped by server max
 		const effectiveQuality = Math.min(webcamQuality, maxWebcamQualityLevel)
 		return Math.max(smallestDimension / effectiveQuality, 1)
-	}, [maxWebcamQualityLevel, userMedia.videoStreamTrack, dataSaverMode, webcamQuality])
+	}, [
+		maxWebcamQualityLevel,
+		userMedia.videoStreamTrack,
+		dataSaverMode,
+		webcamQuality,
+	])
 
 	const sendEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
 		simulcastEnabled

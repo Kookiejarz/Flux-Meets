@@ -6,6 +6,7 @@ import {
 	BugAntIcon,
 	ChatBubbleBottomCenterTextIcon,
 	ChatBubbleLeftEllipsisIcon,
+	ChatBubbleLeftRightIcon,
 	CheckIcon,
 	ChevronDownIcon,
 	ChevronUpIcon,
@@ -19,6 +20,7 @@ import {
 	LockClosedIcon,
 	MicrophoneIcon,
 	MinusIcon,
+	PaperAirplaneIcon,
 	PencilSquareIcon,
 	PhoneIcon,
 	PhoneXMarkIcon,
@@ -31,6 +33,7 @@ import {
 	VideoCameraSlashIcon,
 	WifiIcon,
 	XCircleIcon,
+	XMarkIcon,
 } from '@heroicons/react/20/solid'
 import type { FC } from 'react'
 import { cn } from '~/utils/style'
@@ -46,6 +49,9 @@ const iconMap = {
 	arrowsIn: ArrowsPointingInIcon,
 	cog: Cog6ToothIcon,
 	xCircle: XCircleIcon,
+	xMark: XMarkIcon,
+	paperAirplane: PaperAirplaneIcon,
+	chatBubbleLeftRight: ChatBubbleLeftRightIcon,
 	bug: BugAntIcon,
 	chatBubbleBottomCenterText: ChatBubbleBottomCenterTextIcon,
 	chatBubbleLeftEllipsis: ChatBubbleLeftEllipsisIcon,

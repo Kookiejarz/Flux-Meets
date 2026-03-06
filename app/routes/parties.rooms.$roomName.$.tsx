@@ -3,7 +3,11 @@ import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import getUsername from '~/utils/getUsername.server'
 
 // handles get requests
-export const loader = async ({ request, context, params }: LoaderFunctionArgs) => {
+export const loader = async ({
+	request,
+	context,
+	params,
+}: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
 	if (username === null)
 		throw new Response(null, {

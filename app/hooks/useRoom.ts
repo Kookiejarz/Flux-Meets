@@ -38,6 +38,7 @@ export default function useRoom({
 					console.error(message.error)
 					break
 				case 'directMessage':
+				case 'roomMessage':
 					break
 				case 'muteMic':
 					userMedia.turnMicOff()

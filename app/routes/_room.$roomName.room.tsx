@@ -9,11 +9,13 @@ import {
 import { useEffect, useState } from 'react'
 import { useMount, useWindowSize } from 'react-use'
 import { AiButton } from '~/components/AiButton'
-import { ButtonLink } from '~/components/Button'
+import { Button, ButtonLink } from '~/components/Button'
 import { CameraButton } from '~/components/CameraButton'
+import { ChatPanel } from '~/components/ChatPanel'
 import { CopyButton } from '~/components/CopyButton'
 import { HighPacketLossWarningsToast } from '~/components/HighPacketLossWarningsToast'
 import { IceDisconnectedToast } from '~/components/IceDisconnectedToast'
+import { Icon } from '~/components/Icon/Icon'
 import { LeaveRoomButton } from '~/components/LeaveRoomButton'
 import { MicButton } from '~/components/MicButton'
 import { OverflowMenu } from '~/components/OverflowMenu'
@@ -25,8 +27,6 @@ import { SafetyNumberToast } from '~/components/SafetyNumberToast'
 import { ScreenshareButton } from '~/components/ScreenshareButton'
 import Toast, { useDispatchToast } from '~/components/Toast'
 import { Tooltip } from '~/components/Tooltip'
-import { Icon } from '~/components/Icon/Icon'
-import { Button } from '~/components/Button'
 import useBroadcastStatus from '~/hooks/useBroadcastStatus'
 import useIsSpeaking from '~/hooks/useIsSpeaking'
 import { useRoomContext } from '~/hooks/useRoomContext'
@@ -37,7 +37,6 @@ import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import isNonNullable from '~/utils/isNonNullable'
-import { cn } from '~/utils/style'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
@@ -114,6 +113,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 
 	const [raisedHand, setRaisedHand] = useState(false)
 	const speaking = useIsSpeaking(userMedia.audioStreamTrack)
+	const [chatOpen, setChatOpen] = useState(false)
 
 	useMount(() => {
 		if (otherUsers.length > 5) {
@@ -174,86 +174,104 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		<PullAudioTracks
 			audioTracks={otherUsers.map((u) => u.tracks.audio).filter(isNonNullable)}
 		>
-			<div className="flex flex-col h-full bg-white dark:bg-zinc-800">
-				<div className="relative flex-grow bg-black isolate">
-					<div
-						style={{ '--gap': gridGap + 'px' } as any}
-						className="absolute inset-0 flex isolate p-[--gap] gap-[--gap]"
-					>
-						{pinnedActors.length > 0 && (
-							<div className="flex-grow-[5] overflow-hidden relative">
+			<div className="flex h-full bg-zinc-950 text-zinc-100 overflow-hidden">
+				<div className="flex flex-col flex-1 min-w-0">
+					<div className="relative flex-grow bg-zinc-900 isolate sm:m-4 sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-white/10 overflow-hidden">
+						<div
+							style={{ '--gap': gridGap + 'px' } as any}
+							className="absolute inset-0 flex isolate p-[--gap] gap-[--gap]"
+						>
+							{pinnedActors.length > 0 && (
+								<div className="flex-grow-[5] overflow-hidden relative">
+									<ParticipantLayout
+										users={pinnedActors.filter(isNonNullable)}
+										gap={gridGap}
+										aspectRatio="16:9"
+									/>
+								</div>
+							)}
+							<div className="flex-grow overflow-hidden relative">
 								<ParticipantLayout
-									users={pinnedActors.filter(isNonNullable)}
+									users={unpinnedActors.filter(isNonNullable)}
 									gap={gridGap}
-									aspectRatio="16:9"
+									aspectRatio="4:3"
 								/>
 							</div>
-						)}
-						<div className="flex-grow overflow-hidden relative">
-							<ParticipantLayout
-								users={unpinnedActors.filter(isNonNullable)}
-								gap={gridGap}
-								aspectRatio="4:3"
-							/>
 						</div>
+						<Toast.Viewport className="absolute bottom-4 right-4" />
 					</div>
-					<Toast.Viewport className="absolute bottom-0 right-0" />
-				</div>
-				<div className="flex flex-wrap items-center justify-center gap-2 p-2 text-sm md:gap-4 md:p-5 md:text-base">
-					{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
-					<MicButton warnWhenSpeakingWhileMuted />
-					<CameraButton />
-					<Tooltip
-						content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
-					>
-						<Button
-							onClick={() => {
-								console.log('CC Toggle clicked, current state:', captionsEnabled)
-								setCaptionsEnabled(!captionsEnabled)
-							}}
-							displayType={captionsEnabled ? 'primary' : 'secondary'}
+					<div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-4 pt-2 md:gap-4 md:px-8 md:pb-6 md:pt-2">
+						{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
+						<MicButton warnWhenSpeakingWhileMuted />
+						<CameraButton />
+						<Tooltip
+							content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
 						>
-							<Icon type="chatBubbleBottomCenterText" />
-						</Button>
-					</Tooltip>
-					<ScreenshareButton />
-					<RaiseHandButton
-						raisedHand={raisedHand}
-						onClick={() => setRaisedHand(!raisedHand)}
-					/>
-					<ParticipantsButton
-						identity={identity}
-						otherUsers={otherUsers}
-						className="hidden md:block"
-					></ParticipantsButton>
-					<OverflowMenu bugReportsEnabled={bugReportsEnabled} />
-					<LeaveRoomButton
-						navigateToFeedbackPage={hasDb}
-						meetingId={meetingId}
-					/>
-					{showDebugInfo && meetingId && (
-						<CopyButton contentValue={meetingId}>Meeting Id</CopyButton>
-					)}
-					{showDebugInfo && meetingId && dashboardDebugLogsBaseUrl && (
-						<ButtonLink
-							className="text-xs"
-							displayType="secondary"
-							to={dashboardLogsLink(dashboardDebugLogsBaseUrl, [
-								{
-									id: '2',
-									key: 'meetingId',
-									type: 'string',
-									value: meetingId,
-									operation: 'eq',
-								},
-							])}
-							target="_blank"
-							rel="noreferrer"
-						>
-							Meeting Logs
-						</ButtonLink>
-					)}
+							<Button
+								onClick={() => {
+									console.log(
+										'CC Toggle clicked, current state:',
+										captionsEnabled
+									)
+									setCaptionsEnabled(!captionsEnabled)
+								}}
+								displayType={captionsEnabled ? 'primary' : 'secondary'}
+							>
+								<Icon type="chatBubbleBottomCenterText" />
+							</Button>
+						</Tooltip>
+						<ScreenshareButton />
+						<RaiseHandButton
+							raisedHand={raisedHand}
+							onClick={() => setRaisedHand(!raisedHand)}
+						/>
+						<ParticipantsButton
+							identity={identity}
+							otherUsers={otherUsers}
+							className="hidden md:block"
+						></ParticipantsButton>
+						<Tooltip content={chatOpen ? 'Close Chat' : 'Open Chat'}>
+							<Button
+								onClick={() => setChatOpen(!chatOpen)}
+								displayType={chatOpen ? 'primary' : 'secondary'}
+							>
+								<Icon type="chatBubbleLeftRight" />
+							</Button>
+						</Tooltip>
+						<OverflowMenu bugReportsEnabled={bugReportsEnabled} />
+						<LeaveRoomButton
+							navigateToFeedbackPage={hasDb}
+							meetingId={meetingId}
+						/>
+						{showDebugInfo && meetingId && (
+							<CopyButton contentValue={meetingId}>Meeting Id</CopyButton>
+						)}
+						{showDebugInfo && meetingId && dashboardDebugLogsBaseUrl && (
+							<ButtonLink
+								className="text-xs"
+								displayType="secondary"
+								to={dashboardLogsLink(dashboardDebugLogsBaseUrl, [
+									{
+										id: '2',
+										key: 'meetingId',
+										type: 'string',
+										value: meetingId,
+										operation: 'eq',
+									},
+								])}
+								target="_blank"
+								rel="noreferrer"
+							>
+								Meeting Logs
+							</ButtonLink>
+						)}
+					</div>
 				</div>
+				{chatOpen && (
+					<div className="w-80 border-l border-white/10 flex-shrink-0 relative z-20 shadow-2xl transition-all h-full bg-zinc-900">
+						<ChatPanel onClose={() => setChatOpen(false)} />
+					</div>
+				)}
 			</div>
 			<HighPacketLossWarningsToast />
 			<IceDisconnectedToast />
