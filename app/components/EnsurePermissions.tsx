@@ -246,30 +246,40 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 					<Button
 						className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-50"
 						onClick={() => {
-							console.log('Allow access clicked')
+							console.log('Allow access clicked - forcing native prompt')
 
-							// 防御性检查
 							if (typeof window === 'undefined' || !navigator.mediaDevices) {
-								console.error(
-									'当前浏览器环境不支持访问媒体设备，请确保使用 HTTPS'
-								)
+								alert('您的浏览器不支持访问媒体设备，请确保使用 HTTPS 访问。')
 								if (mountedRef.current) setPermissionState('denied')
 								return
 							}
 
-							// 1. 立即设置状态，显示“正在启动”界面
+							// 1. 立即显示“启动中”UI
 							if (mountedRef.current) {
 								setPermissionState('granted')
 								setJustGranted(true)
 							}
 
-							// 2. 同步调用启动逻辑，不使用 await，确保在当前点击手势内触发 getUserMedia
-							console.log('Directly starting devices in onClick...')
-							mic.startBroadcasting()
-							camera.startBroadcasting()
-
-							// 3. 作为后备，如果 1 秒后还是没动静，尝试再次通过预授权方式启动（针对极少数特殊浏览器）
-							// 但我们不再主动停止流，除非确定它成功了
+							// 2. 核心修复：直接在点击事件的第一行调用原生 getUserMedia
+							// 这是唤起 iOS Safari 权限弹窗最稳健的方法
+							navigator.mediaDevices
+								.getUserMedia({ audio: true, video: { facingMode: 'user' } })
+								.then((stream) => {
+									console.log('Native prompt success, starting broadcasting...')
+									// 立即停止这个临时流，释放硬件
+									stream.getTracks().forEach((t) => t.stop())
+									
+									// 紧接着让库接管
+									mic.startBroadcasting()
+									camera.startBroadcasting()
+								})
+								.catch((err) => {
+									console.error('Native permission request failed:', err)
+									if (mountedRef.current) {
+										setPermissionState('denied')
+										setJustGranted(false)
+									}
+								})
 						}}
 					>
 						Allow access
