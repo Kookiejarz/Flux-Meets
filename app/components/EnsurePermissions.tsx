@@ -104,16 +104,21 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 								// We call getUserMedia directly to trigger the prompt.
 								navigator.mediaDevices
 									.getUserMedia({ audio: true, video: true })
-									.then((stream) => {
+									.then(async (stream) => {
 										console.log('getUserMedia success')
-										// Tell internal objects to start
+										// IMPORTANT: Stop the temporary tracks FIRST to release
+										// the hardware before partytracks tries to acquire it.
+										// On iOS Safari, holding the device while calling
+										// getUserMedia again causes a NotReadableError.
+										stream.getTracks().forEach((t) => t.stop())
+
+										// Give iOS Safari time to fully release the camera/mic hardware
+										await new Promise((resolve) => setTimeout(resolve, 500))
+
+										// Now start broadcasting — devices should be free
 										mic.startBroadcasting()
 										camera.startBroadcasting()
 
-										// On success, we can stop these temp tracks. 
-										// Safari should keep the permission for the session now.
-										stream.getTracks().forEach((t) => t.stop())
-										
 										if (mountedRef.current) setPermissionState('granted')
 									})
 									.catch((err) => {

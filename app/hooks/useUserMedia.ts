@@ -133,8 +133,13 @@ export default function useUserMedia(options: {
 
 	useEffect(() => {
 		// Auto-start if possible. This handles cases where permission was already granted.
-		mic.startBroadcasting()
-		camera.startBroadcasting()
+		// Use a short delay to avoid racing with EnsurePermissions on iOS Safari,
+		// where the hardware may not yet be released from the temp getUserMedia stream.
+		const timeout = setTimeout(() => {
+			mic.startBroadcasting()
+			camera.startBroadcasting()
+		}, 100)
+		return () => clearTimeout(timeout)
 	}, [])
 
 	useObservable(mic.error$, (e) => {
