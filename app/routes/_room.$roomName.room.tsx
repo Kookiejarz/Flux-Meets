@@ -113,7 +113,10 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	const [chatOpen, setChatOpen] = useState(false)
 
 	const [raisedHand, setRaisedHand] = useState(false)
-	const speaking = useIsSpeaking(userMedia.audioStreamTrack)
+	// Only monitor speaking when mic is enabled, otherwise always false
+	const speaking = useIsSpeaking(
+		userMedia.audioEnabled ? userMedia.audioStreamTrack : undefined
+	)
 
 	// 初始化端到端加密（仅在组件挂载时执行一次）
 	useMount(() => {

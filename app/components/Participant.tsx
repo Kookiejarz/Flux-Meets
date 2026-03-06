@@ -261,9 +261,10 @@ export const Participant = forwardRef<
 							)}
 						</div>
 					</HoverFade>
-					{audioTrack && !isScreenShare && (
+					{!isScreenShare && (
 						<div className="absolute left-3 top-3 bg-black/40 backdrop-blur-md p-1.5 rounded-md">
-							{user.tracks.audioEnabled &&
+							{audioTrack &&
+								user.tracks.audioEnabled &&
 								user.tracks.videoEnabled &&
 								isSpeaking && <AudioIndicator audioTrack={audioTrack} />}
 
