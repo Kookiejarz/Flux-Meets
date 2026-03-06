@@ -1,6 +1,6 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { useObservableAsValue } from 'partytracks/react'
-import { forwardRef, useMemo, useRef } from 'react'
+import React, { forwardRef, useMemo, useRef } from 'react'
 import { Flipped } from 'react-flip-toolkit'
 import { combineLatest, fromEvent, map, of, switchMap } from 'rxjs'
 import { useDeadPulledTrackMonitor } from '~/hooks/useDeadPulledTrackMonitor'
@@ -57,7 +57,7 @@ interface Props {
 
 export const Participant = forwardRef<
 	HTMLDivElement,
-	JSX.IntrinsicElements['div'] & Props
+	React.JSX.IntrinsicElements['div'] & Props
 >(({ user, style }, ref) => {
 	const { data } = useUserMetadata(user.name)
 	const {
@@ -128,7 +128,9 @@ export const Participant = forwardRef<
 	const packetLoss = useObservableAsValue(packetLoss$, 0)
 
 	const videoRef = useRef<HTMLVideoElement>(null)
-	const { videoHeight, videoWidth } = useVideoDimensions(videoRef)
+	const { videoHeight, videoWidth } = useVideoDimensions(
+		videoRef as React.RefObject<HTMLVideoElement>
+	)
 
 	const audioMid = useMid(audioTrack)
 	const videoMid = useMid(videoTrack)

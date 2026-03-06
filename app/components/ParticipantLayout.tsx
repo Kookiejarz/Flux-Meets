@@ -1,6 +1,6 @@
 import { createGrid } from 'good-grid'
 import { useGridDimensions } from 'good-grid/react'
-import { useId, useRef } from 'react'
+import React, { useId, useRef } from 'react'
 import { Flipper } from 'react-flip-toolkit'
 import type { User } from '~/types/Messages'
 import { Participant } from './Participant'
@@ -18,7 +18,7 @@ export function ParticipantLayout({
 
 	// hook that listens to resize of the element
 	// and returns it's dimensions
-	const dimensions = useGridDimensions($el)
+	const dimensions = useGridDimensions($el as React.RefObject<HTMLDivElement>)
 
 	const { width, height, getPosition } = createGrid({
 		dimensions,

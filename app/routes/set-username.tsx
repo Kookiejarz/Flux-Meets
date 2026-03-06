@@ -1,6 +1,6 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare'
 import { Form } from '@remix-run/react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import invariant from 'tiny-invariant'
 import { Button } from '~/components/Button'
 import { Disclaimer } from '~/components/Disclaimer'
@@ -28,7 +28,7 @@ export default function SetUsername() {
 	return (
 		<div className="flex flex-col items-center justify-center h-full p-6 mx-auto group">
 			<div className="flex-1"></div>
-			
+
 			<div className="w-full max-w-xl space-y-12">
 				{/* Header Section */}
 				<div className="text-center space-y-4 animate-float">
@@ -44,30 +44,32 @@ export default function SetUsername() {
 
 				{/* Unified Action Bar */}
 				<div className="animate-fade-in-up transition-all duration-1000">
-					<Form 
+					<Form
 						method="post"
 						className="relative flex flex-col sm:flex-row gap-3 p-2 bg-white dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl shadow-orange-500/5 focus-within:shadow-orange-500/20 focus-within:border-orange-500/50 transition-all duration-500"
 					>
 						<div className="relative flex-grow">
-							<Input 
+							<Input
 								autoComplete="off"
 								autoFocus
 								required
 								id="username"
 								name="username"
 								value={nameInput}
-								onChange={(e) => setNameInput(e.target.value)}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setNameInput(e.target.value)
+								}
 								placeholder="Enter your display name..."
 								className="w-full h-14 pl-6 bg-transparent border-none ring-0 focus:ring-0 text-lg font-medium placeholder:text-zinc-400"
 							/>
 						</div>
-						<Button 
+						<Button
 							type="submit"
 							className={cn(
-								"h-14 px-8 rounded-2xl text-sm font-black transition-all duration-500 transform active:scale-95",
-								nameInput.trim() !== '' 
-									? "bg-orange-500 text-white border-none" 
-									: "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 border-none"
+								'h-14 px-8 rounded-2xl text-sm font-black transition-all duration-500 transform active:scale-95',
+								nameInput.trim() !== ''
+									? 'bg-orange-500 text-white border-none'
+									: 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400 border-none'
 							)}
 							disabled={nameInput.trim() === ''}
 						>
@@ -75,7 +77,8 @@ export default function SetUsername() {
 						</Button>
 					</Form>
 					<p className="mt-4 text-center text-[10px] uppercase tracking-[0.3em] text-zinc-400 font-bold">
-						Your display name is how you'll be identified in rooms. You can change it later if you want!
+						Your display name is how you'll be identified in rooms. You can
+						change it later if you want!
 					</p>
 				</div>
 			</div>

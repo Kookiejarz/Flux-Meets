@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
 import { json } from '@remix-run/cloudflare'
 import { useNavigate, useParams, useSearchParams } from '@remix-run/react'
 import { useObservableAsValue } from 'partytracks/react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import invariant from 'tiny-invariant'
 import { AudioIndicator } from '~/components/AudioIndicator'
 import { Button } from '~/components/Button'
@@ -88,8 +88,10 @@ export default function Lobby() {
 							<Input
 								autoFocus
 								value={editedRoomName}
-								onChange={(e) => setEditedRoomName(e.target.value)}
-								onKeyDown={(e) => {
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setEditedRoomName(e.target.value)
+								}
+								onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
 									if (e.key === 'Enter') handleNameChange()
 									if (e.key === 'Escape') {
 										setEditedRoomName(roomName || '')

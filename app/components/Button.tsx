@@ -1,6 +1,6 @@
 import type { LinkProps } from '@remix-run/react'
 import { Link } from '@remix-run/react'
-import { forwardRef } from 'react'
+import React, { forwardRef } from 'react'
 import { cn } from '~/utils/style'
 
 const displayTypeMap = {
@@ -26,7 +26,7 @@ const displayTypeMap = {
 	],
 }
 
-export type ButtonProps = Omit<JSX.IntrinsicElements['button'], 'ref'> & {
+export type ButtonProps = Omit<React.JSX.IntrinsicElements['button'], 'ref'> & {
 	displayType?: keyof typeof displayTypeMap
 }
 
@@ -41,7 +41,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 				'tracking-widest',
 				'py-[.5em] px-[1em]',
 				disabled && 'cursor-not-allowed opacity-60',
-				displayTypeMap[displayType].join(' '),
+				displayTypeMap[displayType as keyof typeof displayTypeMap].join(' '),
 				className
 			)}
 			aria-disabled={disabled}
@@ -70,7 +70,7 @@ export const ButtonLink = forwardRef<
 			'font-bold',
 			'tracking-widest',
 			'py-[.5em] px-[1em]',
-			displayTypeMap[displayType].join(' '),
+			displayTypeMap[displayType as keyof typeof displayTypeMap].join(' '),
 			className
 		)}
 		{...rest}

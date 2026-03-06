@@ -1,3 +1,4 @@
+import './app/polyfills.server'
 // @ts-ignore
 import {
 	getAssetFromKV,

@@ -13,5 +13,5 @@ export default defineConfig({
 				wrangler: { configPath: './wrangler.toml' },
 			},
 		},
-	},
+	} as any,
 })

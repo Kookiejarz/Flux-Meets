@@ -15,7 +15,7 @@ import {
 } from '@remix-run/react'
 import { parse } from 'cookie'
 import type { FC, ReactNode } from 'react'
-import { useRef } from 'react'
+import React, { useRef } from 'react'
 import { useFullscreen, useToggle } from 'react-use'
 
 import { QueryClient, QueryClientProvider } from 'react-query'
@@ -118,9 +118,13 @@ export const links: LinksFunction = () => [
 const Document: FC<{ children?: ReactNode }> = ({ children }) => {
 	const fullscreenRef = useRef<HTMLBodyElement>(null)
 	const [fullscreenEnabled, toggleFullscreen] = useToggle(false)
-	useFullscreen(fullscreenRef, fullscreenEnabled, {
-		onClose: () => toggleFullscreen(false),
-	})
+	useFullscreen(
+		fullscreenRef as React.RefObject<HTMLBodyElement>,
+		fullscreenEnabled,
+		{
+			onClose: () => toggleFullscreen(false),
+		}
+	)
 	return (
 		// some extensions add data attributes to the html
 		// element that React complains about.

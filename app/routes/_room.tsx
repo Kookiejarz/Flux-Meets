@@ -101,11 +101,28 @@ function RoomPreparation(props: {
 	const userMedia = useUserMedia(props)
 	const room = useRoom({ roomName, userMedia })
 
-	return room.roomState.meetingId ? (
-		<Room room={room} userMedia={userMedia} />
-	) : (
+	const [isTimedOut, setIsTimedOut] = useState(false)
+	useMemo(() => {
+		const t = setTimeout(() => {
+			if (!room.roomState.meetingId) setIsTimedOut(true)
+		}, 8000)
+		return () => clearTimeout(t)
+	}, [room.roomState.meetingId])
+
+	if (room.roomState.meetingId) {
+		return <Room room={room} userMedia={userMedia} />
+	}
+
+	return (
 		<div className="grid place-items-center h-full">
-			<Spinner className="text-gray-500" />
+			<div className="text-center space-y-4">
+				<Spinner className="text-gray-500 mx-auto" />
+				{isTimedOut && (
+					<p className="text-sm text-zinc-500 animate-pulse">
+						Taking longer than usual... checking connection
+					</p>
+				)}
+			</div>
 		</div>
 	)
 }

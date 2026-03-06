@@ -368,7 +368,7 @@ export function useE2EE({
 	useEffect(() => {
 		if (!joined) return
 		encryptionWorker.onNewSafetyNumber((buffer) =>
-			setSafetyNumber(arrayBufferToDecimal(buffer))
+			setSafetyNumber(arrayBufferToDecimal(buffer as unknown as ArrayBuffer))
 		)
 		encryptionWorker.handleOutgoingEvents((data) => {
 			console.log('📬 sending e2eeMlsMessage to peers', data)
