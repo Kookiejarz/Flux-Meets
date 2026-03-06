@@ -333,8 +333,7 @@ export class ChatRoom extends Server<Env> {
 							userId: connection.id,
 							text: data.text,
 							isFinal: data.isFinal,
-						},
-						connection
+						}
 					)
 					break
 				}

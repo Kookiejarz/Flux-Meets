@@ -19,7 +19,14 @@ export const errorMessageMap = {
 type UserMediaError = keyof typeof errorMessageMap
 
 const broadcastByDefault = false
-export const mic = getMic({ broadcasting: false })
+export const mic = getMic({
+	broadcasting: false,
+	constraints: {
+		echoCancellation: true,
+		noiseSuppression: true,
+		autoGainControl: true,
+	},
+})
 export const camera = getCamera({
 	broadcasting: false,
 	constraints: { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -29,7 +36,7 @@ export const screenshare = getScreenshare({ audio: false })
 function useNoiseSuppression() {
 	const [suppressNoise, setSuppressNoise] = useLocalStorage(
 		'suppress-noise',
-		false
+		true
 	)
 	useEffect(() => {
 		if (suppressNoise) mic.addTransform(noiseSuppression)

@@ -38,7 +38,7 @@ export const AudioStream: FC<AudioStreamProps> = ({
 
 	return (
 		<>
-			<audio ref={ref} autoPlay />
+			<audio ref={ref} autoPlay playsInline />
 			{tracksToPull.map((track) => (
 				<AudioTrack
 					key={track}

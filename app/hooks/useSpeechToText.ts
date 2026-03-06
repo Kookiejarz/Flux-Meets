@@ -12,7 +12,17 @@ export function useSpeechToText({
 	language = 'zh-CN',
 }: SpeechToTextOptions) {
 	const recognitionRef = useRef<any>(null)
+	const enabledRef = useRef(enabled)
+	const onCaptionRef = useRef(onCaption)
 	const [isSupported, setIsSupported] = useState(false)
+
+	useEffect(() => {
+		enabledRef.current = enabled
+	}, [enabled])
+
+	useEffect(() => {
+		onCaptionRef.current = onCaption
+	}, [onCaption])
 
 	useEffect(() => {
 		const SpeechRecognition =
@@ -44,9 +54,9 @@ export function useSpeechToText({
 			}
 
 			if (finalTranscript) {
-				onCaption(finalTranscript, true)
+				onCaptionRef.current(finalTranscript, true)
 			} else if (interimTranscript) {
-				onCaption(interimTranscript, false)
+				onCaptionRef.current(interimTranscript, false)
 			}
 		}
 
@@ -59,7 +69,7 @@ export function useSpeechToText({
 
 		recognition.onend = () => {
 			// Restart if still enabled
-			if (enabled) {
+			if (enabledRef.current) {
 				try {
 					recognition.start()
 				} catch (e) {

@@ -67,19 +67,35 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 							navigator.mediaDevices
 								.getUserMedia({
 									video: true,
-									audio: true,
+									audio: {
+										echoCancellation: true,
+										noiseSuppression: true,
+										autoGainControl: true,
+									},
 								})
-								.then((ms) => {
+								.then(async (ms) => {
+									const micId = ms.getAudioTracks()[0]?.getSettings().deviceId
+									const cameraId = ms.getVideoTracks()[0]?.getSettings().deviceId
+									ms.getTracks().forEach((t) => t.stop())
+
+									const devices = await navigator.mediaDevices.enumerateDevices()
+									if (micId) {
+										const d = devices.find(d => d.deviceId === micId)
+										if (d) mic.setPreferredDevice(d)
+										props.onMicSelected(micId)
+									}
+									if (cameraId) {
+										const d = devices.find(d => d.deviceId === cameraId)
+										if (d) camera.setPreferredDevice(d)
+										props.onCameraSelected(cameraId)
+									}
+
 									// Trigger partytracks broadcasting as part of the same user gesture
+									// doing this after stopping tracks and setting preferred devices avoids issues on mobile
 									mic.startBroadcasting()
 									camera.startBroadcasting()
 
 									if (mountedRef.current) setPermissionState('granted')
-									const micId = ms.getAudioTracks()[0]?.getSettings().deviceId
-									if (micId) props.onMicSelected(micId)
-									const cameraId = ms.getVideoTracks()[0]?.getSettings().deviceId
-									if (cameraId) props.onCameraSelected(cameraId)
-									ms.getTracks().forEach((t) => t.stop())
 								})
 								.catch((err) => {
 									console.error('Permission request failed:', err)

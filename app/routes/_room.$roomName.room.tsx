@@ -37,6 +37,7 @@ import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import isNonNullable from '~/utils/isNonNullable'
+import { cn } from '~/utils/style'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
@@ -206,17 +207,14 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 						content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
 					>
 						<Button
-							onClick={() => setCaptionsEnabled(!captionsEnabled)}
+							onClick={() => {
+								console.log('CC Toggle clicked, current state:', captionsEnabled)
+								setCaptionsEnabled(!captionsEnabled)
+							}}
 							displayType={captionsEnabled ? 'primary' : 'secondary'}
+							className="font-bold"
 						>
-							<Icon
-								type={
-									captionsEnabled
-										? 'chatBubbleBottomCenterText'
-										: 'chatBubbleLeftEllipsis'
-								}
-							/>
-							<span className="ml-2 hidden md:inline">CC</span>
+							CC
 						</Button>
 					</Tooltip>
 					<ScreenshareButton />
