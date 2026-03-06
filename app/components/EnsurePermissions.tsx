@@ -43,6 +43,21 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 	const cameraError = useObservableAsValue(camera.error$, null)
 	const micActiveDevice = useObservableAsValue(mic.activeDevice$)
 	const cameraActiveDevice = useObservableAsValue(camera.activeDevice$)
+	const micBroadcastTrack = useObservableAsValue(mic.broadcastTrack$, null)
+	const cameraBroadcastTrack = useObservableAsValue(
+		camera.broadcastTrack$,
+		null
+	)
+
+	useEffect(() => {
+		// 监听错误并记录到控制台
+		if (micError) {
+			console.error('Mic error detected:', micError.name, micError.message)
+		}
+		if (cameraError) {
+			console.error('Camera error detected:', cameraError.name, cameraError.message)
+		}
+	}, [micError, cameraError])
 
 	useEffect(() => {
 		getExistingPermissionState().then((result) => {
@@ -53,28 +68,31 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		}
 	}, [])
 
-	// 等待设备真正开始广播后才显示子组件
-	// 这避免了在移动设备上权限授予但设备尚未启动的问题
-	const devicesReady = micIsBroadcasting || cameraIsBroadcasting
+	// 设备就绪判定：不仅看 isBroadcasting，还看是否拿到了设备或 track。
+	// 某些浏览器/库状态更新有延迟，单看 isBroadcasting 会误判超时。
+	const hasSelectedDevice = Boolean(
+		micActiveDevice?.deviceId || cameraActiveDevice?.deviceId
+	)
+	const hasBroadcastTrack = Boolean(micBroadcastTrack || cameraBroadcastTrack)
+	const devicesReady =
+		micIsBroadcasting || cameraIsBroadcasting || hasSelectedDevice || hasBroadcastTrack
 	// 只在刚授予权限时才启用，防止影响已有权限的情况
 	useEffect(() => {
 		if (permissionState === 'granted' && justGranted && !devicesReady) {
 			const timer = setTimeout(() => {
-				if (mountedRef.current && !micIsBroadcasting && !cameraIsBroadcasting) {
+				if (mountedRef.current && !devicesReady) {
 					console.error(
-						'Device initialization timeout: mic and camera failed to broadcast within 10s'
+						'Device initialization timeout: mic and camera failed to broadcast within 30s'
 					)
 					setInitTimeout(true)
 				}
-			}, 10000) // 增加到 10 秒以适应较慢的移动设备
+			}, 30000) // 增加到 30 秒以适应较慢的移动设备和网络延迟
 			return () => clearTimeout(timer)
 		}
 	}, [
 		permissionState,
 		justGranted,
 		devicesReady,
-		micIsBroadcasting,
-		cameraIsBroadcasting,
 	])
 
 	// Sync device IDs back to parent
@@ -191,8 +209,20 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						</div>
 					)}
 					<div className="text-xs text-zinc-600 space-y-1">
-						<p>Mic: {micIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
-						<p>Camera: {cameraIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
+						<p>
+							Mic:{' '}
+							{micIsBroadcasting || micBroadcastTrack || micActiveDevice?.deviceId
+								? '✓ Ready'
+								: '○ Waiting...'}
+						</p>
+						<p>
+							Camera:{' '}
+							{cameraIsBroadcasting ||
+							cameraBroadcastTrack ||
+							cameraActiveDevice?.deviceId
+								? '✓ Ready'
+								: '○ Waiting...'}
+						</p>
 					</div>
 					<Button
 						className="w-full mt-4"
@@ -249,25 +279,20 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 							console.log('Allow access clicked - forcing native prompt')
 
 							if (typeof window === 'undefined' || !navigator.mediaDevices) {
-								alert('您的浏览器不支持访问媒体设备，请确保使用 HTTPS 访问。')
+								alert('Your browser does not support media access.')
 								if (mountedRef.current) setPermissionState('denied')
 								return
 							}
 
-							// 1. 立即显示“启动中”UI
-							if (mountedRef.current) {
-								setPermissionState('granted')
-								setJustGranted(true)
-							}
-
-							// 2. 核心修复：直接在点击事件的第一行调用原生 getUserMedia
+							// 核心修复：直接在点击事件中调用原生 getUserMedia
 							// 这是唤起 iOS Safari 权限弹窗最稳健的方法
-						const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-							navigator.userAgent
-						)
-						navigator.mediaDevices
+							const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+								navigator.userAgent
+							)
+							console.log('Is mobile device:', isMobile)
+							navigator.mediaDevices
 							.getUserMedia({
-								audio: isMobile ? true : { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+								audio: true,
 								video: {
 									facingMode: 'user',
 									...(isMobile
@@ -276,16 +301,42 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 								},
 							})
 								.then((stream) => {
-									console.log('Native prompt success, starting broadcasting...')
+									console.log('✓ Native prompt success, got stream with', stream.getTracks().length, 'tracks')
+									stream.getTracks().forEach((t) => {
+										console.log(`  - ${t.kind}: ${t.label || 'unlabeled'}, enabled: ${t.enabled}`)
+									})
 									// 立即停止这个临时流，释放硬件
 									stream.getTracks().forEach((t) => t.stop())
-
-									// 紧接着让库接管
-									mic.startBroadcasting()
-									camera.startBroadcasting()
+									console.log('✓ Stopped temporary stream')
+									
+									// 在成功获取权限后才设置状态
+									// 这样确保超时检查只在真正开始广播后才启动
+									if (mountedRef.current) {
+										setPermissionState('granted')
+										setJustGranted(true)
+									}
+									
+									// 关键修复：在 iOS Safari 上，硬件需要时间从临时 getUserMedia 流中释放
+									// 添加延迟以避免竞速条件
+									const startDelay = isMobile ? 500 : 100
+									console.log(`⏱️ Waiting ${startDelay}ms for hardware to be released (mobile: ${isMobile})`)
+									
+									setTimeout(() => {
+										console.log('✓ Calling mic.startBroadcasting() and camera.startBroadcasting()...')
+										
+										// 让库接管
+										mic.startBroadcasting()
+										camera.startBroadcasting()
+										
+										console.log('✓ Started broadcasting')
+									}, startDelay)
 								})
 								.catch((err) => {
-									console.error('Native permission request failed:', err)
+									console.error('Native permission request failed:', {
+										name: err.name,
+										message: err.message,
+										code: err.code,
+									})
 									if (mountedRef.current) {
 										setPermissionState('denied')
 										setJustGranted(false)

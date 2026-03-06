@@ -1,6 +1,5 @@
-import { getCamera, getMic, getScreenshare } from 'partytracks/client'
-import { useObservable, useObservableAsValue } from 'partytracks/react'
-import { useCallback, useEffect, useState } from 'react'
+import { BehaviorSubject, Observable, Subscription, filter } from 'rxjs'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocalStorage } from 'react-use'
 import blurVideoTrack from '~/utils/blurVideoTrack'
 import noiseSuppression from '~/utils/noiseSuppression'
@@ -19,64 +18,211 @@ type UserMediaError = keyof typeof errorMessageMap
 
 const broadcastByDefault = false
 
-// 检测是否为移动设备
-const isMobileDevice = () => {
+// Simple reactive helper compatible with useObservableAsValue
+function createBehaviorSubject<T>(initial: T) {
+	const subject = new BehaviorSubject<T>(initial)
+	return subject
+}
+
+function useSubjectValue<T>(subject: BehaviorSubject<T>) {
+	const [value, setValue] = useState(subject.value)
+	useEffect(() => {
+		const sub = subject.subscribe((v) => setValue(v))
+		return () => sub.unsubscribe()
+	}, [subject])
+	return value
+}
+
+type TransformFn = (track: MediaStreamTrack) => Observable<MediaStreamTrack>
+
+type MediaDeviceKind = 'audio' | 'video'
+
+function getAudioConstraints(): MediaTrackConstraints {
+	return {
+		echoCancellation: true,
+		noiseSuppression: true,
+		autoGainControl: true,
+	}
+}
+
+function isMobileDevice() {
 	if (typeof window === 'undefined') return false
 	return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
 		navigator.userAgent
 	)
 }
 
-// 根据设备类型生成不同的约束
-const getAudioConstraints = () => {
-	const constraints: MediaTrackConstraints = {
-		echoCancellation: true,
-		noiseSuppression: true,
-		autoGainControl: true,
-	}
-
-	// 只在桌面设备上要求高质量采样，手机上使用更低的要求
-	if (!isMobileDevice()) {
-		constraints.channelCount = { ideal: 2 }
-		constraints.sampleRate = { ideal: 48000 }
-	}
-
-	return constraints
-}
-
-const getVideoConstraints = () => {
-	const baseConstraints: MediaTrackConstraints = {
-		facingMode: 'user', // 移动设备使用前置摄像头
-	}
-
-	// 桌面设备请求更高分辨率，手机使用更宽松的约束
-	if (!isMobileDevice()) {
-		baseConstraints.width = { ideal: 1280 }
-		baseConstraints.height = { ideal: 720 }
+function getVideoConstraints(): MediaTrackConstraints {
+	const base: MediaTrackConstraints = { facingMode: 'user' }
+	if (isMobileDevice()) {
+		base.width = { ideal: 640, max: 1280 }
+		base.height = { ideal: 480, max: 720 }
 	} else {
-		// 手机设备使用更灵活的分辨率要求
-		baseConstraints.width = { ideal: 640, max: 1280 }
-		baseConstraints.height = { ideal: 480, max: 720 }
+		base.width = { ideal: 1280 }
+		base.height = { ideal: 720 }
 	}
-
-	return baseConstraints
+	return base
 }
 
-export const mic = getMic({
-	broadcasting: false,
-	constraints: getAudioConstraints(),
-})
-export const camera = getCamera({
-	broadcasting: false,
-	constraints: getVideoConstraints(),
-})
-export const screenshare = getScreenshare({ audio: false })
+class NativeMediaDevice {
+	private kind: MediaDeviceKind
+	private constraints: MediaTrackConstraints
+	private preferredDeviceId?: string
+	private transforms = new Set<TransformFn>()
+	private transformSubscriptions: Subscription[] = []
+	private currentTrack: MediaStreamTrack | null = null
+
+	readonly isBroadcasting$ = createBehaviorSubject<boolean>(false)
+	readonly broadcastTrack$ = createBehaviorSubject<MediaStreamTrack | undefined>(undefined)
+	readonly localMonitorTrack$ = createBehaviorSubject<MediaStreamTrack | undefined>(undefined)
+	readonly devices$ = createBehaviorSubject<MediaDeviceInfo[]>([])
+	readonly activeDevice$ = createBehaviorSubject<MediaDeviceInfo | null>(null)
+	readonly error$ = createBehaviorSubject<Error | DOMException | null>(null)
+
+	constructor(kind: MediaDeviceKind, constraints: MediaTrackConstraints) {
+		this.kind = kind
+		this.constraints = constraints
+	}
+
+	setPreferredDevice(device: MediaDeviceInfo) {
+		this.preferredDeviceId = device.deviceId
+		this.activeDevice$.next(device)
+	}
+
+	addTransform(fn: TransformFn) {
+		this.transforms.add(fn)
+	}
+
+	removeTransform(fn: TransformFn) {
+		this.transforms.delete(fn)
+	}
+
+	async enumerateDevices() {
+		if (!navigator.mediaDevices?.enumerateDevices) return
+		const all = await navigator.mediaDevices.enumerateDevices()
+		const filtered = all.filter((d) =>
+			this.kind === 'audio' ? d.kind === 'audioinput' : d.kind === 'videoinput'
+		)
+		this.devices$.next(filtered)
+		if (!this.activeDevice$.value && filtered[0]) {
+			this.activeDevice$.next(filtered[0])
+		}
+	}
+
+	private stopCurrentTrack() {
+		this.transformSubscriptions.forEach((s) => s.unsubscribe())
+		this.transformSubscriptions = []
+		if (this.currentTrack) {
+			this.currentTrack.stop()
+			this.currentTrack = null
+		}
+		this.broadcastTrack$.next(undefined)
+		this.localMonitorTrack$.next(undefined)
+		this.isBroadcasting$.next(false)
+	}
+
+	async startBroadcasting() {
+		if (!navigator.mediaDevices?.getUserMedia) return
+		this.stopCurrentTrack()
+		try {
+			const baseConstraints: MediaStreamConstraints = {
+				audio: this.kind === 'audio' ? { ...getAudioConstraints() } : false,
+				video: this.kind === 'video' ? { ...getVideoConstraints() } : false,
+			}
+
+			if (this.kind === 'audio' && baseConstraints.audio && this.preferredDeviceId) {
+				;(baseConstraints.audio as MediaTrackConstraints).deviceId = {
+					exact: this.preferredDeviceId,
+				}
+			}
+			if (this.kind === 'video' && baseConstraints.video && this.preferredDeviceId) {
+				;(baseConstraints.video as MediaTrackConstraints).deviceId = {
+					exact: this.preferredDeviceId,
+				}
+			}
+
+			const stream = await navigator.mediaDevices.getUserMedia(baseConstraints)
+			const track = this.kind === 'audio'
+				? stream.getAudioTracks()[0]
+				: stream.getVideoTracks()[0]
+			if (!track) throw new Error('No track returned from getUserMedia')
+
+			// Update active device from settings if available
+			const settingsId = track.getSettings().deviceId
+			const device = this.devices$.value.find((d) => d.deviceId === settingsId)
+			if (device) this.activeDevice$.next(device)
+
+			let processedTrack: MediaStreamTrack = track
+
+			// Apply transforms sequentially
+			for (const transform of this.transforms) {
+				const sub = transform(processedTrack).subscribe({
+					next: (t) => {
+						processedTrack = t
+					},
+					complete: () => undefined,
+					error: (err) => console.error('Transform error', err),
+				})
+				this.transformSubscriptions.push(sub)
+			}
+
+			this.currentTrack = processedTrack
+			this.broadcastTrack$.next(processedTrack)
+			// For now localMonitorTrack mirrors broadcast
+			this.localMonitorTrack$.next(processedTrack)
+			this.isBroadcasting$.next(true)
+			this.error$.next(null)
+		} catch (err: any) {
+			this.error$.next(err)
+			this.isBroadcasting$.next(false)
+			throw err
+		}
+	}
+
+	stopBroadcasting = () => {
+		this.stopCurrentTrack()
+	}
+}
+
+class NativeScreenshare {
+	readonly video = {
+		isBroadcasting$: createBehaviorSubject<boolean>(false),
+		broadcastTrack$: createBehaviorSubject<MediaStreamTrack | undefined>(undefined),
+	}
+
+	async startBroadcasting() {
+		if (!navigator.mediaDevices?.getDisplayMedia) return
+		try {
+			const stream = await navigator.mediaDevices.getDisplayMedia({
+				video: true,
+				audio: false,
+			})
+			const track = stream.getVideoTracks()[0]
+			if (!track) throw new Error('No screenshare track')
+			this.video.broadcastTrack$.next(track)
+			this.video.isBroadcasting$.next(true)
+		} catch (err) {
+			this.video.broadcastTrack$.next(undefined)
+			this.video.isBroadcasting$.next(false)
+			throw err
+		}
+	}
+
+	stopBroadcasting() {
+		const track = this.video.broadcastTrack$.value
+		if (track) track.stop()
+		this.video.broadcastTrack$.next(undefined)
+		this.video.isBroadcasting$.next(false)
+	}
+}
+
+// Singletons to mimic previous exports
+export const mic = new NativeMediaDevice('audio', getAudioConstraints())
+export const camera = new NativeMediaDevice('video', getVideoConstraints())
+export const screenshare = new NativeScreenshare()
 
 function useNoiseSuppression() {
-	const [suppressNoise, setSuppressNoise] = useLocalStorage(
-		'suppress-noise',
-		true
-	)
+	const [suppressNoise, setSuppressNoise] = useLocalStorage('suppress-noise', true)
 	useEffect(() => {
 		if (suppressNoise) mic.addTransform(noiseSuppression)
 		return () => {
@@ -100,10 +246,6 @@ function useBlurVideo() {
 }
 
 function useScreenshare() {
-	const screenShareIsBroadcasting = useObservableAsValue(
-		screenshare.video.isBroadcasting$,
-		false
-	)
 	const startScreenShare = useCallback(() => {
 		screenshare.startBroadcasting()
 	}, [])
@@ -112,13 +254,10 @@ function useScreenshare() {
 	}, [])
 
 	return {
-		screenShareEnabled: screenShareIsBroadcasting,
 		startScreenShare,
 		endScreenShare,
 		screenShareVideoTrack$: screenshare.video.broadcastTrack$,
-		screenShareVideoTrack: useObservableAsValue(
-			screenshare.video.broadcastTrack$
-		),
+		screenShareVideoTrack: screenshare.video.broadcastTrack$.value,
 	}
 }
 
@@ -127,32 +266,33 @@ export default function useUserMedia(options: {
 	cameraDeviceId?: string
 }) {
 	useEffect(() => {
-		// 防御性检查：确保代码只在客户端浏览器环境中运行
 		if (typeof window === 'undefined' || !navigator.mediaDevices) return
-		if (!options.micDeviceId) return
-		navigator.mediaDevices
-			.enumerateDevices()
-			.then((ds) => ds.find((d) => d.deviceId === options.micDeviceId))
-			.then((d) => {
-				d && mic.setPreferredDevice(d)
-			})
-			.catch((err) => {
-				console.error('Failed to enumerate mic devices:', err)
-			})
-	}, [options.micDeviceId])
+		mic.enumerateDevices().catch((err) =>
+			console.error('Failed to enumerate mic devices:', err)
+		)
+	}, [])
+
 	useEffect(() => {
-		// 防御性检查：确保代码只在客户端浏览器环境中运行
 		if (typeof window === 'undefined' || !navigator.mediaDevices) return
-		if (!options.cameraDeviceId) return
-		navigator.mediaDevices
-			.enumerateDevices()
-			.then((ds) => ds.find((d) => d.deviceId === options.cameraDeviceId))
-			.then((d) => {
-				d && camera.setPreferredDevice(d)
-			})
-			.catch((err) => {
-				console.error('Failed to enumerate camera devices:', err)
-			})
+		camera.enumerateDevices().catch((err) =>
+			console.error('Failed to enumerate camera devices:', err)
+		)
+	}, [])
+
+	useEffect(() => {
+		if (options.micDeviceId) {
+			const found = mic.devices$.value.find((d) => d.deviceId === options.micDeviceId)
+			if (found) mic.setPreferredDevice(found)
+		}
+	}, [options.micDeviceId])
+
+	useEffect(() => {
+		if (options.cameraDeviceId) {
+			const found = camera.devices$.value.find(
+				(d) => d.deviceId === options.cameraDeviceId
+			)
+			if (found) camera.setPreferredDevice(found)
+		}
 	}, [options.cameraDeviceId])
 
 	const [suppressNoise, setSuppressNoise] = useNoiseSuppression()
@@ -163,114 +303,143 @@ export default function useUserMedia(options: {
 	const [audioUnavailableReason, setAudioUnavailableReason] =
 		useState<UserMediaError>()
 
-	const {
-		endScreenShare,
-		startScreenShare,
-		screenShareEnabled,
-		screenShareVideoTrack,
-		screenShareVideoTrack$,
-	} = useScreenshare()
-
-	const micDevices = useObservableAsValue(mic.devices$, [])
-	const cameraDevices = useObservableAsValue(camera.devices$, [])
-
-	useObservable(mic.broadcastTrack$, (t) => {
-		if (t) setAudioUnavailableReason(undefined)
-	})
-	useObservable(camera.broadcastTrack$, (t) => {
-		if (t) setVideoUnavailableReason(undefined)
-	})
+	const { endScreenShare, startScreenShare, screenShareVideoTrack$, screenShareVideoTrack: initialScreenShareVideoTrack } =
+		useScreenshare()
 
 	useEffect(() => {
-		// 防御性检查：确保代码只在客户端浏览器环境中运行
-		if (typeof window === 'undefined' || !navigator.mediaDevices) return
+		const sub = mic.broadcastTrack$.subscribe((t) => {
+			if (t) setAudioUnavailableReason(undefined)
+		})
+		return () => sub.unsubscribe()
+	}, [])
 
-		// Auto-start if possible. This handles cases where permission was already granted.
-		// Use a short delay to avoid racing with EnsurePermissions on iOS Safari,
-		// where the hardware may not yet be released from the temp getUserMedia stream.
-		const timeout = setTimeout(() => {
-			console.log('Automatically starting broadcasting...')
-			mic.startBroadcasting()
-			camera.startBroadcasting()
-		}, 1000)
+	useEffect(() => {
+		const sub = camera.broadcastTrack$.subscribe((t) => {
+			if (t) setVideoUnavailableReason(undefined)
+		})
+		return () => sub.unsubscribe()
+	}, [])
 
-		// 清理函数：只清除 timeout，不停止广播
-		// mic 和 camera 是全局单例，由 partytracks 管理生命周期
-		// 在这里停止会导致权限允许后立即消失
+	useEffect(() => {
+		const sub = mic.error$.subscribe((e) => {
+			if (!e) return
+			console.error('🔴 Mic error:', {
+				name: (e as any).name,
+				message: (e as any).message,
+			})
+			const reason =
+				(e as any).name in errorMessageMap
+					? ((e as any).name as UserMediaError)
+					: 'UnknownError'
+			setAudioUnavailableReason(reason)
+			mic.stopBroadcasting()
+		})
+		return () => sub.unsubscribe()
+	}, [])
+
+	useEffect(() => {
+		const sub = camera.error$.subscribe((e) => {
+			if (!e) return
+			console.error('🔴 Camera error:', {
+				name: (e as any).name,
+				message: (e as any).message,
+			})
+			const reason =
+				(e as any).name in errorMessageMap
+					? ((e as any).name as UserMediaError)
+					: 'UnknownError'
+			setVideoUnavailableReason(reason)
+			camera.stopBroadcasting()
+		})
+		return () => sub.unsubscribe()
+	}, [])
+
+	// Auto-start when permission already granted
+	useEffect(() => {
+		let cancelled = false
+		const run = async () => {
+			try {
+				const perm = await navigator.permissions?.query({ name: 'microphone' as any })
+				if (perm?.state === 'granted' && !cancelled) {
+					console.log('Permission already granted, auto-starting mic/camera')
+					setTimeout(() => {
+						mic.startBroadcasting().catch(() => {})
+						camera.startBroadcasting().catch(() => {})
+					}, 500)
+				}
+			} catch {
+				// ignore
+			}
+		}
+		run()
 		return () => {
-			clearTimeout(timeout)
-			// 不要在这里调用 stopBroadcasting，会导致视频消失
-			// mic.stopBroadcasting()
-			// camera.stopBroadcasting()
+			cancelled = true
 		}
 	}, [])
 
-	useObservable(mic.error$, (e) => {
-		const reason =
-			e.name in errorMessageMap ? (e.name as UserMediaError) : 'UnknownError'
-		if (reason === 'UnknownError') {
-			console.error('Unknown error getting audio track: ', e)
-		}
-		setAudioUnavailableReason(reason)
-		mic.stopBroadcasting()
-	})
-
-	useObservable(camera.error$, (e) => {
-		const reason =
-			e.name in errorMessageMap ? (e.name as UserMediaError) : 'UnknownError'
-		if (reason === 'UnknownError') {
-			console.error('Unknown error getting video track: ', e)
-		}
-		setVideoUnavailableReason(reason)
-		camera.stopBroadcasting()
-	})
-
 	const turnMicOn = useCallback(() => {
 		setAudioUnavailableReason(undefined)
-		mic.startBroadcasting()
+		mic.startBroadcasting().catch(() => {})
 	}, [])
 
 	const turnCameraOn = useCallback(() => {
 		setVideoUnavailableReason(undefined)
-		camera.startBroadcasting()
+		camera.startBroadcasting().catch(() => {})
 	}, [])
+
+	const audioStreamTrack = useSubjectValue(mic.broadcastTrack$)
+	const audioMonitorStreamTrack = useSubjectValue(mic.localMonitorTrack$)
+	const videoStreamTrack = useSubjectValue(camera.broadcastTrack$)
+	const audioEnabled = useSubjectValue(mic.isBroadcasting$)
+	const videoEnabled = useSubjectValue(camera.isBroadcasting$)
+	const screenShareEnabled = useSubjectValue(screenshare.video.isBroadcasting$)
+	const screenShareVideoTrack = useSubjectValue(screenshare.video.broadcastTrack$)
+
+	// Non-null observables for partyTracks.push
+	const publicAudioTrack$ = useMemo(() => mic.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
+	const privateAudioTrack$ = useMemo(() => mic.localMonitorTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
+	const videoTrack$ = useMemo(() => camera.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
+	const screenShareVideoTrack$Filtered = useMemo(
+		() => screenshare.video.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))),
+		[]
+	)
 
 	return {
 		turnMicOn,
 		turnMicOff: mic.stopBroadcasting,
-		audioStreamTrack: useObservableAsValue(mic.broadcastTrack$),
-		audioMonitorStreamTrack: useObservableAsValue(mic.localMonitorTrack$),
-		audioEnabled: useObservableAsValue(mic.isBroadcasting$, broadcastByDefault),
+		audioStreamTrack,
+		audioMonitorStreamTrack,
+		audioEnabled,
 		audioUnavailableReason,
-		publicAudioTrack$: mic.broadcastTrack$,
-		privateAudioTrack$: mic.localMonitorTrack$,
-		audioDeviceId: useObservableAsValue(mic.activeDevice$)?.deviceId,
+		publicAudioTrack$,
+		privateAudioTrack$,
+		audioDeviceId: mic.activeDevice$.value?.deviceId,
 		setAudioDeviceId: (deviceId: string) => {
-			const found = micDevices.find((d) => d.deviceId === deviceId)
+			const found = mic.devices$.value.find((d) => d.deviceId === deviceId)
 			if (found) mic.setPreferredDevice(found)
 		},
 
 		setVideoDeviceId: (deviceId: string) => {
-			const found = cameraDevices.find((d) => d.deviceId === deviceId)
+			const found = camera.devices$.value.find((d) => d.deviceId === deviceId)
 			if (found) camera.setPreferredDevice(found)
 		},
-		videoDeviceId: useObservableAsValue(camera.activeDevice$)?.deviceId,
+		videoDeviceId: camera.activeDevice$.value?.deviceId,
 		turnCameraOn,
 		turnCameraOff: camera.stopBroadcasting,
-		videoEnabled: useObservableAsValue(camera.isBroadcasting$, true),
+		videoEnabled,
 		videoUnavailableReason,
 		blurVideo,
 		setBlurVideo,
 		suppressNoise,
 		setSuppressNoise,
-		videoTrack$: camera.broadcastTrack$,
-		videoStreamTrack: useObservableAsValue(camera.broadcastTrack$),
+		videoTrack$,
+		videoStreamTrack,
 
 		startScreenShare,
 		endScreenShare,
 		screenShareVideoTrack,
 		screenShareEnabled,
-		screenShareVideoTrack$,
+		screenShareVideoTrack$: screenShareVideoTrack$Filtered,
 	}
 }
 
