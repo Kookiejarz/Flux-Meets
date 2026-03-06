@@ -107,16 +107,16 @@ export default function Index() {
 	}, [searchParams, actionData, dispatchToast])
 
 	return (
-		<div className="flex flex-col items-center justify-center h-full p-6 mx-auto group">
+		<div className="flex flex-col items-center justify-center h-full p-6 mx-auto">
 			<div className="flex-1"></div>
 
 			<div className="w-full max-w-xl space-y-12">
 				{/* Header Section */}
 				<div className="text-center space-y-4 animate-float">
-					<h1 className="text-6xl sm:text-7xl font-black orange-glow-text tracking-tighter transition-all duration-700 group-hover:tracking-normal">
+					<h1 className="text-6xl sm:text-7xl font-black orange-glow-text tracking-tighter">
 						🎬 Flux Meet
 					</h1>
-					<div className="flex flex-col items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity duration-700">
+					<div className="flex flex-col items-center gap-2">
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
 							Welcome back,{' '}
 							<span className="text-orange-500">{data?.displayName}</span>
@@ -133,7 +133,7 @@ export default function Index() {
 				</div>
 
 				{/* Unified Action Bar */}
-				<div className="opacity-0 group-hover:opacity-100 group-hover:animate-fade-in-up transition-all duration-1000 delay-100">
+				<div className="animate-fade-in-up">
 					<Form
 						method="post"
 						className="relative flex flex-col sm:flex-row gap-3 p-2 bg-white dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl shadow-orange-500/5 focus-within:shadow-orange-500/20 focus-within:border-orange-500/50 transition-all duration-500"
@@ -171,7 +171,7 @@ export default function Index() {
 			</div>
 
 			<div className="flex flex-col justify-end flex-1">
-				<Disclaimer className="pt-12 opacity-20 hover:opacity-100 transition-opacity duration-1000 cursor-default" />
+				<Disclaimer className="pt-12 opacity-40 hover:opacity-100 transition-opacity duration-500 cursor-default" />
 			</div>
 		</div>
 	)

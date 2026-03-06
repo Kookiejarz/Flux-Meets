@@ -1,5 +1,4 @@
 import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
-import { json } from '@remix-run/cloudflare'
 import {
 	useLoaderData,
 	useNavigate,
@@ -47,7 +46,7 @@ import { playSound } from '~/utils/playSound'
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
 
-	return json({
+	return {
 		username,
 		bugReportsEnabled: Boolean(
 			context.env.FEEDBACK_URL &&
@@ -61,7 +60,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 			context.env.OPENAI_API_TOKEN && context.env.OPENAI_MODEL_ENDPOINT
 		),
 		dashboardDebugLogsBaseUrl: context.env.DASHBOARD_WORKER_URL,
-	})
+	}
 }
 
 export default function Room() {

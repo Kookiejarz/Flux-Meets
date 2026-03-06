@@ -43,6 +43,7 @@ export type LogEvent =
 	| {
 			eventName: 'startingMeeting'
 			meetingId?: string
+			startTime?: number
 	  }
 	| {
 			eventName: 'endingMeeting'
