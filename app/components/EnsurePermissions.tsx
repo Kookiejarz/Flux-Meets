@@ -73,25 +73,17 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 										autoGainControl: true,
 									},
 								})
-								.then(async (ms) => {
+								.then((ms) => {
 									const micId = ms.getAudioTracks()[0]?.getSettings().deviceId
 									const cameraId = ms.getVideoTracks()[0]?.getSettings().deviceId
+									
+									// Stop tracks immediately to free hardware
 									ms.getTracks().forEach((t) => t.stop())
 
-									const devices = await navigator.mediaDevices.enumerateDevices()
-									if (micId) {
-										const d = devices.find(d => d.deviceId === micId)
-										if (d) mic.setPreferredDevice(d)
-										props.onMicSelected(micId)
-									}
-									if (cameraId) {
-										const d = devices.find(d => d.deviceId === cameraId)
-										if (d) camera.setPreferredDevice(d)
-										props.onCameraSelected(cameraId)
-									}
+									if (micId) props.onMicSelected(micId)
+									if (cameraId) props.onCameraSelected(cameraId)
 
-									// Trigger partytracks broadcasting as part of the same user gesture
-									// doing this after stopping tracks and setting preferred devices avoids issues on mobile
+									// Trigger partytracks broadcasting synchronously to preserve user gesture context
 									mic.startBroadcasting()
 									camera.startBroadcasting()
 

@@ -212,9 +212,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 								setCaptionsEnabled(!captionsEnabled)
 							}}
 							displayType={captionsEnabled ? 'primary' : 'secondary'}
-							className="font-bold"
 						>
-							CC
+							<Icon type="chatBubbleBottomCenterText" />
 						</Button>
 					</Tooltip>
 					<ScreenshareButton />
