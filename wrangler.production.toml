@@ -26,6 +26,7 @@ class_name = "ChatRoom"
 CALLS_APP_ID = "700932c6384d6f4ba19838afa3ab93cd"
 TURN_SERVICE_ID = "53fa66872a8636170428abae9b049193"
 EXPERIMENTAL_SIMULCAST_ENABLED = "false"
+BACKGROUND_IMAGE_URL = ""
 
 [[queues.producers]]
  queue = "orange-meets-feedback-queue"

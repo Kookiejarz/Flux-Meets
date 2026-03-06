@@ -10,6 +10,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 CALLS_APP_ID = "bf67b659a7dad4da746fffcaa8e3ac56"
 TURN_SERVICE_ID = "d47b72813b70550b4e4724c25afa85a0"
+BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
 
 # Optional vars
 # OPENAI_MODEL_ENDPOINT = ""

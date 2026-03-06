@@ -65,7 +65,7 @@ export default function SetUsername() {
 									}
 								}}
 								placeholder="Enter your display name..."
-								className="w-full h-14 pl-6 bg-transparent border-none ring-0 focus:ring-0 text-lg font-medium placeholder:text-zinc-400"
+								className="w-full h-14 pl-6 bg-transparent border-none ring-0 focus:ring-0 text-lg font-medium placeholder:text-zinc-400 rounded-2xl"
 							/>
 						</div>
 						<Button

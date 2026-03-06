@@ -18,6 +18,7 @@ export type Env = {
 	MAX_WEBCAM_QUALITY_LEVEL?: string
 	EXPERIMENTAL_SIMULCAST_ENABLED?: string
 	MAX_API_HISTORY?: string
+	BACKGROUND_IMAGE_URL?: string
 	DB?: D1Database
 	OPENAI_API_TOKEN?: string
 	OPENAI_MODEL_ENDPOINT?: string

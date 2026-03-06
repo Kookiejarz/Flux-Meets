@@ -42,7 +42,8 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	}
 
 	const defaultResponse = json({
-		userDirectoryUrl: context.env.USER_DIRECTORY_URL,
+		userDirectoryUrl: context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL,
+		backgroundImageUrl: context.env?.BACKGROUND_IMAGE_URL ?? (context as any).BACKGROUND_IMAGE_URL,
 	})
 
 	// we only care about verifying token freshness if request was a user
@@ -115,7 +116,10 @@ export const links: LinksFunction = () => [
 	},
 ]
 
-const Document: FC<{ children?: ReactNode }> = ({ children }) => {
+const Document: FC<{ children?: ReactNode; backgroundImageUrl?: string }> = ({
+	children,
+	backgroundImageUrl,
+}) => {
 	const fullscreenRef = useRef<HTMLBodyElement>(null)
 	const [fullscreenEnabled, toggleFullscreen] = useToggle(false)
 	useFullscreen(
@@ -151,10 +155,10 @@ const Document: FC<{ children?: ReactNode }> = ({ children }) => {
 			<body
 				className={cn(
 					'h-full',
-					'bg-white',
-					'text-zinc-800',
-					'dark:bg-zinc-800',
-					'dark:text-zinc-200'
+					backgroundImageUrl
+						? 'bg-zinc-950 text-zinc-200'
+						: 'bg-white text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200',
+					'overflow-hidden'
 				)}
 				ref={fullscreenRef}
 				onDoubleClick={(e) => {
@@ -165,6 +169,21 @@ const Document: FC<{ children?: ReactNode }> = ({ children }) => {
 						toggleFullscreen()
 				}}
 			>
+				{/* Global Background Layer */}
+				{backgroundImageUrl && (
+					<div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+						<div
+							className="absolute inset-0 bg-cover bg-center animate-bg-zoom opacity-60 dark:opacity-50 transition-opacity duration-1000"
+							style={{
+								backgroundImage: `url("${backgroundImageUrl}")`,
+								backgroundColor: '#000',
+							}}
+						/>
+						<div className="absolute inset-0 bg-gradient-to-b from-zinc-950/40 via-transparent to-zinc-950/80" />
+						<div className="absolute inset-0 backdrop-blur-[2px]" />
+					</div>
+				)}
+
 				{children}
 				<ScrollRestoration />
 				<div className="hidden" suppressHydrationWarning>
@@ -194,10 +213,13 @@ export const ErrorBoundary = () => {
 const queryClient = new QueryClient()
 
 export default function App() {
-	const { userDirectoryUrl } = useLoaderData<typeof loader>()
+	const { userDirectoryUrl, backgroundImageUrl } = useLoaderData<typeof loader>()
 	return (
-		<Document>
-			<div id="root" className="h-full bg-inherit isolate">
+		<Document backgroundImageUrl={backgroundImageUrl}>
+			<div
+				id="root"
+				className={cn('h-full isolate', !backgroundImageUrl && 'bg-inherit')}
+			>
 				<QueryClientProvider client={queryClient}>
 					<Outlet
 						context={{

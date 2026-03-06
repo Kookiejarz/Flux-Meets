@@ -125,4 +125,13 @@
 	.animate-fade-in-up {
 		animation: fadeInUp 0.5s ease-out forwards;
 	}
+
+	@keyframes bgZoom {
+		0%, 100% { transform: scale(1); }
+		50% { transform: scale(1.05); }
+	}
+
+	.animate-bg-zoom {
+		animation: bgZoom 20s ease-in-out infinite;
+	}
 }
