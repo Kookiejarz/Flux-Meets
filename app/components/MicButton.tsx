@@ -48,13 +48,15 @@ export const MicButton: FC<
 		<>
 			<Tooltip
 				content={
-					audioUnavailableMessage ??
-					`Turn mic ${audioEnabled ? 'off' : 'on'} (${metaKey}D)`
+					audioUnavailableMessage
+						? `${audioUnavailableMessage} (Click to retry)`
+						: `Turn mic ${audioEnabled ? 'off' : 'on'} (${metaKey}D)`
 				}
 			>
 				<Button
-					displayType={audioEnabled ? 'secondary' : 'danger'}
-					disabled={!!audioUnavailableMessage}
+					displayType={
+						audioUnavailableReason ? 'danger' : audioEnabled ? 'secondary' : 'danger'
+					}
 					onClick={(e) => {
 						toggle()
 						onClick && onClick(e)
@@ -66,8 +68,7 @@ export const MicButton: FC<
 					</VisuallyHidden>
 					<Icon type={audioEnabled ? 'micOn' : 'micOff'} />
 				</Button>
-			</Tooltip>
-			{isSpeaking && !audioEnabled && warnWhenSpeakingWhileMuted && (
+			</Tooltip>			{isSpeaking && !audioEnabled && warnWhenSpeakingWhileMuted && (
 				<Toast.Root
 					className="flex items-center gap-3 text-sm"
 					open

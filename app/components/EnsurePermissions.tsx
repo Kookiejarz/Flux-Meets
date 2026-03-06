@@ -115,15 +115,23 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-10"
 						onClick={async () => {
 							try {
-								// Explicitly call getUserMedia first to trigger the system prompt on iOS
-								// Safari requires a direct call to getUserMedia from a user gesture
-								await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-								
-								// If successful, tell the internal mic/camera objects to start
-								mic.startBroadcasting();
-								camera.startBroadcasting();
-								
-								if (mountedRef.current) setPermissionState('granted');
+								// Explicitly call getUserMedia to trigger the system prompt.
+								// We request both at once to minimize prompts.
+								const stream = await navigator.mediaDevices.getUserMedia({
+									audio: true,
+									video: true,
+								})
+
+								// CRITICAL: Stop the tracks immediately so we don't hold the lock
+								// on the hardware. The browser will remember the permission grant.
+								stream.getTracks().forEach((t) => t.stop())
+
+								// Now tell the internal mic/camera objects to start.
+								// They will now be able to acquire the hardware since we released it.
+								mic.startBroadcasting()
+								camera.startBroadcasting()
+
+								if (mountedRef.current) setPermissionState('granted')
 							} catch (err) {
 								console.error('Permission request failed:', err);
 								// If user dismisses or blocks

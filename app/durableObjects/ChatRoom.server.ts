@@ -98,6 +98,26 @@ export class ChatRoom extends Server<Env> {
 		const username = await getUsername(ctx.request)
 		assertNonNullable(username)
 
+		// Prevent duplicate sessions for the same user
+		for (const otherConnection of this.getConnections<User>()) {
+			if (otherConnection.id !== connection.id) {
+				const otherUser = await this.ctx.storage.get<User>(
+					`session-${otherConnection.id}`
+				)
+				if (otherUser && otherUser.name === username) {
+					// Notify the old connection and close it
+					this.sendMessage(otherConnection, {
+						type: 'error',
+						error: 'You joined from another tab or device. This session has been closed.',
+					})
+					otherConnection.close(1011, 'Duplicate session')
+					// Clean up their storage immediately so they don't appear in the list
+					await this.ctx.storage.delete(`session-${otherConnection.id}`)
+					await this.ctx.storage.delete(`heartbeat-${otherConnection.id}`)
+				}
+			}
+		}
+
 		let user = await this.ctx.storage.get<User>(`session-${connection.id}`)
 		const foundInStorage = user !== undefined
 		if (!foundInStorage) {
@@ -281,6 +301,14 @@ export class ChatRoom extends Server<Env> {
 			reason,
 			wasClean,
 		})
+
+		// Remove session storage immediately when connection is closed
+		await this.ctx.storage.delete(`session-${connection.id}`)
+		await this.ctx.storage.delete(`heartbeat-${connection.id}`)
+
+		// Notify others
+		this.userLeftNotification(connection.id)
+		await this.broadcastRoomState()
 	}
 
 	async onMessage(

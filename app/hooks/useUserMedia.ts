@@ -157,8 +157,18 @@ export default function useUserMedia(options: {
 		camera.stopBroadcasting()
 	})
 
+	const turnMicOn = useCallback(() => {
+		setAudioUnavailableReason(undefined)
+		mic.startBroadcasting()
+	}, [])
+
+	const turnCameraOn = useCallback(() => {
+		setVideoUnavailableReason(undefined)
+		camera.startBroadcasting()
+	}, [])
+
 	return {
-		turnMicOn: mic.startBroadcasting,
+		turnMicOn,
 		turnMicOff: mic.stopBroadcasting,
 		audioStreamTrack: useObservableAsValue(mic.broadcastTrack$),
 		audioMonitorStreamTrack: useObservableAsValue(mic.localMonitorTrack$),
@@ -177,7 +187,7 @@ export default function useUserMedia(options: {
 			if (found) camera.setPreferredDevice(found)
 		},
 		videoDeviceId: useObservableAsValue(camera.activeDevice$)?.deviceId,
-		turnCameraOn: camera.startBroadcasting,
+		turnCameraOn,
 		turnCameraOff: camera.stopBroadcasting,
 		videoEnabled: useObservableAsValue(camera.isBroadcasting$, true),
 		videoUnavailableReason,
