@@ -46,13 +46,6 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		}
 	}, [])
 
-	// Once we detect that they are broadcasting, we can assume permission was granted
-	useEffect(() => {
-		if (micIsBroadcasting || cameraIsBroadcasting) {
-			if (mountedRef.current) setPermissionState('granted')
-		}
-	}, [micIsBroadcasting, cameraIsBroadcasting])
-
 	// Sync device IDs back to parent
 	useEffect(() => {
 		if (micActiveDevice?.deviceId) {
@@ -101,30 +94,37 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 					</p>
 				</div>
 				
-				<div className="relative group">
-					<div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-					<Button
-						className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-10"
-						onClick={async () => {
-							try {
-								// Directly call mic/camera.startBroadcasting()
-								// On iOS Safari, the FIRST call must be the one that stays open.
-								// We don't want to create a temp stream and close it,
-								// because Safari might release the hardware permission immediately.
-								mic.startBroadcasting()
-								camera.startBroadcasting()
-								
-								// We rely on the useEffect monitoring [micIsBroadcasting, cameraIsBroadcasting]
-								// to transition the state to 'granted'.
-							} catch (err) {
-								console.error('Permission request failed:', err);
-								if (mountedRef.current) setPermissionState('denied');
-							}
-						}}
-					>
-						Allow access
-					</Button>
-				</div>
+					<div className="relative group">
+						<div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+						<Button
+							className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-50"
+							onClick={() => {
+								console.log('Allow access clicked')
+								// Safari is extremely sensitive to 'async' click handlers.
+								// We call getUserMedia directly to trigger the prompt.
+								navigator.mediaDevices
+									.getUserMedia({ audio: true, video: true })
+									.then((stream) => {
+										console.log('getUserMedia success')
+										// Tell internal objects to start
+										mic.startBroadcasting()
+										camera.startBroadcasting()
+
+										// On success, we can stop these temp tracks. 
+										// Safari should keep the permission for the session now.
+										stream.getTracks().forEach((t) => t.stop())
+										
+										if (mountedRef.current) setPermissionState('granted')
+									})
+									.catch((err) => {
+										console.error('Permission request failed:', err)
+										if (mountedRef.current) setPermissionState('denied')
+									})
+							}}
+						>
+							Allow access
+						</Button>
+					</div>
 				
 				<p className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
 					Secure & Encrypted Call
