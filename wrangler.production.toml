@@ -11,7 +11,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "FEEDBACK_STORAGE"
-id = "301815bba6144355bfda771856ca4614"
+id = "acb3952303514551a17b6fe627fb6953"
 preview_id = "acb3952303514551a17b6fe627fb6953"
 
 [[durable_objects.bindings]]
