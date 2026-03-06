@@ -31,11 +31,18 @@ jobs:
 
       - name: Install Dependencies
         # 使用 ci 代替 install，增加 --prefer-offline 减少网络请求
-        run: npm ci --legacy-peer-deps --prefer-offline --no-audits
+        run: npm ci --legacy-peer-deps --prefer-offline --no-audit
 
       - name: Build and Deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+          WRANGLER_ARGS: '-c wrangler.production.toml'
         run: npm run deploy
+
+      - name: Apply D1 Migrations (Production)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run db:migrate:production

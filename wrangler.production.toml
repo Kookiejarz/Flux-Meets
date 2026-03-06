@@ -1,4 +1,4 @@
-name = "orange-meets-production"
+name = "orange-meets"
 
 account_id = "7829299e6cefc232ded8635f50b53462"
 main = "./build/index.js"
