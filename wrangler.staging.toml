@@ -1,6 +1,6 @@
 name = "orange-meets-staging"
 
-account_id = "8477399eb04accc1792af96aeaa25222"
+account_id = "7829299e6cefc232ded8635f50b53462"
 main = "./build/index.js"
 # https://developers.cloudflare.com/workers/platform/compatibility-dates
 compatibility_date = "2024-10-07"
@@ -8,10 +8,6 @@ compatibility_flags = ["nodejs_compat"]
 
 [site]
   bucket = "./public"
-
-[[build.upload.rules]]
-type = "ESModule"
-globs = ["**/*.js"]
 
 [[kv_namespaces]]
 binding = "FEEDBACK_STORAGE"
@@ -42,7 +38,7 @@ BACKGROUND_IMAGE_URL = ""
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "orange-meets-db-staging"
-database_id = "e9091e61-7e0a-4719-b9cb-3e1c3e95e9fa"
+database_id = "9f133e78-1a4e-49ad-967a-10fbdc3e1a29"
 
 # Indicate that you want the ChatRoom and RateLimiter classes to be callable as Durable Objects.
 [[migrations]]
