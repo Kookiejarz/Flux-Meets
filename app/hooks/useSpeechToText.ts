@@ -10,17 +10,19 @@ export interface SpeechToTextOptions {
 function normalizeLanguage(lang: string): string {
 	// Common normalizations
 	const normalized = lang.toLowerCase().trim()
-	
+
 	// Map common variants to standard BCP 47 codes
 	if (normalized.startsWith('zh')) {
 		// Default to zh-CN for Chinese
-		return normalized.includes('tw') || normalized.includes('hk') ? 'zh-TW' : 'zh-CN'
+		return normalized.includes('tw') || normalized.includes('hk')
+			? 'zh-TW'
+			: 'zh-CN'
 	}
 	if (normalized.startsWith('en')) {
 		// Default to en-US for English
 		return 'en-US'
 	}
-	
+
 	return lang
 }
 
@@ -57,7 +59,13 @@ export function useSpeechToText({
 		setIsSupported(true)
 
 		const normalizedLang = normalizeLanguage(language)
-		console.log('[SpeechToText] Creating new recognition with language:', normalizedLang, '(original:', language, ')')
+		console.log(
+			'[SpeechToText] Creating new recognition with language:',
+			normalizedLang,
+			'(original:',
+			language,
+			')'
+		)
 
 		const recognition = new SpeechRecognition()
 		recognition.continuous = true
@@ -66,7 +74,10 @@ export function useSpeechToText({
 
 		recognition.onstart = () => {
 			isActiveRef.current = true
-			console.log('[SpeechToText] Recognition started with language:', normalizedLang)
+			console.log(
+				'[SpeechToText] Recognition started with language:',
+				normalizedLang
+			)
 		}
 
 		recognition.onresult = (event: any) => {
@@ -115,7 +126,9 @@ export function useSpeechToText({
 		// If enabled is true, start the new recognition immediately
 		if (enabledRef.current) {
 			try {
-				console.log('[SpeechToText] Starting recognition immediately (enabled=true)')
+				console.log(
+					'[SpeechToText] Starting recognition immediately (enabled=true)'
+				)
 				recognition.start()
 			} catch (e) {
 				console.warn('[SpeechToText] Failed to start recognition:', e)
@@ -168,15 +181,22 @@ export function useSpeechToText({
 
 		if (enabled) {
 			if (!isActiveRef.current) {
-				console.log('[SpeechToText] Enabled changed to true, starting recognition')
+				console.log(
+					'[SpeechToText] Enabled changed to true, starting recognition'
+				)
 				try {
 					recognition.start()
 				} catch (e) {
-					console.warn('[SpeechToText] Failed to start recognition on enable:', e)
+					console.warn(
+						'[SpeechToText] Failed to start recognition on enable:',
+						e
+					)
 				}
 			}
 		} else {
-			console.log('[SpeechToText] Enabled changed to false, stopping recognition')
+			console.log(
+				'[SpeechToText] Enabled changed to false, stopping recognition'
+			)
 			try {
 				recognition.stop()
 			} catch (e) {

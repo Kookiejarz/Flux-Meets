@@ -175,19 +175,20 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								))}
 						</div>
 
-							<Label className="md:text-right" htmlFor="videoDenoise">
-								Video Denoise
-							</Label>
-							<div className="flex flex-col gap-1">
-								<Toggle
-									id="videoDenoise"
-									checked={videoDenoise}
-									onCheckedChange={setVideoDenoise}
-								/>
-								<span className="text-xs text-zinc-500">
-									Raises video bitrate and reduces downscaling to keep low-light details. Uses more bandwidth.
-								</span>
-							</div>
+						<Label className="md:text-right" htmlFor="videoDenoise">
+							Video Denoise
+						</Label>
+						<div className="flex flex-col gap-1">
+							<Toggle
+								id="videoDenoise"
+								checked={videoDenoise}
+								onCheckedChange={setVideoDenoise}
+							/>
+							<span className="text-xs text-zinc-500">
+								Raises video bitrate and reduces downscaling to keep low-light
+								details. Uses more bandwidth.
+							</span>
+						</div>
 
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 
@@ -209,7 +210,8 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							onCheckedChange={setSuppressNoise}
 						/>
 						<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
-							Use only in noisy rooms or on speakers. Headphones usually sound better with this off.
+							Use only in noisy rooms or on speakers. Headphones usually sound
+							better with this off.
 						</p>
 
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
@@ -245,107 +247,107 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							Browser uses the detected browser language.
 						</p>
 
-					<Label className="md:text-right" htmlFor="displayCaptionLanguage">
-						Display Caption Language
-					</Label>
-					<div className="flex flex-wrap gap-2" id="displayCaptionLanguage">
-						{[
-							{ label: 'All', val: 'all' },
-							{ label: 'Original Only', val: 'original' },
-							{ label: 'English Only', val: 'en' },
-							{ label: '中文 Only', val: 'zh' },
-						].map((option) => (
-							<button
-								key={option.val}
-								onClick={() =>
-									setDisplayCaptionLanguage(
-										option.val as 'all' | 'en' | 'zh' | 'original'
-									)
-								}
-								className={cn(
-									'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',
-									displayCaptionLanguage === option.val
-										? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
-										: 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-orange-200'
-								)}
-							>
-								{option.label}
-							</button>
-						))}
-					</div>
-					<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
-						Filter which translated captions to display.
-					</p>
-
-				<div className="md:col-span-2 border-t border-white/5 my-2"></div>
-
-		{aiEnabled && (
-					<>
-						<Label className="md:text-right" htmlFor="asrSource">
-							ASR Source
+						<Label className="md:text-right" htmlFor="displayCaptionLanguage">
+							Display Caption Language
 						</Label>
-						<div className="flex flex-wrap gap-2">
+						<div className="flex flex-wrap gap-2" id="displayCaptionLanguage">
 							{[
-								{ label: 'Browser', val: 'browser' },
-								{ label: 'Workers AI', val: 'workers-ai' },
-							].map((source) => (
+								{ label: 'All', val: 'all' },
+								{ label: 'Original Only', val: 'original' },
+								{ label: 'English Only', val: 'en' },
+								{ label: '中文 Only', val: 'zh' },
+							].map((option) => (
 								<button
-									key={source.val}
+									key={option.val}
 									onClick={() =>
-										setAsrSource(source.val as 'browser' | 'workers-ai')
+										setDisplayCaptionLanguage(
+											option.val as 'all' | 'en' | 'zh' | 'original'
+										)
 									}
 									className={cn(
 										'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',
-										asrSource === source.val
+										displayCaptionLanguage === option.val
 											? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
 											: 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-orange-200'
 									)}
 								>
-									{source.label}
+									{option.label}
 								</button>
 							))}
 						</div>
+						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+							Filter which translated captions to display.
+						</p>
 
-						<Label className="md:text-right" htmlFor="aiTranslation">
-							AI Translation
+						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+
+						{aiEnabled && (
+							<>
+								<Label className="md:text-right" htmlFor="asrSource">
+									ASR Source
+								</Label>
+								<div className="flex flex-wrap gap-2">
+									{[
+										{ label: 'Browser', val: 'browser' },
+										{ label: 'Workers AI', val: 'workers-ai' },
+									].map((source) => (
+										<button
+											key={source.val}
+											onClick={() =>
+												setAsrSource(source.val as 'browser' | 'workers-ai')
+											}
+											className={cn(
+												'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',
+												asrSource === source.val
+													? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+													: 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-orange-200'
+											)}
+										>
+											{source.label}
+										</button>
+									))}
+								</div>
+
+								<Label className="md:text-right" htmlFor="aiTranslation">
+									AI Translation
+								</Label>
+								<div className="flex items-center gap-4">
+									<Toggle
+										id="aiTranslation"
+										checked={aiTranslationEnabled}
+										onCheckedChange={setAiTranslationEnabled}
+									/>
+									{aiTranslationEnabled && (
+										<span className="text-xs text-zinc-500">
+											Multi-language CC Enabled
+										</span>
+									)}
+								</div>
+							</>
+						)}
+
+						<Label className="md:text-right" htmlFor="moq">
+							<div className="flex flex-col md:items-end">
+								<span>Media over QUIC</span>
+								<span className="text-[10px] text-orange-500 font-black uppercase tracking-wider">
+									Experimental
+								</span>
+							</div>
 						</Label>
 						<div className="flex items-center gap-4">
 							<Toggle
-								id="aiTranslation"
-								checked={aiTranslationEnabled}
-								onCheckedChange={setAiTranslationEnabled}
+								id="moq"
+								checked={moqEnabled}
+								onCheckedChange={setMoqEnabled}
 							/>
-							{aiTranslationEnabled && (
-								<span className="text-xs text-zinc-500">
-									Multi-language CC Enabled
+							{moqEnabled && (
+								<span className="text-xs text-zinc-500 animate-pulse">
+									Draft-14 Relay Active
 								</span>
 							)}
 						</div>
-					</>
-				)}
-
-				<Label className="md:text-right" htmlFor="moq">
-					<div className="flex flex-col md:items-end">
-						<span>Media over QUIC</span>
-						<span className="text-[10px] text-orange-500 font-black uppercase tracking-wider">
-							Experimental
-						</span>
 					</div>
-				</Label>
-				<div className="flex items-center gap-4">
-					<Toggle
-						id="moq"
-						checked={moqEnabled}
-						onCheckedChange={setMoqEnabled}
-					/>
-					{moqEnabled && (
-						<span className="text-xs text-zinc-500 animate-pulse">
-							Draft-14 Relay Active
-						</span>
-					)}
-				</div>
-			</div>
-		</DialogContent>
+				</DialogContent>
 			</Portal>
 		</Dialog>
 	)

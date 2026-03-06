@@ -85,9 +85,7 @@ export function AiPushToTalkButtion() {
 	const definedPublicAudioTrack$ = useMemo(
 		() =>
 			publicAudioTrack$.pipe(
-				filter(
-					(track): track is MediaStreamTrack => track !== undefined
-				)
+				filter((track): track is MediaStreamTrack => track !== undefined)
 			),
 		[publicAudioTrack$]
 	)

@@ -135,9 +135,7 @@ export default function MeetingSummary() {
 					<h1 className="text-lg font-bold text-zinc-100 mb-1">
 						Summary Unavailable
 					</h1>
-					<p className="text-zinc-500 text-xs mb-5">
-						Meeting not found
-					</p>
+					<p className="text-zinc-500 text-xs mb-5">Meeting not found</p>
 					<Link
 						to="/"
 						className="inline-block w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
@@ -172,10 +170,10 @@ export default function MeetingSummary() {
 				{/* Compact Stats Row */}
 				<div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
 					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-3 rounded-xl">
-					<p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">
-						Room
-					</p>
-					<p className="text-xs font-bold truncate">
+						<p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">
+							Room
+						</p>
+						<p className="text-xs font-bold truncate">
 							{meeting?.roomName || 'Private'}
 						</p>
 					</div>
@@ -193,7 +191,9 @@ export default function MeetingSummary() {
 						<p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">
 							Users
 						</p>
-						<p className="text-xs font-bold">{meeting?.peakUserCount ?? '--'}</p>
+						<p className="text-xs font-bold">
+							{meeting?.peakUserCount ?? '--'}
+						</p>
 					</div>
 				</div>
 

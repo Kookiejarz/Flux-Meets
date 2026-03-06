@@ -1,6 +1,7 @@
-import { BehaviorSubject, Observable, Subscription, filter } from 'rxjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocalStorage } from 'react-use'
+import type { Observable, Subscription } from 'rxjs'
+import { BehaviorSubject, filter } from 'rxjs'
 import blurVideoTrack from '~/utils/blurVideoTrack'
 import noiseSuppression from '~/utils/noiseSuppression'
 
@@ -15,8 +16,6 @@ export const errorMessageMap = {
 }
 
 type UserMediaError = keyof typeof errorMessageMap
-
-const broadcastByDefault = false
 
 // Simple reactive helper compatible with useObservableAsValue
 function createBehaviorSubject<T>(initial: T) {
@@ -76,8 +75,12 @@ class NativeMediaDevice {
 	private currentFacingMode: 'user' | 'environment' = 'user'
 
 	readonly isBroadcasting$ = createBehaviorSubject<boolean>(false)
-	readonly broadcastTrack$ = createBehaviorSubject<MediaStreamTrack | undefined>(undefined)
-	readonly localMonitorTrack$ = createBehaviorSubject<MediaStreamTrack | undefined>(undefined)
+	readonly broadcastTrack$ = createBehaviorSubject<
+		MediaStreamTrack | undefined
+	>(undefined)
+	readonly localMonitorTrack$ = createBehaviorSubject<
+		MediaStreamTrack | undefined
+	>(undefined)
 	readonly devices$ = createBehaviorSubject<MediaDeviceInfo[]>([])
 	readonly activeDevice$ = createBehaviorSubject<MediaDeviceInfo | null>(null)
 	readonly error$ = createBehaviorSubject<Error | DOMException | null>(null)
@@ -90,10 +93,11 @@ class NativeMediaDevice {
 	async toggleCameraFacing() {
 		if (this.kind !== 'video') return
 		if (!isMobileDevice()) return
-		
-		this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user'
+
+		this.currentFacingMode =
+			this.currentFacingMode === 'user' ? 'environment' : 'user'
 		this.constraints.facingMode = this.currentFacingMode
-		
+
 		// Restart broadcasting with new facing mode
 		if (this.isBroadcasting$.value) {
 			await this.startBroadcasting()
@@ -146,21 +150,30 @@ class NativeMediaDevice {
 				video: this.kind === 'video' ? { ...getVideoConstraints() } : false,
 			}
 
-			if (this.kind === 'audio' && baseConstraints.audio && this.preferredDeviceId) {
+			if (
+				this.kind === 'audio' &&
+				baseConstraints.audio &&
+				this.preferredDeviceId
+			) {
 				;(baseConstraints.audio as MediaTrackConstraints).deviceId = {
 					exact: this.preferredDeviceId,
 				}
 			}
-			if (this.kind === 'video' && baseConstraints.video && this.preferredDeviceId) {
+			if (
+				this.kind === 'video' &&
+				baseConstraints.video &&
+				this.preferredDeviceId
+			) {
 				;(baseConstraints.video as MediaTrackConstraints).deviceId = {
 					exact: this.preferredDeviceId,
 				}
 			}
 
 			const stream = await navigator.mediaDevices.getUserMedia(baseConstraints)
-			const track = this.kind === 'audio'
-				? stream.getAudioTracks()[0]
-				: stream.getVideoTracks()[0]
+			const track =
+				this.kind === 'audio'
+					? stream.getAudioTracks()[0]
+					: stream.getVideoTracks()[0]
 			if (!track) throw new Error('No track returned from getUserMedia')
 
 			// Update active device from settings if available
@@ -173,6 +186,7 @@ class NativeMediaDevice {
 			// Apply transforms sequentially
 			for (const transform of this.transforms) {
 				const sub = transform(processedTrack).subscribe({
+					// eslint-disable-next-line no-loop-func
 					next: (t) => {
 						processedTrack = t
 					},
@@ -224,7 +238,9 @@ class NativeMediaDevice {
 class NativeScreenshare {
 	readonly video = {
 		isBroadcasting$: createBehaviorSubject<boolean>(false),
-		broadcastTrack$: createBehaviorSubject<MediaStreamTrack | undefined>(undefined),
+		broadcastTrack$: createBehaviorSubject<MediaStreamTrack | undefined>(
+			undefined
+		),
 	}
 
 	async startBroadcasting() {
@@ -261,7 +277,10 @@ export const screenshare = new NativeScreenshare()
 function useNoiseSuppression() {
 	// 默认关闭 rnnoise worklet 降噪，避免 AudioContext 管线引入延迟和音质损失
 	// 用户可在设置中手动开启（适合嘈杂环境/外放场景）
-	const [suppressNoise, setSuppressNoise] = useLocalStorage('suppress-noise', false)
+	const [suppressNoise, setSuppressNoise] = useLocalStorage(
+		'suppress-noise',
+		false
+	)
 	useEffect(() => {
 		if (suppressNoise) mic.addTransform(noiseSuppression)
 		return () => {
@@ -315,21 +334,23 @@ export default function useUserMedia(options: {
 
 	useEffect(() => {
 		if (typeof window === 'undefined' || !navigator.mediaDevices) return
-		mic.enumerateDevices().catch((err) =>
-			console.error('Failed to enumerate mic devices:', err)
-		)
+		mic
+			.enumerateDevices()
+			.catch((err) => console.error('Failed to enumerate mic devices:', err))
 	}, [])
 
 	useEffect(() => {
 		if (typeof window === 'undefined' || !navigator.mediaDevices) return
-		camera.enumerateDevices().catch((err) =>
-			console.error('Failed to enumerate camera devices:', err)
-		)
+		camera
+			.enumerateDevices()
+			.catch((err) => console.error('Failed to enumerate camera devices:', err))
 	}, [])
 
 	useEffect(() => {
 		if (options.micDeviceId) {
-			const found = mic.devices$.value.find((d) => d.deviceId === options.micDeviceId)
+			const found = mic.devices$.value.find(
+				(d) => d.deviceId === options.micDeviceId
+			)
 			if (found) mic.setPreferredDevice(found)
 		}
 	}, [options.micDeviceId])
@@ -351,7 +372,7 @@ export default function useUserMedia(options: {
 	const [audioUnavailableReason, setAudioUnavailableReason] =
 		useState<UserMediaError>()
 
-	const { endScreenShare, startScreenShare, screenShareVideoTrack$, screenShareVideoTrack: initialScreenShareVideoTrack } =
+	const { endScreenShare, startScreenShare, screenShareVideoTrack$ } =
 		useScreenshare()
 
 	useEffect(() => {
@@ -407,7 +428,9 @@ export default function useUserMedia(options: {
 		let cancelled = false
 		const run = async () => {
 			try {
-				const perm = await navigator.permissions?.query({ name: 'microphone' as any })
+				const perm = await navigator.permissions?.query({
+					name: 'microphone' as any,
+				})
 				if (perm?.state === 'granted' && !cancelled) {
 					console.log('Permission already granted, auto-starting mic/camera')
 					setTimeout(() => {
@@ -441,12 +464,26 @@ export default function useUserMedia(options: {
 	const audioEnabled = useSubjectValue(mic.isBroadcasting$)
 	const videoEnabled = useSubjectValue(camera.isBroadcasting$)
 	const screenShareEnabled = useSubjectValue(screenshare.video.isBroadcasting$)
-	const screenShareVideoTrack = useSubjectValue(screenshare.video.broadcastTrack$)
+	const screenShareVideoTrack = useSubjectValue(
+		screenshare.video.broadcastTrack$
+	)
 
 	// Non-null observables for partyTracks.push (screenshare keeps undefined to signal stop)
 	const publicAudioTrack$ = mic.broadcastTrack$
-	const privateAudioTrack$ = useMemo(() => mic.localMonitorTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
-	const videoTrack$ = useMemo(() => camera.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
+	const privateAudioTrack$ = useMemo(
+		() =>
+			mic.localMonitorTrack$.pipe(
+				filter((t): t is MediaStreamTrack => Boolean(t))
+			),
+		[]
+	)
+	const videoTrack$ = useMemo(
+		() =>
+			camera.broadcastTrack$.pipe(
+				filter((t): t is MediaStreamTrack => Boolean(t))
+			),
+		[]
+	)
 
 	return {
 		turnMicOn,

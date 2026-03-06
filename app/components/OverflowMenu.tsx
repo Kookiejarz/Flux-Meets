@@ -1,17 +1,13 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
-import type { FC, Dispatch, SetStateAction } from 'react'
+import type { Dispatch, FC, SetStateAction } from 'react'
 import { useState } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
-import { AiButton } from './AiButton'
 import { Button } from './Button'
-import { CopyButton } from './CopyButton'
 import DropdownMenu from './DropdownMenu'
 import { Icon } from './Icon/Icon'
 import { participantCount, ParticipantsDialog } from './ParticipantsMenu'
 import { ReportBugDialog } from './ReportBugDialog'
-import { ScreenshareButton } from './ScreenshareButton'
 import { SettingsDialog } from './SettingsDialog'
-import { Tooltip } from './Tooltip'
 
 interface OverflowMenuProps {
 	bugReportsEnabled: boolean
@@ -56,7 +52,7 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({
 		<>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger asChild>
-				<Button displayType="secondary" className={className}>
+					<Button displayType="secondary" className={className}>
 						<VisuallyHidden>More options</VisuallyHidden>
 						<Icon type="EllipsisVerticalIcon" />
 					</Button>

@@ -232,17 +232,23 @@ function Room({ room, userMedia }: RoomProps) {
 		aiEnabled,
 	} = useLoaderData<typeof loader>()
 
-	const [storedWebcamBitrate, setStoredWebcamBitrate] =
-		useLocalStorage<number>('settings-webcam-bitrate', maxWebcamBitrate)
+	const [storedWebcamBitrate, setStoredWebcamBitrate] = useLocalStorage<number>(
+		'settings-webcam-bitrate',
+		maxWebcamBitrate
+	)
 	const webcamBitrate = storedWebcamBitrate ?? maxWebcamBitrate
 	const [storedWebcamFramerate, setStoredWebcamFramerate] =
 		useLocalStorage<number>('settings-webcam-framerate', maxWebcamFramerate)
 	const webcamFramerate = storedWebcamFramerate ?? maxWebcamFramerate
-	const [storedWebcamQuality, setStoredWebcamQuality] =
-		useLocalStorage<number>('settings-webcam-quality', maxWebcamQualityLevel)
+	const [storedWebcamQuality, setStoredWebcamQuality] = useLocalStorage<number>(
+		'settings-webcam-quality',
+		maxWebcamQualityLevel
+	)
 	const webcamQuality = storedWebcamQuality ?? maxWebcamQualityLevel
-	const [storedVideoDenoise, setStoredVideoDenoise] =
-		useLocalStorage<boolean>('settings-video-denoise', false)
+	const [storedVideoDenoise, setStoredVideoDenoise] = useLocalStorage<boolean>(
+		'settings-video-denoise',
+		false
+	)
 	const videoDenoise = storedVideoDenoise ?? false
 	const setVideoDenoise: Dispatch<SetStateAction<boolean>> = (val) => {
 		setStoredVideoDenoise((prev) => {
@@ -299,27 +305,27 @@ function Room({ room, userMedia }: RoomProps) {
 	const sendEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
 		simulcastEnabled
 			? [
-				{
-					rid: 'a',
-					maxBitrate: Math.min(1_800_000, effectiveWebcamBitrate),
-					maxFramerate: Math.min(30.0, webcamFramerate),
-					active: true,
-				},
-				{
-					rid: 'b',
-					scaleResolutionDownBy: videoDenoise ? 1.5 : 2.0,
-					maxBitrate: Math.min(700_000, effectiveWebcamBitrate),
-					maxFramerate: Math.min(24.0, webcamFramerate),
-					active: true,
-				},
-			]
+					{
+						rid: 'a',
+						maxBitrate: Math.min(1_800_000, effectiveWebcamBitrate),
+						maxFramerate: Math.min(30.0, webcamFramerate),
+						active: true,
+					},
+					{
+						rid: 'b',
+						scaleResolutionDownBy: videoDenoise ? 1.5 : 2.0,
+						maxBitrate: Math.min(700_000, effectiveWebcamBitrate),
+						maxFramerate: Math.min(24.0, webcamFramerate),
+						active: true,
+					},
+				]
 			: [
-				{
-					maxFramerate: Math.min(maxWebcamFramerate, webcamFramerate),
-					maxBitrate: Math.min(maxWebcamBitrate, effectiveWebcamBitrate),
-					scaleResolutionDownBy: videoDenoise ? 1 : scaleResolutionDownBy,
-				},
-			]
+					{
+						maxFramerate: Math.min(maxWebcamFramerate, webcamFramerate),
+						maxBitrate: Math.min(maxWebcamBitrate, effectiveWebcamBitrate),
+						scaleResolutionDownBy: videoDenoise ? 1 : scaleResolutionDownBy,
+					},
+				]
 	)
 	const sendEncodings$ = useValueAsObservable(sendEncodings)
 
@@ -336,9 +342,7 @@ function Room({ room, userMedia }: RoomProps) {
 	const publicAudioTrack$ = useMemo(
 		() =>
 			userMedia.publicAudioTrack$.pipe(
-				filter(
-					(track): track is MediaStreamTrack => track !== undefined
-				)
+				filter((track): track is MediaStreamTrack => track !== undefined)
 			),
 		[userMedia.publicAudioTrack$]
 	)
@@ -360,9 +364,7 @@ function Room({ room, userMedia }: RoomProps) {
 	const screenShareVideoTrack$ = useMemo(
 		() =>
 			userMedia.screenShareVideoTrack$.pipe(
-				filter(
-					(track): track is MediaStreamTrack => track !== undefined
-				)
+				filter((track): track is MediaStreamTrack => track !== undefined)
 			),
 		[userMedia.screenShareVideoTrack$]
 	)
@@ -376,7 +378,7 @@ function Room({ room, userMedia }: RoomProps) {
 	)
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
-	
+
 	// Mobile devices should have captions enabled by default
 	const [captionsEnabled, setCaptionsEnabled] = useState(() => {
 		if (typeof window === 'undefined') return false
@@ -387,11 +389,9 @@ function Room({ room, userMedia }: RoomProps) {
 	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>(
 		'browser'
 	)
-	const [storedLocalCcLanguage, setStoredLocalCcLanguage] =
-		useLocalStorage<'browser' | 'zh-CN' | 'en-US'>(
-			'settings-local-cc-language',
-			'browser'
-		)
+	const [storedLocalCcLanguage, setStoredLocalCcLanguage] = useLocalStorage<
+		'browser' | 'zh-CN' | 'en-US'
+	>('settings-local-cc-language', 'browser')
 	const localCcLanguage = storedLocalCcLanguage ?? 'browser'
 	const setLocalCcLanguage: Dispatch<
 		SetStateAction<'browser' | 'zh-CN' | 'en-US'>
@@ -448,7 +448,8 @@ function Room({ room, userMedia }: RoomProps) {
 				framerate: Math.min(60, maxWebcamFramerate),
 				scale: 1,
 			},
-		], [maxWebcamBitrate, maxWebcamFramerate]
+		],
+		[maxWebcamBitrate, maxWebcamFramerate]
 	)
 
 	useEffect(() => {
@@ -463,9 +464,7 @@ function Room({ room, userMedia }: RoomProps) {
 		}
 
 		const pickSender = (): RTCRtpSender | undefined => {
-			return peerConnection
-				.getSenders()
-				.find((s) => s.track?.kind === 'video')
+			return peerConnection.getSenders().find((s) => s.track?.kind === 'video')
 		}
 
 		const applyTier = async (
@@ -483,7 +482,10 @@ function Room({ room, userMedia }: RoomProps) {
 				if (enc.rid === 'b') {
 					return {
 						...enc,
-						maxBitrate: Math.max(400_000, Math.min(target.bitrate / 2, maxWebcamBitrate)),
+						maxBitrate: Math.max(
+							400_000,
+							Math.min(target.bitrate / 2, maxWebcamBitrate)
+						),
 						maxFramerate: Math.min(target.framerate, maxWebcamFramerate),
 						scaleResolutionDownBy: Math.max(target.scale * 1.4, 1.5),
 					}
@@ -493,7 +495,8 @@ function Room({ room, userMedia }: RoomProps) {
 				}
 				return { ...enc, ...base }
 			})
-			const changed = JSON.stringify(params.encodings) !== JSON.stringify(nextEncodings)
+			const changed =
+				JSON.stringify(params.encodings) !== JSON.stringify(nextEncodings)
 			if (!changed) return
 			params.encodings = nextEncodings
 			try {
@@ -512,10 +515,16 @@ function Room({ room, userMedia }: RoomProps) {
 			try {
 				const stats = await sender.getStats()
 				for (const report of stats.values()) {
-					if (report.type === 'outbound-rtp' && report.kind === 'video' && !report.isRemote) {
-						if (!outbound || report.bytesSent > outbound.bytesSent) outbound = report
+					if (
+						report.type === 'outbound-rtp' &&
+						report.kind === 'video' &&
+						!report.isRemote
+					) {
+						if (!outbound || report.bytesSent > outbound.bytesSent)
+							outbound = report
 					}
-					if (report.type === 'remote-inbound-rtp' && report.kind === 'video') remote = report
+					if (report.type === 'remote-inbound-rtp' && report.kind === 'video')
+						remote = report
 				}
 			} catch (err) {
 				return
@@ -542,7 +551,11 @@ function Room({ room, userMedia }: RoomProps) {
 			const target = tiers[tierRef.current]
 			if (lossRate > 0.05 || rtt > 0.3) {
 				tierRef.current = Math.max(0, tierRef.current - 1)
-			} else if (lossRate < 0.02 && bitrate > target.bitrate * 0.8 && rtt < 0.15) {
+			} else if (
+				lossRate < 0.02 &&
+				bitrate > target.bitrate * 0.8 &&
+				rtt < 0.15
+			) {
 				tierRef.current = Math.min(tiers.length - 1, tierRef.current + 1)
 			}
 			await applyTier(sender, tiers[tierRef.current])

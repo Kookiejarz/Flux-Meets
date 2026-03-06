@@ -142,29 +142,29 @@ export const Participant = forwardRef<
 
 	const { displayCaptionLanguage } = useRoomContext()
 
-	// 判断是否显示该字幕
-	const shouldDisplayCaption = (text: string): boolean => {
-		if (displayCaptionLanguage === 'all') return true
-		
-		// 检测字幕是否有语言标记 [EN], [ZH] 等
-		const langMatch = text.match(/^\[([A-Z]{2})\]\s/)
-		
-		if (displayCaptionLanguage === 'original') {
-			// 只显示原文（没有语言标记的）
-			return !langMatch
-		}
-		
-		if (langMatch) {
-			// 如果有语言标记，检查是否匹配用户选择
-			const lang = langMatch[1].toLowerCase()
-			return lang === displayCaptionLanguage
-		}
-		
-		// 没有标记的原文，如果用户选了特定语言则不显示
-		return false
-	}
-
 	useEffect(() => {
+		// 判断是否显示该字幕
+		const shouldDisplayCaption = (text: string): boolean => {
+			if (displayCaptionLanguage === 'all') return true
+
+			// 检测字幕是否有语言标记 [EN], [ZH] 等
+			const langMatch = text.match(/^\[([A-Z]{2})\]\s/)
+
+			if (displayCaptionLanguage === 'original') {
+				// 只显示原文（没有语言标记的）
+				return !langMatch
+			}
+
+			if (langMatch) {
+				// 如果有语言标记，检查是否匹配用户选择
+				const lang = langMatch[1].toLowerCase()
+				return lang === displayCaptionLanguage
+			}
+
+			// 没有标记的原文，如果用户选了特定语言则不显示
+			return false
+		}
+
 		const handleMessage = (event: MessageEvent) => {
 			const data = JSON.parse(event.data)
 			if (data.type === 'caption') {
@@ -197,7 +197,14 @@ export const Participant = forwardRef<
 		return () => {
 			socket.removeEventListener('message', handleMessage)
 		}
-	}, [id, isSelf, identity?.id, partyTracks, room.websocket])
+	}, [
+		displayCaptionLanguage,
+		id,
+		isSelf,
+		identity?.id,
+		partyTracks,
+		room.websocket,
+	])
 
 	return (
 		<div

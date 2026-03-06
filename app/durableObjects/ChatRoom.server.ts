@@ -26,7 +26,6 @@ import {
 const alarmInterval = 15_000
 const defaultOpenAIModelID = 'gpt-4o-realtime-preview-2024-10-01'
 const defaultWorkersAiAsrModel = '@cf/deepgram/nova-3'
-const defaultWorkersAiTranslationModel = '@cf/meta/m2m100-1.2b'
 const defaultWorkersAiTargetLangs = ['en', 'zh']
 
 /**
@@ -73,7 +72,8 @@ export class ChatRoom extends Server<Env> {
 			if (url.pathname === '/create' && request.method === 'POST') {
 				let meetingId = await this.ctx.storage.get<string>('meetingId')
 				if (!meetingId) {
-					const roomName = request.headers.get('x-partykit-room') || this.ctx.id.toString()
+					const roomName =
+						request.headers.get('x-partykit-room') || this.ctx.id.toString()
 					meetingId = await this.createMeeting(roomName)
 				}
 				return new Response(JSON.stringify({ meetingId }), {
@@ -375,9 +375,10 @@ export class ChatRoom extends Server<Env> {
 		data: { type: 'audioChunk'; data: string }
 	) {
 		// 云端CC（语音识别）独立开关，向后兼容
-		const asrEnabled = 
+		const asrEnabled =
 			this.env.ENABLE_WORKERS_AI_ASR === 'true' ||
-			(this.env.ENABLE_WORKERS_AI_ASR === undefined && this.env.ENABLE_WORKERS_AI === 'true')
+			(this.env.ENABLE_WORKERS_AI_ASR === undefined &&
+				this.env.ENABLE_WORKERS_AI === 'true')
 		if (this.env.AI && asrEnabled) {
 			try {
 				const asrModel =
@@ -444,13 +445,12 @@ export class ChatRoom extends Server<Env> {
 					if (data.translate) {
 						try {
 							const targetLangs =
-								this.env.WORKERS_AI_TRANSLATION_TARGET_LANGS
-									?.split(',')
+								this.env.WORKERS_AI_TRANSLATION_TARGET_LANGS?.split(',')
 									.map((lang) => lang.trim())
 									.filter(Boolean) ?? defaultWorkersAiTargetLangs
 
 							// Check if using OpenAI for translation (空值则跳过)
-							const useOpenAI = 
+							const useOpenAI =
 								this.env.USE_OPENAI_TRANSLATION === 'true' &&
 								this.env.OPENAI_API_TOKEN &&
 								this.env.OPENAI_TRANSLATION_MODEL &&
@@ -460,32 +460,37 @@ export class ChatRoom extends Server<Env> {
 								// OpenAI Translation
 								const model = this.env.OPENAI_TRANSLATION_MODEL!
 								for (const lang of targetLangs) {
-									const langName = lang === 'en' ? 'English' : lang === 'zh' ? 'Chinese' : lang
-									const response = await fetch('https://api.openai.com/v1/chat/completions', {
-										method: 'POST',
-										headers: {
-											'Content-Type': 'application/json',
-											'Authorization': `Bearer ${this.env.OPENAI_API_TOKEN}`,
-										},
-										body: JSON.stringify({
-											model,
-											messages: [
-												{
-													role: 'system',
-													content: `Translate the following text to ${langName}. Only output the translation, no explanations.`
-												},
-												{
-													role: 'user',
-													content: data.text
-												}
-											],
-											temperature: 0.3,
-										}),
-									})
+									const langName =
+										lang === 'en' ? 'English' : lang === 'zh' ? 'Chinese' : lang
+									const response = await fetch(
+										'https://api.openai.com/v1/chat/completions',
+										{
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json',
+												Authorization: `Bearer ${this.env.OPENAI_API_TOKEN}`,
+											},
+											body: JSON.stringify({
+												model,
+												messages: [
+													{
+														role: 'system',
+														content: `Translate the following text to ${langName}. Only output the translation, no explanations.`,
+													},
+													{
+														role: 'user',
+														content: data.text,
+													},
+												],
+												temperature: 0.3,
+											}),
+										}
+									)
 
 									if (response.ok) {
 										const result: any = await response.json()
-										const translatedText = result.choices?.[0]?.message?.content?.trim()
+										const translatedText =
+											result.choices?.[0]?.message?.content?.trim()
 										if (translatedText && translatedText !== data.text) {
 											this.broadcastMessage({
 												type: 'caption',

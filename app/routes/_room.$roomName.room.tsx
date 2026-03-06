@@ -10,7 +10,6 @@ import { useMount, useWindowSize } from 'react-use'
 import { AiButton } from '~/components/AiButton'
 import { Button, ButtonLink } from '~/components/Button'
 import { CameraButton } from '~/components/CameraButton'
-import { isMobile } from '~/utils/isMobile'
 import { ChatPanel } from '~/components/ChatPanel'
 import { CopyButton } from '~/components/CopyButton'
 import { HighPacketLossWarningsToast } from '~/components/HighPacketLossWarningsToast'
@@ -37,6 +36,7 @@ import useStageManager from '~/hooks/useStageManager'
 import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
+import { isMobile } from '~/utils/isMobile'
 import isNonNullable from '~/utils/isNonNullable'
 
 import { AnimatePresence, motion } from 'framer-motion'
@@ -287,7 +287,10 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 						{/* Mobile: Only show core buttons with larger touch targets */}
 						{isMobile() ? (
 							<div className="grid grid-cols-2 gap-4 w-full max-w-md mx-auto">
-								<MicButton warnWhenSpeakingWhileMuted className="!px-6 !py-4 !text-base" />
+								<MicButton
+									warnWhenSpeakingWhileMuted
+									className="!px-6 !py-4 !text-base"
+								/>
 								<CameraButton className="!px-6 !py-4 !text-base" />
 								<OverflowMenu
 									bugReportsEnabled={bugReportsEnabled}
@@ -308,11 +311,15 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 							</div>
 						) : (
 							<>
-								{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
+								{hasAiCredentials && (
+									<AiButton recordActivity={recordActivity} />
+								)}
 								<MicButton warnWhenSpeakingWhileMuted />
 								<CameraButton />
 								<Tooltip
-									content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
+									content={
+										captionsEnabled ? 'Disable Captions' : 'Enable Captions'
+									}
 								>
 									<Button
 										onClick={() => {
@@ -367,7 +374,10 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 									navigateToFeedbackPage={hasDb}
 									meetingId={meetingId}
 								/>
-								<CopyButton className="text-sm px-3 py-2" contentValue={roomUrl}>
+								<CopyButton
+									className="text-sm px-3 py-2"
+									contentValue={roomUrl}
+								>
 									<span className="hidden md:inline">Copy Link</span>
 								</CopyButton>
 							</>

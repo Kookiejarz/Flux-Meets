@@ -1,10 +1,10 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { useNavigate } from '@remix-run/react'
 import type { FC } from 'react'
+import { camera, mic, screenshare } from '../hooks/useUserMedia'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
 import { Tooltip } from './Tooltip'
-import { mic, camera, screenshare } from '../hooks/useUserMedia'
 
 interface LeaveRoomButtonProps {
 	navigateToFeedbackPage: boolean
@@ -34,7 +34,7 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 					mic.stopBroadcasting()
 					camera.stopBroadcasting()
 					screenshare.stopBroadcasting()
-					
+
 					const params = new URLSearchParams()
 					if (meetingId) {
 						// best-effort mark meeting ended using client timestamp

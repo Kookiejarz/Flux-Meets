@@ -62,7 +62,8 @@ function DraggableCaption({
 				className={cn(
 					'bg-black/70 text-white px-4 py-3 rounded-xl text-sm md:text-base max-w-[90%] break-words text-center shadow-2xl backdrop-blur-md transition-all duration-200',
 					!isFinal && 'border-b-2 border-orange-400/60',
-					isDragging && 'ring-2 ring-white/60 bg-black/85 scale-105 shadow-orange-500/30'
+					isDragging &&
+						'ring-2 ring-white/60 bg-black/85 scale-105 shadow-orange-500/30'
 				)}
 			>
 				{text}

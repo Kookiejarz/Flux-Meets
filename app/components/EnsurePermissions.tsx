@@ -55,7 +55,11 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 			console.error('Mic error detected:', micError.name, micError.message)
 		}
 		if (cameraError) {
-			console.error('Camera error detected:', cameraError.name, cameraError.message)
+			console.error(
+				'Camera error detected:',
+				cameraError.name,
+				cameraError.message
+			)
 		}
 	}, [micError, cameraError])
 
@@ -75,7 +79,10 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 	)
 	const hasBroadcastTrack = Boolean(micBroadcastTrack || cameraBroadcastTrack)
 	const devicesReady =
-		micIsBroadcasting || cameraIsBroadcasting || hasSelectedDevice || hasBroadcastTrack
+		micIsBroadcasting ||
+		cameraIsBroadcasting ||
+		hasSelectedDevice ||
+		hasBroadcastTrack
 	// 只在刚授予权限时才启用，防止影响已有权限的情况
 	useEffect(() => {
 		if (permissionState === 'granted' && justGranted && !devicesReady) {
@@ -89,11 +96,7 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 			}, 30000) // 增加到 30 秒以适应较慢的移动设备和网络延迟
 			return () => clearTimeout(timer)
 		}
-	}, [
-		permissionState,
-		justGranted,
-		devicesReady,
-	])
+	}, [permissionState, justGranted, devicesReady])
 
 	// Sync device IDs back to parent
 	useEffect(() => {
@@ -211,7 +214,9 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 					<div className="text-xs text-zinc-600 space-y-1">
 						<p>
 							Mic:{' '}
-							{micIsBroadcasting || micBroadcastTrack || micActiveDevice?.deviceId
+							{micIsBroadcasting ||
+							micBroadcastTrack ||
+							micActiveDevice?.deviceId
 								? '✓ Ready'
 								: '○ Waiting...'}
 						</p>
@@ -286,48 +291,62 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 
 							// 核心修复：直接在点击事件中调用原生 getUserMedia
 							// 这是唤起 iOS Safari 权限弹窗最稳健的方法
-							const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-								navigator.userAgent
-							)
+							const isMobile =
+								/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+									navigator.userAgent
+								)
 							console.log('Is mobile device:', isMobile)
 							navigator.mediaDevices
-							.getUserMedia({
-								audio: true,
-								video: {
-									facingMode: 'user',
-									...(isMobile
-										? { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 } }
-										: { width: { ideal: 1280 }, height: { ideal: 720 } }),
-								},
-							})
+								.getUserMedia({
+									audio: true,
+									video: {
+										facingMode: 'user',
+										...(isMobile
+											? {
+													width: { ideal: 640, max: 1280 },
+													height: { ideal: 480, max: 720 },
+												}
+											: { width: { ideal: 1280 }, height: { ideal: 720 } }),
+									},
+								})
 								.then((stream) => {
-									console.log('✓ Native prompt success, got stream with', stream.getTracks().length, 'tracks')
+									console.log(
+										'✓ Native prompt success, got stream with',
+										stream.getTracks().length,
+										'tracks'
+									)
 									stream.getTracks().forEach((t) => {
-										console.log(`  - ${t.kind}: ${t.label || 'unlabeled'}, enabled: ${t.enabled}`)
+										console.log(
+											`  - ${t.kind}: ${t.label || 'unlabeled'}, enabled: ${t.enabled}`
+										)
 									})
 									// 立即停止这个临时流，释放硬件
 									stream.getTracks().forEach((t) => t.stop())
 									console.log('✓ Stopped temporary stream')
-									
+
 									// 在成功获取权限后才设置状态
 									// 这样确保超时检查只在真正开始广播后才启动
 									if (mountedRef.current) {
 										setPermissionState('granted')
 										setJustGranted(true)
 									}
-									
+
 									// 关键修复：在 iOS Safari 上，硬件需要时间从临时 getUserMedia 流中释放
 									// 添加延迟以避免竞速条件
 									const startDelay = isMobile ? 500 : 100
-									console.log(`⏱️ Waiting ${startDelay}ms for hardware to be released (mobile: ${isMobile})`)
-									
+									console.log(
+										`⏱️ Waiting ${startDelay}ms for hardware to be released (mobile: ${isMobile})`
+									)
+
 									setTimeout(() => {
-										console.log('✓ Calling mic.startBroadcasting() and camera.startBroadcasting()...')
-										
+										console.log(
+											'✓ Calling mic.startBroadcasting() and camera.startBroadcasting()...'
+										)
+
 										// 让库接管
 										mic.startBroadcasting()
 										camera.startBroadcasting()
-										
+
 										console.log('✓ Started broadcasting')
 									}, startDelay)
 								})

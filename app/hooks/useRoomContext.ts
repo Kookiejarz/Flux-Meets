@@ -45,7 +45,9 @@ export type RoomContextType = {
 	localCcLanguage: 'browser' | 'zh-CN' | 'en-US'
 	setLocalCcLanguage: Dispatch<SetStateAction<'browser' | 'zh-CN' | 'en-US'>>
 	displayCaptionLanguage: 'all' | 'en' | 'zh' | 'original'
-	setDisplayCaptionLanguage: Dispatch<SetStateAction<'all' | 'en' | 'zh' | 'original'>>
+	setDisplayCaptionLanguage: Dispatch<
+		SetStateAction<'all' | 'en' | 'zh' | 'original'>
+	>
 	aiEnabled: boolean
 	aiTranslationEnabled: boolean
 	setAiTranslationEnabled: Dispatch<SetStateAction<boolean>>
