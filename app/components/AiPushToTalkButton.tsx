@@ -1,6 +1,6 @@
 import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { switchMap } from 'rxjs'
+import { filter, switchMap } from 'rxjs'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import type { ClientMessage } from '~/types/Messages'
 import { playSound } from '~/utils/playSound'
@@ -82,14 +82,23 @@ export function AiPushToTalkButtion() {
 	})
 
 	const holdingTalkButton$ = useValueAsObservable(holdingTalkButton)
+	const definedPublicAudioTrack$ = useMemo(
+		() =>
+			publicAudioTrack$.pipe(
+				filter(
+					(track): track is MediaStreamTrack => track !== undefined
+				)
+			),
+		[publicAudioTrack$]
+	)
 	const audioTrack$ = useMemo(
 		() =>
 			holdingTalkButton$.pipe(
 				switchMap((talking) =>
-					talking ? publicAudioTrack$ : inaudibleAudioTrack$
+					talking ? definedPublicAudioTrack$ : inaudibleAudioTrack$
 				)
 			),
-		[holdingTalkButton$, publicAudioTrack$]
+		[holdingTalkButton$, definedPublicAudioTrack$]
 	)
 
 	const pushedAiAudioTrack$ = useMemo(

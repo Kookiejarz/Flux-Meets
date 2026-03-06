@@ -11,7 +11,7 @@ import {
 	type SetStateAction,
 } from 'react'
 import { useLocalStorage } from 'react-use'
-import { of } from 'rxjs'
+import { filter, of } from 'rxjs'
 import invariant from 'tiny-invariant'
 import { Button } from '~/components/Button'
 import { EnsureOnline } from '~/components/EnsureOnline'
@@ -242,10 +242,15 @@ function Room({ room, userMedia }: RoomProps) {
 	const [storedWebcamQuality, setStoredWebcamQuality] =
 		useLocalStorage<number>('settings-webcam-quality', maxWebcamQualityLevel)
 	const webcamQuality = storedWebcamQuality ?? maxWebcamQualityLevel
-	const [videoDenoise, setVideoDenoise] = useLocalStorage<boolean>(
-		'settings-video-denoise',
-		false
-	) ?? false
+	const [storedVideoDenoise, setStoredVideoDenoise] =
+		useLocalStorage<boolean>('settings-video-denoise', false)
+	const videoDenoise = storedVideoDenoise ?? false
+	const setVideoDenoise: Dispatch<SetStateAction<boolean>> = (val) => {
+		setStoredVideoDenoise((prev) => {
+			const prevVal = prev ?? false
+			return typeof val === 'function' ? val(prevVal) : val
+		})
+	}
 
 	const params = new URLSearchParams(apiExtraParams)
 
@@ -329,9 +334,19 @@ function Room({ room, userMedia }: RoomProps) {
 
 	const pushedVideoTrack = useObservableAsValue(pushedVideoTrack$)
 
+	const publicAudioTrack$ = useMemo(
+		() =>
+			userMedia.publicAudioTrack$.pipe(
+				filter(
+					(track): track is MediaStreamTrack => track !== undefined
+				)
+			),
+		[userMedia.publicAudioTrack$]
+	)
+
 	const pushedAudioTrack$ = useMemo(
 		() =>
-			partyTracks.push(userMedia.publicAudioTrack$, {
+			partyTracks.push(publicAudioTrack$, {
 				sendEncodings$: of([
 					{
 						networkPriority: 'high',
@@ -339,13 +354,23 @@ function Room({ room, userMedia }: RoomProps) {
 					},
 				]),
 			}),
-		[partyTracks, userMedia.publicAudioTrack$]
+		[partyTracks, publicAudioTrack$]
 	)
 	const pushedAudioTrack = useObservableAsValue(pushedAudioTrack$)
 
+	const screenShareVideoTrack$ = useMemo(
+		() =>
+			userMedia.screenShareVideoTrack$.pipe(
+				filter(
+					(track): track is MediaStreamTrack => track !== undefined
+				)
+			),
+		[userMedia.screenShareVideoTrack$]
+	)
+
 	const pushedScreenSharingTrack$ = useMemo(
-		() => partyTracks.push(userMedia.screenShareVideoTrack$),
-		[partyTracks, userMedia.screenShareVideoTrack$]
+		() => partyTracks.push(screenShareVideoTrack$),
+		[partyTracks, screenShareVideoTrack$]
 	)
 	const pushedScreenSharingTrack = useObservableAsValue(
 		pushedScreenSharingTrack$
