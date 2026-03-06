@@ -87,6 +87,8 @@ export default function useUserMedia(options: {
 	cameraDeviceId?: string
 }) {
 	useEffect(() => {
+		// 防御性检查：确保代码只在客户端浏览器环境中运行
+		if (typeof window === 'undefined' || !navigator.mediaDevices) return
 		if (!options.micDeviceId) return
 		navigator.mediaDevices
 			.enumerateDevices()
@@ -94,14 +96,22 @@ export default function useUserMedia(options: {
 			.then((d) => {
 				d && mic.setPreferredDevice(d)
 			})
+			.catch((err) => {
+				console.error('Failed to enumerate mic devices:', err)
+			})
 	}, [options.micDeviceId])
 	useEffect(() => {
+		// 防御性检查：确保代码只在客户端浏览器环境中运行
+		if (typeof window === 'undefined' || !navigator.mediaDevices) return
 		if (!options.cameraDeviceId) return
 		navigator.mediaDevices
 			.enumerateDevices()
 			.then((ds) => ds.find((d) => d.deviceId === options.cameraDeviceId))
 			.then((d) => {
 				d && camera.setPreferredDevice(d)
+			})
+			.catch((err) => {
+				console.error('Failed to enumerate camera devices:', err)
 			})
 	}, [options.cameraDeviceId])
 
@@ -132,6 +142,9 @@ export default function useUserMedia(options: {
 	})
 
 	useEffect(() => {
+		// 防御性检查：确保代码只在客户端浏览器环境中运行
+		if (typeof window === 'undefined' || !navigator.mediaDevices) return
+
 		// Auto-start if possible. This handles cases where permission was already granted.
 		// Use a short delay to avoid racing with EnsurePermissions on iOS Safari,
 		// where the hardware may not yet be released from the temp getUserMedia stream.
@@ -139,7 +152,13 @@ export default function useUserMedia(options: {
 			mic.startBroadcasting()
 			camera.startBroadcasting()
 		}, 100)
-		return () => clearTimeout(timeout)
+
+		// 清理函数：组件卸载时停止广播，释放媒体设备
+		return () => {
+			clearTimeout(timeout)
+			mic.stopBroadcasting()
+			camera.stopBroadcasting()
+		}
 	}, [])
 
 	useObservable(mic.error$, (e) => {

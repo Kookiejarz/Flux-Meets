@@ -13,30 +13,37 @@ export const VideoSrcObject = forwardRef<HTMLVideoElement, VideoSrcObjectProps>(
 		const internalRef = useRef<HTMLVideoElement | null>(null)
 
 		useEffect(() => {
-			const video = internalRef.current
-			if (!video) return
+		// 防御性检查：确保代码只在客户端浏览器环境中运行
+		if (typeof window === 'undefined') return
+		
+		const video = internalRef.current
+		if (!video) return
 
-			if (!videoTrack) {
-				video.srcObject = null
-				return
+		if (!videoTrack) {
+			video.srcObject = null
+			return
+		}
+
+		// Create a stream for the track
+		const mediaStream = new MediaStream([videoTrack])
+		video.srcObject = mediaStream
+
+		// Explicitly call play. In many browsers, autoplay attribute
+		// is not enough when the element is moved in the DOM.
+		video.play().catch((err) => {
+			// We can ignore AbortError as it's common during rapid re-renders
+			if (err.name !== 'AbortError') {
+				console.warn('Video playback failed:', err)
 			}
+		})
 
-			// Create a stream for the track
-			const mediaStream = new MediaStream([videoTrack])
-			video.srcObject = mediaStream
-
-			// Explicitly call play. In many browsers, autoplay attribute
-			// is not enough when the element is moved in the DOM.
-			video.play().catch((err) => {
-				// We can ignore AbortError as it's common during rapid re-renders
-				if (err.name !== 'AbortError') {
-					console.warn('Video playback failed:', err)
-				}
-			})
-
-			return () => {
-				// Use the captured video element to ensure cleanup even if internalRef.current changes
-				video.srcObject = null
+		return () => {
+			// 清理函数：停止所有媒体轨道，释放资源，防止内存泄漏
+			if (video.srcObject instanceof MediaStream) {
+				video.srcObject.getTracks().forEach(track => {
+					track.stop()
+				})
+			}
 			}
 		}, [videoTrack])
 

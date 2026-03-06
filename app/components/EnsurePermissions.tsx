@@ -100,10 +100,21 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 							className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-50"
 							onClick={() => {
 								console.log('Allow access clicked')
+								
+								// 防御性检查：确保代码只在客户端浏览器环境中运行
+								if (typeof window === 'undefined' || !navigator.mediaDevices) {
+									console.error('当前浏览器环境不支持访问媒体设备，请确保使用 HTTPS')
+									if (mountedRef.current) setPermissionState('denied')
+									return
+								}
+								
 								// Safari is extremely sensitive to 'async' click handlers.
 								// We call getUserMedia directly to trigger the prompt.
 								navigator.mediaDevices
-									.getUserMedia({ audio: true, video: true })
+									.getUserMedia({ 
+										audio: true, 
+										video: { facingMode: 'user' } // 默认请求前置摄像头
+									})
 									.then(async (stream) => {
 										console.log('getUserMedia success')
 										// IMPORTANT: Stop the temporary tracks FIRST to release
