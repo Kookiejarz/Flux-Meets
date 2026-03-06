@@ -6,6 +6,7 @@ import useIsSpeaking from '~/hooks/useIsSpeaking'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { errorMessageMap } from '~/hooks/useUserMedia'
 import { metaKey } from '~/utils/metaKey'
+import { playSound } from '~/utils/playSound'
 import type { ButtonProps } from './Button'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
@@ -27,7 +28,13 @@ export const MicButton: FC<
 	} = useRoomContext()
 
 	const toggle = () => {
-		audioEnabled ? turnMicOff() : turnMicOn()
+		if (audioEnabled) {
+			turnMicOff()
+			playSound('mute').catch(console.error)
+		} else {
+			turnMicOn()
+			playSound('unmute').catch(console.error)
+		}
 	}
 
 	useKey((e) => {

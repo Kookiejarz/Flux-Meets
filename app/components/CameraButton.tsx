@@ -4,6 +4,7 @@ import { useKey } from 'react-use'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { errorMessageMap } from '~/hooks/useUserMedia'
 import { metaKey } from '~/utils/metaKey'
+import { playSound } from '~/utils/playSound'
 import type { ButtonProps } from './Button'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
@@ -22,7 +23,13 @@ export const CameraButton: FC<ButtonProps> = ({ onClick, ...rest }) => {
 	} = useRoomContext()
 
 	const toggle = () => {
-		videoEnabled ? turnCameraOff() : turnCameraOn()
+		if (videoEnabled) {
+			turnCameraOff()
+			playSound('videoOff').catch(console.error)
+		} else {
+			turnCameraOn()
+			playSound('videoOn').catch(console.error)
+		}
 	}
 
 	useKey((e) => {

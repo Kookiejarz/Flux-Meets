@@ -73,7 +73,8 @@ export class ChatRoom extends Server<Env> {
 			if (url.pathname === '/create' && request.method === 'POST') {
 				let meetingId = await this.ctx.storage.get<string>('meetingId')
 				if (!meetingId) {
-					meetingId = await this.createMeeting()
+					const roomName = request.headers.get('x-partykit-room') || this.ctx.id.toString()
+					meetingId = await this.createMeeting(roomName)
 				}
 				return new Response(JSON.stringify({ meetingId }), {
 					status: 200,
@@ -147,6 +148,14 @@ export class ChatRoom extends Server<Env> {
 			// store the user's data in storage
 			await this.ctx.storage.put(`session-${connection.id}`, user)
 			await this.ctx.storage.put(`heartbeat-${connection.id}`, Date.now())
+			// Store room name from WebSocket request on first connect
+			const storedRoomName = await this.ctx.storage.get<string>('roomName')
+			if (!storedRoomName) {
+				const roomName = ctx.request.headers.get('x-partykit-room')
+				if (roomName) {
+					await this.ctx.storage.put('roomName', roomName)
+				}
+			}
 			await this.trackPeakUserCount()
 			await this.broadcastRoomState()
 			const meetingId = await this.getMeetingId()
@@ -179,7 +188,9 @@ export class ChatRoom extends Server<Env> {
 			}
 
 			if (!meeting.roomName) {
-				updates.roomName = this.ctx.id.toString()
+				// Try to get readable room name from stored value, fallback to DO ID
+				const storedRoomName = await this.ctx.storage.get<string>('roomName')
+				updates.roomName = storedRoomName || this.ctx.id.toString()
 			}
 
 			const userCount = (await this.getUsers()).size
@@ -207,11 +218,16 @@ export class ChatRoom extends Server<Env> {
 		return this.ctx.storage.get<string>('meetingId')
 	}
 
-	async createMeeting() {
+	async createMeeting(roomName?: string) {
 		const meetingId = crypto.randomUUID()
 		const startTime = Date.now()
+		const finalRoomName = roomName || this.ctx.id.toString()
 		await this.ctx.storage.put('meetingId', meetingId)
 		await this.ctx.storage.put('startTime', startTime)
+		// Store the human-readable room name
+		if (roomName) {
+			await this.ctx.storage.put('roomName', roomName)
+		}
 		log({ eventName: 'startingMeeting', meetingId, startTime })
 		if (this.db) {
 			try {
@@ -220,7 +236,7 @@ export class ChatRoom extends Server<Env> {
 					.insert(Meetings)
 					.values({
 						id: meetingId,
-						roomName: this.ctx.id.toString(),
+						roomName: finalRoomName,
 						peakUserCount: 1,
 					})
 					.run()

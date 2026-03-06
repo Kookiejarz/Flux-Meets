@@ -3,7 +3,11 @@ import aiReady from './sounds/AIReady.mp3'
 import join from './sounds/Join.mp3'
 import leave from './sounds/Leave.mp3'
 import message from './sounds/Message.mp3'
+import mute from './sounds/Mute.mp3'
 import raiseHand from './sounds/RaiseHand.mp3'
+import unmute from './sounds/Unmute.mp3'
+import videoOff from './sounds/VideoOff.mp3'
+import videoOn from './sounds/VideoOn.mp3'
 
 const fetchOnce = async (...args: Parameters<typeof fetch>) => {
 	invariant(
@@ -28,6 +32,10 @@ const sounds = {
 	raiseHand,
 	aiReady,
 	message,
+	mute,
+	unmute,
+	videoOn,
+	videoOff,
 }
 
 const volumeMap = {
@@ -36,6 +44,10 @@ const volumeMap = {
 	raiseHand: 0.1,
 	aiReady: 0.1,
 	message: 0.1,
+	mute: 0.15,
+	unmute: 0.15,
+	videoOn: 0.15,
+	videoOff: 0.15,
 } satisfies Record<keyof typeof sounds, number>
 
 export async function playSound(sound: keyof typeof sounds) {

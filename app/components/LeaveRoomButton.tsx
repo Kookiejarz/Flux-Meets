@@ -32,7 +32,7 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 						const body = new URLSearchParams({ meetingId })
 						fetch('/api/meeting-end', { method: 'POST', body }).catch(() => {})
 						params.set('meetingId', meetingId)
-						navigate(`/call-quality-feedback?${params}`)
+						navigate(`/summary?${params}`)
 					} else {
 						console.warn('No meetingId found, redirecting to home')
 						navigate('/')
