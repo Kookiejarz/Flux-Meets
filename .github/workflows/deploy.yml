@@ -33,6 +33,12 @@ jobs:
         # 使用 ci 代替 install，增加 --prefer-offline 减少网络请求
         run: npm ci --legacy-peer-deps --prefer-offline --no-audit
 
+      - name: Ensure Production Queue Exists
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler queues create orange-meets-feedback-queue || true
+
       - name: Build and Deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
