@@ -1,50 +1,111 @@
 import type { ActionFunction, LoaderFunctionArgs } from '@remix-run/cloudflare'
 import { json, redirect } from '@remix-run/cloudflare'
-import { Form, useLoaderData, useNavigate } from '@remix-run/react'
+import {
+	Form,
+	useActionData,
+	useLoaderData,
+	useNavigate,
+	useSearchParams,
+} from '@remix-run/react'
 import { nanoid } from 'nanoid'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import invariant from 'tiny-invariant'
 import { Button } from '~/components/Button'
 import { Disclaimer } from '~/components/Disclaimer'
 import { Input } from '~/components/Input'
+import { useDispatchToast } from '~/components/Toast'
 import { useUserMetadata } from '~/hooks/useUserMetadata'
 import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import getUsername from '~/utils/getUsername.server'
 import { cn } from '~/utils/style'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
-	const directoryUrl = context.USER_DIRECTORY_URL
+	const directoryUrl = context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
 	const username = await getUsername(request)
 	invariant(username)
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
 	return json({ username, usedAccess, directoryUrl })
 }
 
-export const action: ActionFunction = async ({ request }) => {
-	const formData = await request.formData()
-	const room = formData.get('room')
-	const targetRoom = room && typeof room === 'string' && room.trim() !== ''
-		? room.replace(/ /g, '-')
-		: nanoid(8)
-	return redirect(`/${targetRoom}`)
+export const action: ActionFunction = async ({ request, context }) => {
+	try {
+		const formData = await request.formData()
+		const room = formData.get('room')
+		const isNew = formData.get('isNew') === 'true'
+
+		const targetRoom =
+			room && typeof room === 'string' && room.trim() !== ''
+				? room.replace(/ /g, '-')
+				: crypto.randomUUID().slice(0, 8)
+
+		const rooms = context.env?.rooms ?? (context as any).rooms
+		if (!rooms) {
+			console.error('Durable Object binding "rooms" not found in context.')
+			return json({ error: 'Server configuration error.' }, { status: 500 })
+		}
+
+		const id = rooms.idFromName(targetRoom)
+		const stub = rooms.get(id)
+
+		if (isNew) {
+			// Explicitly create the room
+			const response = await stub.fetch('https://party/create', {
+				method: 'POST',
+				headers: {
+					'x-partykit-room': targetRoom,
+					'x-partykit-namespace': 'rooms',
+				},
+			})
+			if (!response.ok) {
+				const errorText = await response.text()
+				console.error('Failed to create room in DO:', errorText)
+				return json({ error: 'Failed to create room.' }, { status: 500 })
+			}
+			return redirect(`/${targetRoom}`)
+		} else {
+			// Check if room exists
+			const response = await stub.fetch('https://party/exists', {
+				headers: {
+					'x-partykit-room': targetRoom,
+					'x-partykit-namespace': 'rooms',
+				},
+			})
+			if (response.status === 404) {
+				return json({ error: 'Room not found or has expired.' }, { status: 404 })
+			}
+			if (!response.ok) {
+				console.error('Failed to check room existence:', response.status)
+				return json({ error: 'Failed to join room.' }, { status: 500 })
+			}
+			return redirect(`/${targetRoom}`)
+		}
+	} catch (err) {
+		console.error('Action error:', err)
+		return json({ error: 'An unexpected error occurred.' }, { status: 500 })
+	}
 }
 
 export default function Index() {
 	const { username, usedAccess } = useLoaderData<typeof loader>()
+	const actionData = useActionData<{ error?: string }>()
+	const [searchParams] = useSearchParams()
+	const dispatchToast = useDispatchToast()
 	const navigate = useNavigate()
 	const { data } = useUserMetadata(username)
 	const [roomNameInput, setRoomNameInput] = useState('')
 
 	const isCreatingNew = roomNameInput.trim() === ''
 
-	const handleClientSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-		// Use client-side navigation if JS is loaded
-		e.preventDefault()
-		const targetRoom = isCreatingNew
-			? nanoid(8)
-			: roomNameInput.replace(/ /g, '-')
-		navigate(`/${targetRoom}`)
-	}
+	useEffect(() => {
+		const error = searchParams.get('error') || actionData?.error
+		if (error) {
+			const message =
+				error === 'room-not-found'
+					? 'Room not found or has expired.'
+					: error
+			dispatchToast(message, { id: 'room-error' })
+		}
+	}, [searchParams, actionData, dispatchToast])
 
 	return (
 		<div className="flex flex-col items-center justify-center h-full p-6 mx-auto group">
@@ -77,9 +138,9 @@ export default function Index() {
 				<div className="opacity-0 group-hover:opacity-100 group-hover:animate-fade-in-up transition-all duration-1000 delay-100">
 					<Form
 						method="post"
-						onSubmit={handleClientSubmit}
 						className="relative flex flex-col sm:flex-row gap-3 p-2 bg-white dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl shadow-orange-500/5 focus-within:shadow-orange-500/20 focus-within:border-orange-500/50 transition-all duration-500"
 					>
+						<input type="hidden" name="isNew" value={String(isCreatingNew)} />
 						<div className="relative flex-grow">
 							<Input
 								name="room"

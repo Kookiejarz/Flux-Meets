@@ -56,13 +56,33 @@ export class ChatRoom extends Server<Env> {
 		const meetingId = await this.getMeetingId()
 		log({ eventName: 'onStart', meetingId })
 		this.db = getDb(this)
-		// TODO: make this a part of partyserver
-		// this.ctx.setWebSocketAutoResponse(
-		// 	new WebSocketRequestResponsePair(
-		// 		JSON.stringify({ type: 'partyserver-ping' }),
-		// 		JSON.stringify({ type: 'partyserver-pong' })
-		// 	)
-		// )
+	}
+
+	async onRequest(request: Request): Promise<Response> {
+		try {
+			const url = new URL(request.url)
+			if (url.pathname === '/exists') {
+				const meetingId = await this.ctx.storage.get<string>('meetingId')
+				if (meetingId) {
+					return new Response('OK', { status: 200 })
+				}
+				return new Response('Not Found', { status: 404 })
+			}
+			if (url.pathname === '/create' && request.method === 'POST') {
+				let meetingId = await this.ctx.storage.get<string>('meetingId')
+				if (!meetingId) {
+					meetingId = await this.createMeeting()
+				}
+				return new Response(JSON.stringify({ meetingId }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				})
+			}
+			return super.onRequest(request)
+		} catch (err) {
+			console.error('DO Request Error:', err)
+			return new Response(String(err), { status: 500 })
+		}
 	}
 
 	async onConnect(
@@ -112,9 +132,11 @@ export class ChatRoom extends Server<Env> {
 
 	async trackPeakUserCount() {
 		let meetingId = await this.getMeetingId()
-		const meeting = meetingId
-			? await this.getMeeting(meetingId)
-			: await this.createMeeting()
+		if (!meetingId) {
+			meetingId = await this.createMeeting()
+		}
+		const meeting = await this.getMeeting(meetingId)
+
 		await this.cleanupOldConnections()
 		if (this.db) {
 			if (!meeting) return
@@ -148,15 +170,14 @@ export class ChatRoom extends Server<Env> {
 		await this.ctx.storage.put('meetingId', meetingId)
 		log({ eventName: 'startingMeeting', meetingId })
 		if (this.db) {
-			return this.db
+			await this.db
 				.insert(Meetings)
 				.values({
 					id: meetingId,
 					peakUserCount: 1,
 				})
-				.returning()
-				.then(([m]) => m)
 		}
+		return meetingId
 	}
 
 	async getMeeting(meetingId: string) {

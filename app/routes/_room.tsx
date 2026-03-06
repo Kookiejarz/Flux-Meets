@@ -1,7 +1,8 @@
 import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
-import { json } from '@remix-run/cloudflare'
+import { json, redirect } from '@remix-run/cloudflare'
 import { Outlet, useLoaderData, useParams } from '@remix-run/react'
 import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
+import { type Dispatch, type SetStateAction } from 'react'
 import { useMemo, useState } from 'react'
 import { of } from 'rxjs'
 import invariant from 'tiny-invariant'
@@ -31,7 +32,40 @@ function trackObjectToString(trackObject?: TrackObject) {
 	return trackObject.sessionId + '/' + trackObject.trackName
 }
 
-export const loader = async ({ context }: LoaderFunctionArgs) => {
+export const loader = async ({ context, params }: LoaderFunctionArgs) => {
+	const { roomName } = params
+	if (!roomName) {
+		throw redirect('/')
+	}
+
+	try {
+		const rooms = context.env?.rooms ?? (context as any).rooms
+		if (!rooms) {
+			console.error('Durable Object binding "rooms" not found in context.')
+			throw redirect('/?error=server-config-error')
+		}
+
+		const id = rooms.idFromName(roomName)
+		const stub = rooms.get(id)
+		const response = await stub.fetch(`https://party/exists`, {
+			headers: {
+				'x-partykit-room': roomName,
+				'x-partykit-namespace': 'rooms',
+			},
+		})
+		if (response.status === 404) {
+			throw redirect('/?error=room-not-found')
+		}
+		if (!response.ok) {
+			console.error('Room existence check failed with status:', response.status)
+			throw redirect('/?error=check-failed')
+		}
+	} catch (err) {
+		if (err instanceof Response) throw err // Re-throw redirects
+		console.error('Loader check error:', err)
+		throw redirect('/?error=unexpected-error')
+	}
+
 	const {
 		env: {
 			TRACE_LINK,

@@ -1,7 +1,7 @@
 name = "orange-meets"
 # https://developers.cloudflare.com/workers/platform/compatibility-dates
 compatibility_date = "2025-01-01"
-main = "./build/index.js"
+main = "build/index.mjs"
 compatibility_flags = ["nodejs_compat"]
 
 [site]

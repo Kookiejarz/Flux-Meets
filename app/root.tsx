@@ -19,6 +19,7 @@ import React, { useRef } from 'react'
 import { useFullscreen, useToggle } from 'react-use'
 
 import { QueryClient, QueryClientProvider } from 'react-query'
+import Toast from '~/components/Toast'
 import tailwind from '~/styles/tailwind.css'
 import { elementNotContainedByClickTarget } from './utils/elementNotContainedByClickTarget'
 import getUsername from './utils/getUsername.server'
@@ -215,19 +216,22 @@ const queryClient = new QueryClient()
 export default function App() {
 	const { userDirectoryUrl, backgroundImageUrl } = useLoaderData<typeof loader>()
 	return (
-		<Document backgroundImageUrl={backgroundImageUrl}>
-			<div
-				id="root"
-				className={cn('h-full isolate', !backgroundImageUrl && 'bg-inherit')}
-			>
-				<QueryClientProvider client={queryClient}>
-					<Outlet
-						context={{
-							userDirectoryUrl,
-						}}
-					/>
-				</QueryClientProvider>
-			</div>
-		</Document>
+		<Toast.Provider>
+			<Document backgroundImageUrl={backgroundImageUrl}>
+				<div
+					id="root"
+					className={cn('h-full isolate', !backgroundImageUrl && 'bg-inherit')}
+				>
+					<QueryClientProvider client={queryClient}>
+						<Outlet
+							context={{
+								userDirectoryUrl,
+							}}
+						/>
+					</QueryClientProvider>
+					<Toast.Viewport />
+				</div>
+			</Document>
+		</Toast.Provider>
 	)
 }

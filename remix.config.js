@@ -4,8 +4,10 @@ module.exports = {
 	ignoredRouteFiles: ['**/.*'],
 	server: './server.ts',
 	serverConditions: ['worker'],
+	serverBuildPath: 'build/index.mjs',
 	serverDependenciesToBundle: [
-		/^(?!__STATIC_CONTENT_MANIFEST|cloudflare:workers).*$/,
+		'@mediapipe/selfie_segmentation',
+		/^(?!__STATIC_CONTENT_MANIFEST|cloudflare:workers|partyserver).*$/,
 	],
 	serverMainFields: ['workerd', 'browser', 'module', 'main'],
 	serverMinify: true,
