@@ -18,19 +18,57 @@ export const errorMessageMap = {
 type UserMediaError = keyof typeof errorMessageMap
 
 const broadcastByDefault = false
-export const mic = getMic({
-	broadcasting: false,
-	constraints: {
+
+// 检测是否为移动设备
+const isMobileDevice = () => {
+	if (typeof window === 'undefined') return false
+	return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+		navigator.userAgent
+	)
+}
+
+// 根据设备类型生成不同的约束
+const getAudioConstraints = () => {
+	const constraints: MediaTrackConstraints = {
 		echoCancellation: true,
 		noiseSuppression: true,
 		autoGainControl: true,
-		channelCount: { ideal: 2 }, // 尝试请求双声道
-		sampleRate: { ideal: 48000 }, // 尝试请求高质量采样
-	},
+	}
+
+	// 只在桌面设备上要求高质量采样，手机上使用更低的要求
+	if (!isMobileDevice()) {
+		constraints.channelCount = { ideal: 2 }
+		constraints.sampleRate = { ideal: 48000 }
+	}
+
+	return constraints
+}
+
+const getVideoConstraints = () => {
+	const baseConstraints: MediaTrackConstraints = {
+		facingMode: 'user', // 移动设备使用前置摄像头
+	}
+
+	// 桌面设备请求更高分辨率，手机使用更宽松的约束
+	if (!isMobileDevice()) {
+		baseConstraints.width = { ideal: 1280 }
+		baseConstraints.height = { ideal: 720 }
+	} else {
+		// 手机设备使用更灵活的分辨率要求
+		baseConstraints.width = { ideal: 640, max: 1280 }
+		baseConstraints.height = { ideal: 480, max: 720 }
+	}
+
+	return baseConstraints
+}
+
+export const mic = getMic({
+	broadcasting: false,
+	constraints: getAudioConstraints(),
 })
 export const camera = getCamera({
 	broadcasting: false,
-	constraints: { width: { ideal: 1280 }, height: { ideal: 720 } },
+	constraints: getVideoConstraints(),
 })
 export const screenshare = getScreenshare({ audio: false })
 

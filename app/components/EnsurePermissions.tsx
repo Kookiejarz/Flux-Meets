@@ -262,8 +262,19 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 
 							// 2. 核心修复：直接在点击事件的第一行调用原生 getUserMedia
 							// 这是唤起 iOS Safari 权限弹窗最稳健的方法
-							navigator.mediaDevices
-								.getUserMedia({ audio: true, video: { facingMode: 'user' } })
+						const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+							navigator.userAgent
+						)
+						navigator.mediaDevices
+							.getUserMedia({
+								audio: isMobile ? true : { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+								video: {
+									facingMode: 'user',
+									...(isMobile
+										? { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 } }
+										: { width: { ideal: 1280 }, height: { ideal: 720 } }),
+								},
+							})
 								.then((stream) => {
 									console.log('Native prompt success, starting broadcasting...')
 									// 立即停止这个临时流，释放硬件
