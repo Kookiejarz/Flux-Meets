@@ -6,7 +6,7 @@ import {
 	useSensors,
 } from '@dnd-kit/core'
 import { restrictToWindowEdges } from '@dnd-kit/modifiers'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '~/utils/style'
 
 interface CaptionDisplayProps {
@@ -20,16 +20,22 @@ function DraggableCaption({
 	text,
 	isFinal,
 	position,
+	transformRef,
 }: {
 	id: string
 	text: string
 	isFinal: boolean
 	position: { x: number; y: number }
+	transformRef: React.MutableRefObject<{ x: number; y: number } | null>
 }) {
 	const { attributes, listeners, setNodeRef, transform, isDragging } =
 		useDraggable({
 			id,
 		})
+
+	transformRef.current = transform
+
+	if (!text) return null
 
 	// Combine the saved position with the active drag transform
 	const x = position.x + (transform?.x ?? 0)
@@ -71,6 +77,7 @@ export function CaptionDisplay({
 	const [visibleText, setVisibleText] = useState('')
 	const [position, setPosition] = useState({ x: 0, y: 0 })
 	const [isClient, setIsClient] = useState(false)
+	const transformRef = useRef<{ x: number; y: number } | null>(null)
 
 	useEffect(() => {
 		setIsClient(true)
@@ -111,27 +118,29 @@ export function CaptionDisplay({
 		})
 	)
 
-	if (!visibleText) return null
 	if (!isClient) return null
 
 	return (
 		<DndContext
 			sensors={sensors}
 			modifiers={[restrictToWindowEdges]}
-			onDragEnd={(event) => {
-				const { delta } = event
-				const newPosition = {
-					x: position.x + delta.x,
-					y: position.y + delta.y,
-				}
-				setPosition(newPosition)
-				try {
-					localStorage.setItem(
-						`caption-position-${userId}`,
-						JSON.stringify(newPosition)
-					)
-				} catch (e) {
-					// ignore
+			onDragEnd={() => {
+				const tx = transformRef.current
+				if (tx) {
+					const newPosition = {
+						x: position.x + tx.x,
+						y: position.y + tx.y,
+					}
+					setPosition(newPosition)
+					transformRef.current = null
+					try {
+						localStorage.setItem(
+							`caption-position-${userId}`,
+							JSON.stringify(newPosition)
+						)
+					} catch (e) {
+						// ignore
+					}
 				}
 			}}
 		>
@@ -140,6 +149,7 @@ export function CaptionDisplay({
 				text={visibleText}
 				isFinal={isFinal}
 				position={position}
+				transformRef={transformRef}
 			/>
 		</DndContext>
 	)

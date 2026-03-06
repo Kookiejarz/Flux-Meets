@@ -2,7 +2,6 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import type { FC } from 'react'
 import { useState } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
-import { useRoomUrl } from '~/hooks/useRoomUrl'
 import { Button } from './Button'
 import DropdownMenu from './DropdownMenu'
 import { Icon } from './Icon/Icon'
@@ -27,7 +26,6 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
 	const [settingsMenuOpen, setSettingMenuOpen] = useState(false)
 	const [bugReportMenuOpen, setBugReportMenuOpen] = useState(false)
 	const [participantsMenuOpen, setParticipantsMenuOpen] = useState(false)
-	const roomUrl = useRoomUrl()
 	return (
 		<>
 			<DropdownMenu.Root>
@@ -55,12 +53,6 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
 						>
 							<Icon type="PhoneIcon" className="mr-2" />
 							{audioOnlyMode ? 'Disable Audio Only' : 'Enable Audio Only'}
-						</DropdownMenu.Item>
-						<DropdownMenu.Item
-							onSelect={() => navigator.clipboard.writeText(roomUrl)}
-						>
-							<Icon type="ClipboardDocumentIcon" className="mr-2" />
-							Copy URL
 						</DropdownMenu.Item>
 						<DropdownMenu.Item
 							onSelect={() => {

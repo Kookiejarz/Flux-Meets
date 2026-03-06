@@ -4,7 +4,6 @@ import {
 	Form,
 	useActionData,
 	useLoaderData,
-	useNavigate,
 	useSearchParams,
 } from '@remix-run/react'
 import React, { useEffect, useState } from 'react'
@@ -93,7 +92,6 @@ export default function Index() {
 	const actionData = useActionData<{ error?: string }>()
 	const [searchParams] = useSearchParams()
 	const dispatchToast = useDispatchToast()
-	const navigate = useNavigate()
 	const { data } = useUserMetadata(username)
 	const [roomNameInput, setRoomNameInput] = useState('')
 

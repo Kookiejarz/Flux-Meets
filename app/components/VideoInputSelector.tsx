@@ -27,10 +27,14 @@ export const VideoInputSelector: FC<{ id?: string }> = ({ id }) => {
 
 	return (
 		<div className="max-w-[40ch]">
-			<Select value={videoDeviceId} onValueChange={setVideoDeviceId} id={id}>
+			<Select
+				value={videoDeviceId || videoInputDevices[0]?.deviceId}
+				onValueChange={setVideoDeviceId}
+				id={id}
+			>
 				{videoInputDevices.map((d) => (
 					<Option key={d.deviceId} value={d.deviceId}>
-						{d.label}
+						{d.label || 'Default Camera'}
 					</Option>
 				))}
 			</Select>

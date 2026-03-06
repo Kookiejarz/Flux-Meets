@@ -71,11 +71,13 @@ export function useSpeechToText({
 		recognition.onend = () => {
 			// Restart if still enabled
 			if (enabledRef.current) {
-				try {
-					recognition.start()
-				} catch (e) {
-					// Ignore if already started
-				}
+				setTimeout(() => {
+					try {
+						recognition.start()
+					} catch (e) {
+						// Ignore if already started
+					}
+				}, 100)
 			}
 		}
 
@@ -85,6 +87,29 @@ export function useSpeechToText({
 			recognition.stop()
 		}
 	}, [language])
+
+	useEffect(() => {
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible' && enabledRef.current) {
+				const recognition = recognitionRef.current
+				if (recognition) {
+					try {
+						recognition.start()
+					} catch (e) {
+						// Already started or starting
+					}
+				}
+			}
+		}
+
+		document.addEventListener('visibilitychange', handleVisibilityChange)
+		window.addEventListener('focus', handleVisibilityChange)
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange)
+			window.removeEventListener('focus', handleVisibilityChange)
+		}
+	}, [])
 
 	useEffect(() => {
 		const recognition = recognitionRef.current

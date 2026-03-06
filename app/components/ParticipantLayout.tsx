@@ -1,6 +1,6 @@
 import { createGrid } from 'good-grid'
 import { useGridDimensions } from 'good-grid/react'
-import React, { useId, useRef } from 'react'
+import React, { useRef } from 'react'
 import { Flipper } from 'react-flip-toolkit'
 import type { User } from '~/types/Messages'
 import { Participant } from './Participant'
@@ -26,8 +26,6 @@ export function ParticipantLayout({
 		aspectRatio,
 		gap,
 	})
-
-	const id = useId()
 
 	if (users.length === 0) {
 		return null

@@ -30,6 +30,7 @@ import { Tooltip } from '~/components/Tooltip'
 import useBroadcastStatus from '~/hooks/useBroadcastStatus'
 import useIsSpeaking from '~/hooks/useIsSpeaking'
 import { useRoomContext } from '~/hooks/useRoomContext'
+import { useRoomUrl } from '~/hooks/useRoomUrl'
 import { useShowDebugInfoShortcut } from '~/hooks/useShowDebugInfoShortcut'
 import useSounds from '~/hooks/useSounds'
 import useStageManager from '~/hooks/useStageManager'
@@ -37,6 +38,8 @@ import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import isNonNullable from '~/utils/isNonNullable'
+
+import { AnimatePresence, motion } from 'framer-motion'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
@@ -101,6 +104,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		identity,
 		roomState: { meetingId },
 	} = room
+
+	const roomUrl = useRoomUrl()
 
 	// only want this evaluated once upon mounting
 	const [firstUser] = useState(otherUsers.length === 0)
@@ -243,9 +248,9 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 							navigateToFeedbackPage={hasDb}
 							meetingId={meetingId}
 						/>
-						{showDebugInfo && meetingId && (
-							<CopyButton contentValue={meetingId}>Meeting Id</CopyButton>
-						)}
+						<CopyButton className="text-sm px-3 py-2" contentValue={roomUrl}>
+							<span className="hidden md:inline">Copy Link</span>
+						</CopyButton>
 						{showDebugInfo && meetingId && dashboardDebugLogsBaseUrl && (
 							<ButtonLink
 								className="text-xs"
@@ -267,11 +272,21 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 						)}
 					</div>
 				</div>
-				{chatOpen && (
-					<div className="w-80 border-l border-white/10 flex-shrink-0 relative z-20 shadow-2xl transition-all h-full bg-zinc-900">
-						<ChatPanel onClose={() => setChatOpen(false)} />
-					</div>
-				)}
+				<AnimatePresence>
+					{chatOpen && (
+						<motion.div
+							initial={{ x: '100%' }}
+							animate={{ x: 0 }}
+							exit={{ x: '100%' }}
+							transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+							className="fixed inset-0 z-50 md:relative md:inset-auto md:w-80 border-l border-white/10 shadow-2xl h-full bg-zinc-900 overflow-hidden"
+						>
+							<div className="w-full h-full">
+								<ChatPanel onClose={() => setChatOpen(false)} />
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</div>
 			<HighPacketLossWarningsToast />
 			<IceDisconnectedToast />

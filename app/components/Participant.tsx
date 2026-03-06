@@ -67,7 +67,6 @@ export const Participant = forwardRef<
 		simulcastEnabled,
 		audioOnlyMode,
 		pinnedTileIds,
-		setPinnedTileIds,
 		showDebugInfo,
 		userMedia,
 		room,
@@ -153,7 +152,7 @@ export const Participant = forwardRef<
 			}
 		}
 
-		partyTracks.peerConnection$.subscribe((pc) => {
+		partyTracks.peerConnection$.subscribe((_pc) => {
 			// This is not the right place for DO messages, but room.websocket is available
 		})
 

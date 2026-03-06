@@ -25,14 +25,16 @@ export const AudioInputSelector: FC<{ id?: string }> = ({ id }) => {
 		)
 	}
 
-	if (!audioDeviceId) return null
-
 	return (
 		<div className="max-w-[40ch]">
-			<Select id={id} value={audioDeviceId} onValueChange={setAudioDeviceId}>
+			<Select
+				id={id}
+				value={audioDeviceId || audioInputDevices[0]?.deviceId}
+				onValueChange={setAudioDeviceId}
+			>
 				{audioInputDevices.map((d) => (
 					<Option key={d.deviceId} value={d.deviceId}>
-						{d.label}
+						{d.label || 'Default Microphone'}
 					</Option>
 				))}
 			</Select>

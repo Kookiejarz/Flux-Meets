@@ -81,32 +81,40 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 									},
 								})
 								.then((ms) => {
-									// Explicitly fire devicechange so the rest of the app updates
-									navigator.mediaDevices.dispatchEvent(
-										new Event('devicechange')
-									)
+									// Wait a tiny bit for the stream to stabilize before enumerating
+									// This is crucial for iOS Safari to populate labels
+									setTimeout(() => {
+										navigator.mediaDevices.enumerateDevices().then((devices) => {
+											// iOS Safari track.getSettings().deviceId can be undefined, so fallback to the first device of that kind
+											const micId =
+												ms.getAudioTracks()[0]?.getSettings().deviceId ||
+												devices.find((d) => d.kind === 'audioinput' && d.deviceId)
+													?.deviceId
+											const cameraId =
+												ms.getVideoTracks()[0]?.getSettings().deviceId ||
+												devices.find((d) => d.kind === 'videoinput' && d.deviceId)
+													?.deviceId
 
-									navigator.mediaDevices.enumerateDevices().then((devices) => {
-										// iOS Safari track.getSettings().deviceId can be undefined, so fallback to the first device of that kind
-										const micId =
-											ms.getAudioTracks()[0]?.getSettings().deviceId ||
-											devices.find((d) => d.kind === 'audioinput')?.deviceId
-										const cameraId =
-											ms.getVideoTracks()[0]?.getSettings().deviceId ||
-											devices.find((d) => d.kind === 'videoinput')?.deviceId
+											if (micId) props.onMicSelected(micId)
+											if (cameraId) props.onCameraSelected(cameraId)
 
-										// Stop tracks immediately to free hardware
-										ms.getTracks().forEach((t) => t.stop())
+											// Explicitly fire devicechange so useMediaDevices hook updates with labels
+											navigator.mediaDevices.dispatchEvent(
+												new Event('devicechange')
+											)
 
-										if (micId) props.onMicSelected(micId)
-										if (cameraId) props.onCameraSelected(cameraId)
+											// Trigger partytracks broadcasting synchronously to preserve user gesture context
+											mic.startBroadcasting()
+											camera.startBroadcasting()
 
-										// Trigger partytracks broadcasting synchronously to preserve user gesture context
-										mic.startBroadcasting()
-										camera.startBroadcasting()
+											// Stop the temporary tracks AFTER starting broadcasting to keep hardware active
+											setTimeout(() => {
+												ms.getTracks().forEach((t) => t.stop())
+											}, 500)
 
-										if (mountedRef.current) setPermissionState('granted')
-									})
+											if (mountedRef.current) setPermissionState('granted')
+										})
+									}, 300)
 								})
 								.catch((err) => {
 									console.error('Permission request failed:', err)

@@ -13,7 +13,22 @@ export default function useMediaDevices(
 		let mounted = true
 		const requestDevices = () => {
 			navigator.mediaDevices.enumerateDevices().then((d) => {
-				if (mounted) setDevices(d)
+				if (!mounted) return
+				setDevices(d)
+
+				// If we have devices but no labels, it might be because permissions were JUST granted.
+				// Try one more time after a short delay.
+				const hasDevices = d.length > 0
+				const hasLabels = d.some((device) => device.label)
+				if (hasDevices && !hasLabels) {
+					setTimeout(() => {
+						if (mounted) {
+							navigator.mediaDevices.enumerateDevices().then((d2) => {
+								if (mounted) setDevices(d2)
+							})
+						}
+					}, 500)
+				}
 			})
 		}
 		navigator.mediaDevices.addEventListener('devicechange', requestDevices)
