@@ -1,4 +1,4 @@
-# Flux Meet
+# Flux Meets
 
 Flux Meet is a modern, high-performance video conferencing application showcasing the power of WebRTC combined with serverless edge computing.
 
