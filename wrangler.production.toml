@@ -14,16 +14,26 @@ name = "rooms"
 class_name = "ChatRoom"
 
 [vars]
-CALLS_APP_ID = "700932c6384d6f4ba19838afa3ab93cd"
+CALLS_APP_ID = "f3324a25c97d9902cff9018a0efcf3b1"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
-TURN_SERVICE_ID = "53fa66872a8636170428abae9b049193"
+TURN_SERVICE_ID = "3dba939d4fa9d8bf17639482bc2c2c61"
+
 EXPERIMENTAL_SIMULCAST_ENABLED = "false"
-BACKGROUND_IMAGE_URL = ""
+BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
+
+MAX_WEBCAM_BITRATE = 8500000
+MAX_WEBCAM_FRAMERATE = 60
+MAX_WEBCAM_QUALITY_LEVEL = 1080
+
+ENABLE_WORKERS_AI = "false"
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
-database_name = "orange-meets-db-production"
-database_id = "a63ffd86-4a64-4e22-8337-f23c45a565f9"
+database_name = "orange-meets-db"
+database_id = "722818b7-63af-4395-bad1-c68ce86d2bd4"
+
+[ai]
+binding = "AI"
 
 # Durable Object migrations
 [[migrations]]
