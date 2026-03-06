@@ -160,7 +160,9 @@ function RoomPreparation(props: {
 						Connecting to Room
 					</h2>
 					<p className="text-sm text-zinc-500">
-						Establishing a secure connection to the meeting...
+						{room.isConnected
+							? 'Connected! Fetching meeting details...'
+							: 'Establishing a secure connection to the meeting...'}
 					</p>
 				</div>
 				{isTimedOut && (

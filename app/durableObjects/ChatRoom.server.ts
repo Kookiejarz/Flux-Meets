@@ -2,7 +2,6 @@ import type { Env } from '~/types/Env'
 import type { ClientMessage, ServerMessage, User } from '~/types/Messages'
 import { assertError } from '~/utils/assertError'
 import assertNever from '~/utils/assertNever'
-import { assertNonNullable } from '~/utils/assertNonNullable'
 import getUsername from '~/utils/getUsername.server'
 
 import { eq, sql } from 'drizzle-orm'
@@ -95,60 +94,70 @@ export class ChatRoom extends Server<Env> {
 			this.ctx.storage.setAlarm(Date.now() + alarmInterval)
 		}
 
-		const username = await getUsername(ctx.request)
-		assertNonNullable(username)
+		const username =
+			(await getUsername(ctx.request)) || 'Guest-' + connection.id.slice(0, 4)
 
-		// Prevent duplicate sessions for the same user
-		for (const otherConnection of this.getConnections<User>()) {
-			if (otherConnection.id !== connection.id) {
-				const otherUser = await this.ctx.storage.get<User>(
-					`session-${otherConnection.id}`
-				)
-				if (otherUser && otherUser.name === username) {
-					// Notify the old connection and close it
-					this.sendMessage(otherConnection, {
-						type: 'error',
-						error:
-							'You joined from another tab or device. This session has been closed.',
-					})
-					otherConnection.close(1011, 'Duplicate session')
-					// Clean up their storage immediately so they don't appear in the list
-					await this.ctx.storage.delete(`session-${otherConnection.id}`)
-					await this.ctx.storage.delete(`heartbeat-${otherConnection.id}`)
+		try {
+			// Prevent duplicate sessions for the same user
+			for (const otherConnection of this.getConnections<User>()) {
+				if (otherConnection.id !== connection.id) {
+					const otherUser = await this.ctx.storage.get<User>(
+						`session-${otherConnection.id}`
+					)
+					if (
+						otherUser &&
+						otherUser.name === username &&
+						username !== 'Guest-' + otherConnection.id.slice(0, 4)
+					) {
+						// Notify the old connection and close it
+						this.sendMessage(otherConnection, {
+							type: 'error',
+							error:
+								'You joined from another tab or device. This session has been closed.',
+						})
+						otherConnection.close(1011, 'Duplicate session')
+						// Clean up their storage immediately so they don't appear in the list
+						await this.ctx.storage.delete(`session-${otherConnection.id}`)
+						await this.ctx.storage.delete(`heartbeat-${otherConnection.id}`)
+					}
 				}
 			}
-		}
 
-		let user = await this.ctx.storage.get<User>(`session-${connection.id}`)
-		const foundInStorage = user !== undefined
-		if (!foundInStorage) {
-			user = {
-				id: connection.id,
-				name: username,
-				joined: false,
-				raisedHand: false,
-				speaking: false,
-				tracks: {
-					audioEnabled: false,
-					audioUnavailable: false,
-					videoEnabled: false,
-					screenShareEnabled: false,
-				},
+			let user = await this.ctx.storage.get<User>(`session-${connection.id}`)
+			const foundInStorage = user !== undefined
+			if (!foundInStorage) {
+				user = {
+					id: connection.id,
+					name: username,
+					joined: false,
+					raisedHand: false,
+					speaking: false,
+					tracks: {
+						audioEnabled: false,
+						audioUnavailable: false,
+						videoEnabled: false,
+						screenShareEnabled: false,
+					},
+				}
 			}
-		}
 
-		// store the user's data in storage
-		await this.ctx.storage.put(`session-${connection.id}`, user)
-		await this.ctx.storage.put(`heartbeat-${connection.id}`, Date.now())
-		await this.trackPeakUserCount()
-		await this.broadcastRoomState()
-		const meetingId = await this.getMeetingId()
-		log({
-			eventName: 'onConnect',
-			meetingId,
-			foundInStorage,
-			connectionId: connection.id,
-		})
+			// store the user's data in storage
+			await this.ctx.storage.put(`session-${connection.id}`, user)
+			await this.ctx.storage.put(`heartbeat-${connection.id}`, Date.now())
+			await this.trackPeakUserCount()
+			await this.broadcastRoomState()
+			const meetingId = await this.getMeetingId()
+			log({
+				eventName: 'onConnect',
+				meetingId,
+				foundInStorage,
+				connectionId: connection.id,
+			})
+		} catch (err) {
+			console.error('Error during onConnect session setup:', err)
+			// Still try to broadcast state even if some setup failed
+			await this.broadcastRoomState()
+		}
 	}
 
 	async trackPeakUserCount() {

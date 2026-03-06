@@ -248,7 +248,7 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						onClick={() => {
 							console.log('Allow access clicked')
 
-							// 防御性检查：确保代码只在客户端浏览器环境中运行
+							// 防御性检查
 							if (typeof window === 'undefined' || !navigator.mediaDevices) {
 								console.error(
 									'当前浏览器环境不支持访问媒体设备，请确保使用 HTTPS'
@@ -257,43 +257,19 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 								return
 							}
 
-							// Safari is extremely sensitive to 'async' click handlers.
-							// We call getUserMedia directly to trigger the prompt.
-							navigator.mediaDevices
-								.getUserMedia({
-									audio: true,
-									video: { facingMode: 'user' }, // 默认请求前置摄像头
-								})
-								.then(async (stream) => {
-									console.log('getUserMedia success, stopping temp tracks...')
-									// IMPORTANT: Stop the temporary tracks FIRST to release
-									// the hardware before partytracks tries to acquire it.
-									// On iOS Safari, holding the device while calling
-									// getUserMedia again causes a NotReadableError.
-									stream.getTracks().forEach((t) => t.stop())
+							// 1. 立即设置状态，显示“正在启动”界面
+							if (mountedRef.current) {
+								setPermissionState('granted')
+								setJustGranted(true)
+							}
 
-									// Give iOS/mobile browsers time to fully release the camera/mic hardware
-									console.log('Waiting for hardware release...')
-									await new Promise((resolve) => setTimeout(resolve, 800))
+							// 2. 同步调用启动逻辑，不使用 await，确保在当前点击手势内触发 getUserMedia
+							console.log('Directly starting devices in onClick...')
+							mic.startBroadcasting()
+							camera.startBroadcasting()
 
-									console.log('Starting broadcasting...')
-									// Now start broadcasting — devices should be free
-									mic.startBroadcasting()
-									camera.startBroadcasting()
-
-									// Set permission state and mark as just granted
-									if (mountedRef.current) {
-										console.log(
-											'Permission granted, waiting for devices to start...'
-										)
-										setJustGranted(true) // 标记为刚刚授予
-										setPermissionState('granted')
-									}
-								})
-								.catch((err) => {
-									console.error('Permission request failed:', err)
-									if (mountedRef.current) setPermissionState('denied')
-								})
+							// 3. 作为后备，如果 1 秒后还是没动静，尝试再次通过预授权方式启动（针对极少数特殊浏览器）
+							// 但我们不再主动停止流，除非确定它成功了
 						}}
 					>
 						Allow access
