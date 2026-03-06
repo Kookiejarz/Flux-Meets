@@ -40,6 +40,24 @@ export type RoomContextType = {
 	setCaptionsEnabled: Dispatch<SetStateAction<boolean>>
 	moqEnabled: boolean
 	setMoqEnabled: Dispatch<SetStateAction<boolean>>
+	chatMessages: {
+		id: string
+		sender: string
+		text: string
+		time: Date
+		isSelf: boolean
+	}[]
+	setChatMessages: Dispatch<
+		SetStateAction<
+			{
+				id: string
+				sender: string
+				text: string
+				time: Date
+				isSelf: boolean
+			}[]
+		>
+	>
 	pushedTracks: {
 		video?: string
 		audio?: string

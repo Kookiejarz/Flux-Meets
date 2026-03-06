@@ -290,6 +290,9 @@ function Room({ room, userMedia }: RoomProps) {
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 	const [captionsEnabled, setCaptionsEnabled] = useState(false)
 	const [moqEnabled, setMoqEnabled] = useState(false)
+	const [chatMessages, setChatMessages] = useState<
+		{ id: string; sender: string; text: string; time: Date; isSelf: boolean }[]
+	>([])
 
 	useSpeechToText({
 		enabled: captionsEnabled && joined,
@@ -344,6 +347,8 @@ function Room({ room, userMedia }: RoomProps) {
 		setCaptionsEnabled,
 		moqEnabled,
 		setMoqEnabled,
+		chatMessages,
+		setChatMessages,
 		traceLink,
 		userMedia,
 		userDirectoryUrl,

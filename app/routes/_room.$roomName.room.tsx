@@ -42,6 +42,8 @@ import isNonNullable from '~/utils/isNonNullable'
 
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { playSound } from '~/utils/playSound'
+
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
 
@@ -98,6 +100,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		setCaptionsEnabled,
 		moqEnabled,
 		setMoqEnabled,
+		chatMessages,
+		setChatMessages,
 		e2eeSafetyNumber,
 		e2eeOnJoin,
 	} = useRoomContext()
@@ -108,20 +112,42 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		roomState: { meetingId },
 	} = room
 
-	const roomUrl = useRoomUrl()
-
-	// only want this evaluated once upon mounting
-	const [firstUser] = useState(otherUsers.length === 0)
-
-	useEffect(() => {
-		e2eeOnJoin(firstUser)
-	}, [e2eeOnJoin, firstUser])
-
-	useShowDebugInfoShortcut()
+	const [unreadCount, setUnreadCount] = useState(0)
+	const [chatOpen, setChatOpen] = useState(false)
 
 	const [raisedHand, setRaisedHand] = useState(false)
 	const speaking = useIsSpeaking(userMedia.audioStreamTrack)
-	const [chatOpen, setChatOpen] = useState(false)
+
+	useEffect(() => {
+		if (chatOpen) setUnreadCount(0)
+	}, [chatOpen])
+
+	useEffect(() => {
+		const handleMessage = (e: MessageEvent) => {
+			const data = JSON.parse(e.data)
+			if (data.type === 'roomMessage') {
+				setChatMessages((prev) => [
+					...prev,
+					{
+						id: crypto.randomUUID(),
+						sender: data.from,
+						text: data.message,
+						time: new Date(),
+						isSelf: false,
+					},
+				])
+				if (!chatOpen) {
+					setUnreadCount((c) => c + 1)
+				}
+				playSound('message').catch(console.error)
+			}
+		}
+
+		websocket.addEventListener('message', handleMessage)
+		return () => websocket.removeEventListener('message', handleMessage)
+	}, [websocket, chatOpen, setChatMessages])
+
+	const roomUrl = useRoomUrl()
 
 	const moqStatus = useMoQ(moqEnabled)
 
@@ -265,8 +291,14 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 							<Button
 								onClick={() => setChatOpen(!chatOpen)}
 								displayType={chatOpen ? 'primary' : 'secondary'}
+								className="relative"
 							>
 								<Icon type="chatBubbleLeftRight" />
+								{!chatOpen && unreadCount > 0 && (
+									<span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-[10px] font-bold text-white ring-2 ring-zinc-950">
+										{unreadCount > 9 ? '9+' : unreadCount}
+									</span>
+								)}
 							</Button>
 						</Tooltip>
 						<OverflowMenu bugReportsEnabled={bugReportsEnabled} />

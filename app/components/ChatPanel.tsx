@@ -11,38 +11,15 @@ import { Input } from './Input'
 export function ChatPanel({ onClose }: { onClose: () => void }) {
 	const {
 		room: { websocket, identity },
+		chatMessages,
+		setChatMessages,
 	} = useRoomContext()
-	const [messages, setMessages] = useState<
-		{ id: string; sender: string; text: string; time: Date; isSelf: boolean }[]
-	>([])
 	const [inputText, setInputText] = useState('')
 	const messagesEndRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
-		const handleMessage = (e: MessageEvent) => {
-			const data = JSON.parse(e.data)
-			if (data.type === 'roomMessage') {
-				playSound('message').catch(console.error)
-				setMessages((prev) => [
-					...prev,
-					{
-						id: crypto.randomUUID(),
-						sender: data.from,
-						text: data.message,
-						time: new Date(),
-						isSelf: false,
-					},
-				])
-			}
-		}
-
-		websocket.addEventListener('message', handleMessage)
-		return () => websocket.removeEventListener('message', handleMessage)
-	}, [websocket])
-
-	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-	}, [messages])
+	}, [chatMessages])
 
 	const sendMessage = (e: React.FormEvent) => {
 		e.preventDefault()
@@ -55,7 +32,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 			})
 		)
 
-		setMessages((prev) => [
+		setChatMessages((prev) => [
 			...prev,
 			{
 				id: crypto.randomUUID(),
@@ -85,13 +62,13 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 			</div>
 
 			<div className="flex-1 overflow-y-auto p-4 space-y-4">
-				{messages.length === 0 && (
+				{chatMessages.length === 0 && (
 					<div className="text-center text-zinc-500 mt-10 text-sm">
 						No messages yet. Say hello!
 					</div>
 				)}
 				<AnimatePresence initial={false}>
-					{messages.map((msg) => (
+					{chatMessages.map((msg) => (
 						<motion.div
 							key={msg.id}
 							initial={{ opacity: 0, y: 10, scale: 0.95 }}
