@@ -13,7 +13,6 @@ type PermissionState = 'denied' | 'granted' | 'prompt' | 'unable-to-determine'
 
 async function getExistingPermissionState(): Promise<PermissionState> {
 	try {
-		// Use a standard approach that works across more browsers
 		if (!navigator.permissions || !navigator.permissions.query) {
 			return 'unable-to-determine'
 		}
@@ -67,13 +66,6 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		}
 	}, [cameraActiveDevice, props])
 
-	// Fallback check: if we are already broadcasting but state is stuck
-	useEffect(() => {
-		if (permissionState !== 'granted' && (micIsBroadcasting || cameraIsBroadcasting)) {
-			setPermissionState('granted')
-		}
-	}, [micIsBroadcasting, cameraIsBroadcasting, permissionState])
-
 	if (permissionState === 'granted') {
 		return props.children
 	}
@@ -115,26 +107,17 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-10"
 						onClick={async () => {
 							try {
-								// Explicitly call getUserMedia to trigger the system prompt.
-								// We request both at once to minimize prompts.
-								const stream = await navigator.mediaDevices.getUserMedia({
-									audio: true,
-									video: true,
-								})
-
-								// CRITICAL: Stop the tracks immediately so we don't hold the lock
-								// on the hardware. The browser will remember the permission grant.
-								stream.getTracks().forEach((t) => t.stop())
-
-								// Now tell the internal mic/camera objects to start.
-								// They will now be able to acquire the hardware since we released it.
+								// Directly call mic/camera.startBroadcasting()
+								// On iOS Safari, the FIRST call must be the one that stays open.
+								// We don't want to create a temp stream and close it,
+								// because Safari might release the hardware permission immediately.
 								mic.startBroadcasting()
 								camera.startBroadcasting()
-
-								if (mountedRef.current) setPermissionState('granted')
+								
+								// We rely on the useEffect monitoring [micIsBroadcasting, cameraIsBroadcasting]
+								// to transition the state to 'granted'.
 							} catch (err) {
 								console.error('Permission request failed:', err);
-								// If user dismisses or blocks
 								if (mountedRef.current) setPermissionState('denied');
 							}
 						}}
