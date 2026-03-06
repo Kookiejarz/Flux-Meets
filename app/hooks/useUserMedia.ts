@@ -24,6 +24,8 @@ export const mic = getMic({
 		echoCancellation: true,
 		noiseSuppression: true,
 		autoGainControl: true,
+		channelCount: { ideal: 2 }, // 尝试请求双声道
+		sampleRate: { ideal: 48000 }, // 尝试请求高质量采样
 	},
 })
 export const camera = getCamera({

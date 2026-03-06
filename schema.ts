@@ -30,8 +30,14 @@ export const AnalyticsSimpleCallFeedback = sqliteTable(
 )
 
 export const Meetings = sqliteTable('Meetings', {
-	...metadataColumns,
-	id: text('id').primaryKey(),
+	id: text('id').primaryKey().notNull(),
+	created: text('created')
+		.default(sql`CURRENT_TIMESTAMP`)
+		.notNull(),
+	modified: text('modified')
+		.default(sql`CURRENT_TIMESTAMP`)
+		.notNull(),
+	deleted: text('deleted'),
 	roomName: text('roomName'),
 	peakUserCount: integer('userCount').notNull(),
 	ended: text('ended'),
