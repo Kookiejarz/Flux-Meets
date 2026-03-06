@@ -268,7 +268,7 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 									console.log('Native prompt success, starting broadcasting...')
 									// 立即停止这个临时流，释放硬件
 									stream.getTracks().forEach((t) => t.stop())
-									
+
 									// 紧接着让库接管
 									mic.startBroadcasting()
 									camera.startBroadcasting()
