@@ -1,4 +1,4 @@
-name = "orange-meets-development"
+name = "orange-meets"
 # https://developers.cloudflare.com/workers/platform/compatibility-dates
 compatibility_date = "2025-01-01"
 main = "build/index.mjs"
@@ -9,11 +9,11 @@ account_id = "7829299e6cefc232ded8635f50b53462"
   bucket = "./public"
 
 [[queues.producers]]
- queue = "orange-meets-feedback-queue-development"
+ queue = "orange-meets-feedback-queue"
  binding = "FEEDBACK_QUEUE"
 
 [[queues.consumers]]
- queue = "orange-meets-feedback-queue-development"
+ queue = "orange-meets-feedback-queue"
  max_batch_size = 10
  max_batch_timeout = 5
 
@@ -31,7 +31,7 @@ ENABLE_WORKERS_AI = "false"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "orange-meets-db-development"
+database_name = "orange-meets-db"
 database_id = "722818b7-63af-4395-bad1-c68ce86d2bd4"
 
 [ai]
