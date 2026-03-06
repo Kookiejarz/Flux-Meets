@@ -381,6 +381,20 @@ function Room({ room, userMedia }: RoomProps) {
 	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>(
 		'browser'
 	)
+	const [storedLocalCcLanguage, setStoredLocalCcLanguage] =
+		useLocalStorage<'browser' | 'zh-CN' | 'en-US'>(
+			'settings-local-cc-language',
+			'browser'
+		)
+	const localCcLanguage = storedLocalCcLanguage ?? 'browser'
+	const setLocalCcLanguage: Dispatch<
+		SetStateAction<'browser' | 'zh-CN' | 'en-US'>
+	> = (val) => {
+		setStoredLocalCcLanguage((prev) => {
+			const prevVal = prev ?? 'browser'
+			return typeof val === 'function' ? val(prevVal) : val
+		})
+	}
 	const [aiTranslationEnabled, setAiTranslationEnabled] = useState(true)
 	const [moqEnabled, setMoqEnabled] = useState(false)
 	const [chatMessages, setChatMessages] = useState<
@@ -522,6 +536,12 @@ function Room({ room, userMedia }: RoomProps) {
 
 	useSpeechToText({
 		enabled: captionsEnabled && joined && asrSource === 'browser',
+		language:
+			localCcLanguage === 'browser'
+				? typeof navigator !== 'undefined' && navigator.language
+					? navigator.language
+					: 'zh-CN'
+				: localCcLanguage,
 		onCaption: (text, isFinal) => {
 			room.websocket.send(
 				JSON.stringify({
@@ -584,6 +604,8 @@ function Room({ room, userMedia }: RoomProps) {
 		setCaptionsEnabled,
 		asrSource,
 		setAsrSource,
+		localCcLanguage,
+		setLocalCcLanguage,
 		aiEnabled,
 		aiTranslationEnabled,
 		setAiTranslationEnabled,

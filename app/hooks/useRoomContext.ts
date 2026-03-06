@@ -42,6 +42,8 @@ export type RoomContextType = {
 	setCaptionsEnabled: Dispatch<SetStateAction<boolean>>
 	asrSource: 'browser' | 'workers-ai'
 	setAsrSource: Dispatch<SetStateAction<'browser' | 'workers-ai'>>
+	localCcLanguage: 'browser' | 'zh-CN' | 'en-US'
+	setLocalCcLanguage: Dispatch<SetStateAction<'browser' | 'zh-CN' | 'en-US'>>
 	aiEnabled: boolean
 	aiTranslationEnabled: boolean
 	setAiTranslationEnabled: Dispatch<SetStateAction<boolean>>

@@ -3,7 +3,7 @@ name = "orange-meets"
 account_id = "7829299e6cefc232ded8635f50b53462"
 main = "build/index.mjs"
 # https://developers.cloudflare.com/workers/platform/compatibility-dates
-compatibility_date = "2024-10-07"
+compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [site]
@@ -18,7 +18,7 @@ CALLS_APP_ID = "f3324a25c97d9902cff9018a0efcf3b1"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
 TURN_SERVICE_ID = "3dba939d4fa9d8bf17639482bc2c2c61"
 
-EXPERIMENTAL_SIMULCAST_ENABLED = "false"
+EXPERIMENTAL_SIMULCAST_ENABLED = "true"
 BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
 
 MAX_WEBCAM_BITRATE = 8500000
@@ -26,6 +26,10 @@ MAX_WEBCAM_FRAMERATE = 60
 MAX_WEBCAM_QUALITY_LEVEL = 1080
 
 ENABLE_WORKERS_AI = "false"
+OPENAI_MODEL_ID = "gpt-4o-realtime-preview-2024-10-01"
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"
+WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"
+WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
@@ -45,6 +49,10 @@ enabled = true
 
 # The necessary secrets are:
 # - CALLS_APP_SECRET
+# - OPENAI_API_TOKEN (if using OpenAI realtime AI)
 # Run `echo <VALUE> | wrangler secret put <NAME>` for each of these
+
+# Optional vars/secrets for OpenAI realtime AI:
+# OPENAI_MODEL_ENDPOINT = ""
 
 

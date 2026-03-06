@@ -25,6 +25,9 @@ import {
 
 const alarmInterval = 15_000
 const defaultOpenAIModelID = 'gpt-4o-realtime-preview-2024-10-01'
+const defaultWorkersAiAsrModel = '@cf/deepgram/nova-3'
+const defaultWorkersAiTranslationModel = '@cf/meta/m2m100-1.2b'
+const defaultWorkersAiTargetLangs = ['en', 'zh']
 
 /**
  * The ChatRoom Durable Object Class
@@ -358,12 +361,14 @@ export class ChatRoom extends Server<Env> {
 		const aiEnabledInConfig = this.env.ENABLE_WORKERS_AI === 'true'
 		if (this.env.AI && aiEnabledInConfig) {
 			try {
+				const asrModel =
+					this.env.WORKERS_AI_ASR_MODEL || defaultWorkersAiAsrModel
 				// Base64 to ArrayBuffer
 				const audioBuffer = Uint8Array.from(atob(data.data), (c) =>
 					c.charCodeAt(0)
 				)
 
-				const response: any = await this.env.AI.run('@cf/deepgram/nova-3', {
+				const response: any = await this.env.AI.run(asrModel, {
 					audio: {
 						body: audioBuffer,
 						contentType: 'audio/webm',
@@ -390,7 +395,7 @@ export class ChatRoom extends Server<Env> {
 					})
 				}
 			} catch (e) {
-				console.error('Workers AI ASR Error (Nova-3):', e)
+				console.error('Workers AI ASR Error:', e)
 			}
 		}
 	}
@@ -420,10 +425,17 @@ export class ChatRoom extends Server<Env> {
 					const aiEnabledInConfig = this.env.ENABLE_WORKERS_AI === 'true'
 					if (this.env.AI && aiEnabledInConfig && data.translate) {
 						try {
-							const targetLangs = ['en', 'zh']
+							const translationModel =
+								this.env.WORKERS_AI_TRANSLATION_MODEL ||
+								defaultWorkersAiTranslationModel
+							const targetLangs =
+								this.env.WORKERS_AI_TRANSLATION_TARGET_LANGS
+									?.split(',')
+									.map((lang) => lang.trim())
+									.filter(Boolean) ?? defaultWorkersAiTargetLangs
 							for (const lang of targetLangs) {
 								const translation = await this.env.AI.run(
-									'@cf/meta/m2m100-1.2b',
+									translationModel,
 									{
 										text: data.text,
 										target_lang: lang,

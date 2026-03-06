@@ -22,11 +22,11 @@
 		"db:migrate:local": "wrangler d1 migrations apply orange-meets-db-development -c wrangler.development.toml --local",
 		"db:migrate:development": "wrangler d1 migrations apply orange-meets-db-development --remote",
 		"db:migrate:staging": "wrangler d1 migrations apply orange-meets-db-staging -c wrangler.staging.toml --remote",
-		"db:migrate:production": "wrangler d1 migrations apply orange-meets-db-production -c wrangler.production.toml --remote",
+		"db:migrate:production": "wrangler d1 migrations apply DB -c wrangler.production.toml --remote",
 		"db:studio:local": "LOCAL_DB_PATH=$(find .wrangler/state/v3/d1/miniflare-D1DatabaseObject -type f -name '*.sqlite' -print -quit) drizzle-kit studio",
 		"db:studio:development": "source .drizzle.env && DB_ID='722818b7-63af-4395-bad1-c68ce86d2bd4' drizzle-kit studio",
 		"db:studio:staging": "source .drizzle.env && DB_ID='9f133e78-1a4e-49ad-967a-10fbdc3e1a29' drizzle-kit studio",
-		"db:studio:production": "source .drizzle.env && DB_ID='a63ffd86-4a64-4e22-8337-f23c45a565f9' drizzle-kit studio"
+		"db:studio:production": "source .drizzle.env && DB_ID='722818b7-63af-4395-bad1-c68ce86d2bd4' drizzle-kit studio"
 	},
 	"dependencies": {
 		"@dnd-kit/core": "^6.3.1",

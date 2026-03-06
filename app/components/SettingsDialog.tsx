@@ -64,6 +64,8 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		setAiTranslationEnabled,
 		asrSource,
 		setAsrSource,
+		localCcLanguage,
+		setLocalCcLanguage,
 	} = useRoomContext()
 
 	return (
@@ -206,6 +208,39 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 						/>
 						<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
 							Use only in noisy rooms or on speakers. Headphones usually sound better with this off.
+						</p>
+
+						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+
+						<Label className="md:text-right" htmlFor="localCcLanguage">
+							Local CC Language
+						</Label>
+						<div className="flex flex-wrap gap-2" id="localCcLanguage">
+							{[
+								{ label: 'Browser', val: 'browser' },
+								{ label: '中文', val: 'zh-CN' },
+								{ label: 'English', val: 'en-US' },
+							].map((option) => (
+								<button
+									key={option.val}
+									onClick={() =>
+										setLocalCcLanguage(
+											option.val as 'browser' | 'zh-CN' | 'en-US'
+										)
+									}
+									className={cn(
+										'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',
+										localCcLanguage === option.val
+											? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+											: 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-orange-200'
+									)}
+								>
+									{option.label}
+								</button>
+							))}
+						</div>
+						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+							Browser uses the detected browser language.
 						</p>
 
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
