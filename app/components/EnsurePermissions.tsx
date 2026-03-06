@@ -13,14 +13,14 @@ type PermissionState = 'denied' | 'granted' | 'prompt' | 'unable-to-determine'
 
 async function getExistingPermissionState(): Promise<PermissionState> {
 	try {
-		// Safari doesn't support 'microphone' in permissions.query
+		// Use a standard approach that works across more browsers
 		if (!navigator.permissions || !navigator.permissions.query) {
 			return 'unable-to-determine'
 		}
 		const query = await navigator.permissions.query({
 			name: 'microphone' as any,
 		})
-		return query.state
+		return query.state as PermissionState
 	} catch (error) {
 		return 'unable-to-determine'
 	}
@@ -67,13 +67,20 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		}
 	}, [cameraActiveDevice, props])
 
+	// Fallback check: if we are already broadcasting but state is stuck
+	useEffect(() => {
+		if (permissionState !== 'granted' && (micIsBroadcasting || cameraIsBroadcasting)) {
+			setPermissionState('granted')
+		}
+	}, [micIsBroadcasting, cameraIsBroadcasting, permissionState])
+
 	if (permissionState === 'granted') {
 		return props.children
 	}
 
 	if (permissionState === 'denied') {
 		return (
-			<div className="grid items-center h-full bg-zinc-950 text-zinc-100 p-6">
+			<div className="grid items-center min-h-[100dvh] bg-zinc-950 text-zinc-100 p-6">
 				<div className="mx-auto space-y-4 max-w-80 text-center">
 					<h1 className="text-3xl font-black orange-glow-text uppercase">
 						Access Denied
@@ -90,51 +97,48 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		)
 	}
 
-	if (
-		permissionState === 'prompt' ||
-		permissionState === 'unable-to-determine' ||
-		permissionState === null
-	) {
-		return (
-			<div className="grid items-center h-full bg-zinc-950 text-zinc-100 p-6">
-				<div className="mx-auto max-w-80 text-center space-y-8">
-					<div className="space-y-4">
-						<h1 className="text-4xl font-black orange-glow-text uppercase tracking-tighter">
-							Media Access
-						</h1>
-						<p className="text-zinc-400 text-sm leading-relaxed">
-							To join the call, Flux Meet needs access to your camera and microphone.
-						</p>
-					</div>
-					
-					<div className="relative group">
-						<div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-						<Button
-							className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300"
-							onClick={() => {
-								// Directly trigger broadcasting using user gesture.
-								// This is much more stable on iOS as it uses the same request
-								// that the app will use for streaming.
-								mic.startBroadcasting()
-								camera.startBroadcasting()
-								
-								// Also fire devicechange just in case
-								setTimeout(() => {
-									navigator.mediaDevices.dispatchEvent(new Event('devicechange'))
-								}, 1000)
-							}}
-						>
-							Allow access
-						</Button>
-					</div>
-					
-					<p className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
-						Secure & Encrypted Call
+	return (
+		<div className="grid items-center min-h-[100dvh] bg-zinc-950 text-zinc-100 p-6">
+			<div className="mx-auto max-w-80 text-center space-y-8">
+				<div className="space-y-4">
+					<h1 className="text-4xl font-black orange-glow-text uppercase tracking-tighter">
+						Media Access
+					</h1>
+					<p className="text-zinc-400 text-sm leading-relaxed">
+						To join the call, Flux Meet needs access to your camera and microphone.
 					</p>
 				</div>
+				
+				<div className="relative group">
+					<div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+					<Button
+						className="relative w-full h-14 text-lg font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 border-none transition-all duration-300 z-10"
+						onClick={async () => {
+							try {
+								// Explicitly call getUserMedia first to trigger the system prompt on iOS
+								// Safari requires a direct call to getUserMedia from a user gesture
+								await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+								
+								// If successful, tell the internal mic/camera objects to start
+								mic.startBroadcasting();
+								camera.startBroadcasting();
+								
+								if (mountedRef.current) setPermissionState('granted');
+							} catch (err) {
+								console.error('Permission request failed:', err);
+								// If user dismisses or blocks
+								if (mountedRef.current) setPermissionState('denied');
+							}
+						}}
+					>
+						Allow access
+					</Button>
+				</div>
+				
+				<p className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
+					Secure & Encrypted Call
+				</p>
 			</div>
-		)
-	}
-
-	return props.children
+		</div>
+	)
 }

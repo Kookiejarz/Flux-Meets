@@ -14,6 +14,7 @@ export function useSpeechToText({
 	const recognitionRef = useRef<any>(null)
 	const enabledRef = useRef(enabled)
 	const onCaptionRef = useRef(onCaption)
+	const isActiveRef = useRef(false)
 	const [isSupported, setIsSupported] = useState(false)
 
 	useEffect(() => {
@@ -42,6 +43,10 @@ export function useSpeechToText({
 		recognition.interimResults = true
 		recognition.lang = language
 
+		recognition.onstart = () => {
+			isActiveRef.current = true
+		}
+
 		recognition.onresult = (event: any) => {
 			let interimTranscript = ''
 			let finalTranscript = ''
@@ -62,41 +67,51 @@ export function useSpeechToText({
 		}
 
 		recognition.onerror = (event: any) => {
+			if (event.error === 'aborted') return // Expected when stopping or browser pre-empting
 			console.error('Speech recognition error', event.error)
-			if (event.error === 'not-allowed') {
-				// Handle permission denied
-			}
 		}
 
 		recognition.onend = () => {
+			isActiveRef.current = false
 			// Restart if still enabled
 			if (enabledRef.current) {
 				setTimeout(() => {
-					try {
-						recognition.start()
-					} catch (e) {
-						// Ignore if already started
+					if (enabledRef.current && !isActiveRef.current) {
+						try {
+							recognition.start()
+						} catch (e) {
+							// Ignore
+						}
 					}
-				}, 100)
+				}, 200)
 			}
 		}
 
 		recognitionRef.current = recognition
 
 		return () => {
-			recognition.stop()
+			enabledRef.current = false
+			try {
+				recognition.stop()
+			} catch (e) {
+				// Ignore
+			}
 		}
 	}, [language])
 
 	useEffect(() => {
 		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible' && enabledRef.current) {
+			if (
+				document.visibilityState === 'visible' &&
+				enabledRef.current &&
+				!isActiveRef.current
+			) {
 				const recognition = recognitionRef.current
 				if (recognition) {
 					try {
 						recognition.start()
 					} catch (e) {
-						// Already started or starting
+						// Ignore
 					}
 				}
 			}
@@ -116,13 +131,19 @@ export function useSpeechToText({
 		if (!recognition) return
 
 		if (enabled) {
-			try {
-				recognition.start()
-			} catch (e) {
-				// Already started
+			if (!isActiveRef.current) {
+				try {
+					recognition.start()
+				} catch (e) {
+					// Ignore
+				}
 			}
 		} else {
-			recognition.stop()
+			try {
+				recognition.stop()
+			} catch (e) {
+				// Ignore
+			}
 		}
 	}, [enabled])
 
