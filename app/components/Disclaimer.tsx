@@ -13,7 +13,7 @@ export const Disclaimer: FC<DisclaimerProps> = ({ className }) => {
 				className
 			)}
 		>
-			Orange-neo is an application built using{' '}
+			🎬 Flux Meet is an application built using{' '}
 			<a className="underline" href="https://developers.cloudflare.com/calls/">
 				Cloudflare Calls
 			</a>

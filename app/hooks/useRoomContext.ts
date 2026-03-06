@@ -27,6 +27,15 @@ export type RoomContextType = {
 	simulcastEnabled: boolean
 	e2eeSafetyNumber?: string
 	e2eeOnJoin: (firstUser: boolean) => void
+	webcamBitrate: number
+	setWebcamBitrate: Dispatch<SetStateAction<number>>
+	webcamFramerate: number
+	setWebcamFramerate: Dispatch<SetStateAction<number>>
+	webcamQuality: number
+	setWebcamQuality: Dispatch<SetStateAction<number>>
+	maxWebcamBitrate: number
+	maxWebcamFramerate: number
+	maxWebcamQualityLevel: number
 	pushedTracks: {
 		video?: string
 		audio?: string

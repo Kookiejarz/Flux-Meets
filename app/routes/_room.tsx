@@ -162,6 +162,10 @@ function Room({ room, userMedia }: RoomProps) {
 		e2eeEnabled,
 	} = useLoaderData<typeof loader>()
 
+	const [webcamBitrate, setWebcamBitrate] = useState(maxWebcamBitrate)
+	const [webcamFramerate, setWebcamFramerate] = useState(maxWebcamFramerate)
+	const [webcamQuality, setWebcamQuality] = useState(maxWebcamQualityLevel)
+
 	const params = new URLSearchParams(apiExtraParams)
 
 	invariant(room.roomState.meetingId, 'Meeting ID cannot be missing')
@@ -180,30 +184,32 @@ function Room({ room, userMedia }: RoomProps) {
 		const { height, width } = tryToGetDimensions(videoStreamTrack)
 		// we need to do this in case camera is in portrait mode
 		const smallestDimension = Math.min(height, width)
-		return Math.max(smallestDimension / maxWebcamQualityLevel, 1)
-	}, [maxWebcamQualityLevel, userMedia.videoStreamTrack, dataSaverMode])
+		// Use user-selected quality, capped by server max
+		const effectiveQuality = Math.min(webcamQuality, maxWebcamQualityLevel)
+		return Math.max(smallestDimension / effectiveQuality, 1)
+	}, [maxWebcamQualityLevel, userMedia.videoStreamTrack, dataSaverMode, webcamQuality])
 
 	const sendEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
 		simulcastEnabled
 			? [
 					{
 						rid: 'a',
-						maxBitrate: 1_300_000,
-						maxFramerate: 30.0,
+						maxBitrate: Math.min(1_300_000, webcamBitrate),
+						maxFramerate: Math.min(30.0, webcamFramerate),
 						active: !dataSaverMode,
 					},
 					{
 						rid: 'b',
 						scaleResolutionDownBy: 2.0,
-						maxBitrate: 500_000,
-						maxFramerate: 24.0,
+						maxBitrate: Math.min(500_000, webcamBitrate),
+						maxFramerate: Math.min(24.0, webcamFramerate),
 						active: true,
 					},
 				]
 			: [
 					{
-						maxFramerate: maxWebcamFramerate,
-						maxBitrate: maxWebcamBitrate,
+						maxFramerate: Math.min(maxWebcamFramerate, webcamFramerate),
+						maxBitrate: Math.min(maxWebcamBitrate, webcamBitrate),
 						scaleResolutionDownBy,
 					},
 				]
@@ -245,7 +251,17 @@ function Room({ room, userMedia }: RoomProps) {
 		partyTracks,
 	})
 
-	const context: RoomContextType = {
+	const context: RoomContextType & {
+		webcamBitrate: number
+		setWebcamBitrate: Dispatch<SetStateAction<number>>
+		webcamFramerate: number
+		setWebcamFramerate: Dispatch<SetStateAction<number>>
+		webcamQuality: number
+		setWebcamQuality: Dispatch<SetStateAction<number>>
+		maxWebcamBitrate: number
+		maxWebcamFramerate: number
+		maxWebcamQualityLevel: number
+	} = {
 		joined,
 		setJoined,
 		pinnedTileIds,
@@ -256,6 +272,15 @@ function Room({ room, userMedia }: RoomProps) {
 		setDataSaverMode,
 		audioOnlyMode,
 		setAudioOnlyMode,
+		webcamBitrate,
+		setWebcamBitrate,
+		webcamFramerate,
+		setWebcamFramerate,
+		webcamQuality,
+		setWebcamQuality,
+		maxWebcamBitrate,
+		maxWebcamFramerate,
+		maxWebcamQualityLevel,
 		traceLink,
 		userMedia,
 		userDirectoryUrl,

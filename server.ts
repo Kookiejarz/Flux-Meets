@@ -15,6 +15,10 @@ import { queue } from './app/queue'
 
 import type { Env } from '~/types/Env'
 
+// Must be top-level exports for Cloudflare Workers
+export { ChatRoom } from './app/durableObjects/ChatRoom.server'
+export { queue } from './app/queue'
+
 const baseRemixHandler = createRequestHandler(build, mode)
 
 export const remixHandler = (request: Request, env: AppLoadContext) => {
@@ -95,9 +99,6 @@ export const createKvAssetHandler = (ASSET_MANIFEST: Record<string, string>) =>
 			throw error
 		}
 	}
-
-export { ChatRoom } from './app/durableObjects/ChatRoom.server'
-export { queue } from './app/queue'
 
 const kvAssetHandler = createKvAssetHandler(JSON.parse(manifestJSON))
 

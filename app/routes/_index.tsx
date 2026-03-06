@@ -54,9 +54,10 @@ export default function Index() {
 				{/* Header Section */}
 				<div className="text-center space-y-4 animate-float">
 					<h1 className="text-6xl sm:text-7xl font-black orange-glow-text tracking-tighter transition-all duration-700 group-hover:tracking-normal">
-						🍊 Orange Neo
+						🎬 Flux Meet
 					</h1>
 					<div className="flex flex-col items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity duration-700">
+
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
 							Welcome back,{' '}
 							<span className="text-orange-500">{data?.displayName}</span>
