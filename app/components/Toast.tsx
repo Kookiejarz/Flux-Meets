@@ -1,4 +1,4 @@
-import * as Toast from '@radix-ui/react-toast'
+import * as ToastPrimitive from '@radix-ui/react-toast'
 import {
 	createContext,
 	useCallback,
@@ -6,14 +6,8 @@ import {
 	useState,
 	type ReactNode,
 } from 'react'
-import { style } from '~/utils/style'
-
 import { nanoid } from 'nanoid'
-
-export const Root = style(
-	Toast.Root,
-	'bg-white rounded dark:bg-zinc-500 shadow p-3 text-zinc-800 dark:text-zinc-50'
-)
+import { AnimatePresence, motion } from 'framer-motion'
 
 interface Notification {
 	content: ReactNode
@@ -25,6 +19,21 @@ const NotificationToasts = createContext([
 	[] as Notification[],
 	(_content: ReactNode, _options?: { duration?: number; id?: string }) => {},
 ] as const)
+
+export const Root = (props: ToastPrimitive.ToastProps) => (
+	<ToastPrimitive.Root asChild {...props}>
+		<motion.li
+			layout
+			initial={{ opacity: 0, x: 20, scale: 0.9 }}
+			animate={{ opacity: 1, x: 0, scale: 1 }}
+			exit={{ opacity: 0, x: 20, scale: 0.9 }}
+			transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+			className="bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-4 text-zinc-100 pointer-events-auto overflow-hidden relative group"
+		>
+			{props.children}
+		</motion.li>
+	</ToastPrimitive.Root>
+)
 
 export const NotificationToastsProvider = (props: { children?: ReactNode }) => {
 	const [messages, setMessages] = useState<Notification[]>([])
@@ -45,38 +54,35 @@ export const NotificationToastsProvider = (props: { children?: ReactNode }) => {
 	const value = [messages, dispatch] as const
 
 	return (
-		<Toast.Provider duration={4000}>
+		<ToastPrimitive.Provider duration={4000}>
 			<NotificationToasts.Provider value={value}>
 				{props.children}
-				{messages.map(({ content, id, duration }) => (
-					<Root
-						type="background"
-						duration={duration}
-						key={id}
-						onOpenChange={(open) => {
-							if (!open) {
-								// remove from messages when closed
-								setMessages((ms) => ms.filter((m) => m.id !== id))
-							}
-						}}
-					>
-						{content}
-					</Root>
-				))}
+				<ToastPrimitive.Viewport className="fixed bottom-0 right-0 z-[100] flex flex-col p-6 gap-3 w-full max-w-md m-0 list-none outline-none pointer-events-none" />
+				<AnimatePresence mode="popLayout">
+					{messages.map(({ content, id, duration }) => (
+						<Root
+							forceMount
+							key={id}
+							duration={duration}
+							onOpenChange={(open) => {
+								if (!open) {
+									setMessages((ms) => ms.filter((m) => m.id !== id))
+								}
+							}}
+						>
+							{content}
+						</Root>
+					))}
+				</AnimatePresence>
 			</NotificationToasts.Provider>
-		</Toast.Provider>
+		</ToastPrimitive.Provider>
 	)
 }
 
 export const useDispatchToast = () => useContext(NotificationToasts)[1]
 
 export default {
-	...Toast,
-	Viewport: style(
-		Toast.Viewport,
-		'absolute bottom-0 right-0 flex flex-col items-end p-7 gap-4 max-w-100vw m-0 outline-none'
-	),
-	Root,
-	Action: style(Toast.Action, 'ml-auto'),
+	...ToastPrimitive,
 	Provider: NotificationToastsProvider,
+	Viewport: ToastPrimitive.Viewport,
 }

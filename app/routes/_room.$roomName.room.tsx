@@ -31,7 +31,6 @@ import useBroadcastStatus from '~/hooks/useBroadcastStatus'
 import useIsSpeaking from '~/hooks/useIsSpeaking'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { useRoomUrl } from '~/hooks/useRoomUrl'
-import { useShowDebugInfoShortcut } from '~/hooks/useShowDebugInfoShortcut'
 import useSounds from '~/hooks/useSounds'
 import useStageManager from '~/hooks/useStageManager'
 import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
@@ -100,8 +99,6 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		captionsEnabled,
 		setCaptionsEnabled,
 		moqEnabled,
-		setMoqEnabled,
-		chatMessages,
 		setChatMessages,
 		e2eeSafetyNumber,
 		e2eeOnJoin,
@@ -118,6 +115,13 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 
 	const [raisedHand, setRaisedHand] = useState(false)
 	const speaking = useIsSpeaking(userMedia.audioStreamTrack)
+
+	// 初始化端到端加密（仅在组件挂载时执行一次）
+	useMount(() => {
+		// 判断是否是第一个用户（房间中没有其他用户）
+		const isFirstUser = otherUsers.length === 0
+		e2eeOnJoin(isFirstUser)
+	})
 
 	useEffect(() => {
 		if (chatOpen) setUnreadCount(0)
@@ -317,7 +321,10 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 							navigateToFeedbackPage={hasDb}
 							meetingId={meetingId}
 						/>
-						<CopyButton className="text-sm px-3 py-2" contentValue={roomUrl}>
+						<CopyButton
+							className="text-sm px-3 py-2"
+							contentValue={roomUrl}
+						>
 							<span className="hidden md:inline">Copy Link</span>
 						</CopyButton>
 						{showDebugInfo && meetingId && dashboardDebugLogsBaseUrl && (

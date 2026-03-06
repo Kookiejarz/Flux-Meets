@@ -3,6 +3,7 @@ import React, { forwardRef, type ReactNode, useState } from 'react'
 import { useTimeoutFn } from 'react-use'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
+import { useDispatchToast } from './Toast'
 
 interface CopyButtonProps extends React.ComponentProps<'button'> {
 	contentValue: string
@@ -18,6 +19,7 @@ export const CopyButton = forwardRef<
 			Copied!
 		</VisuallyHidden>, contentValue, onClick, ...rest }, ref) => {
 	const [copied, setCopied] = useState(false)
+	const dispatchToast = useDispatchToast()
 
 	const [_isReady, _cancel, reset] = useTimeoutFn(() => {
 		setCopied(false)
@@ -30,6 +32,7 @@ export const CopyButton = forwardRef<
 				onClick && onClick(e)
 				navigator.clipboard.writeText(contentValue)
 				setCopied(true)
+				dispatchToast('Link copied to clipboard!')
 				reset()
 			}}
 			ref={ref}
