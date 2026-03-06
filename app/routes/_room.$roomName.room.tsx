@@ -10,6 +10,7 @@ import { useMount, useWindowSize } from 'react-use'
 import { AiButton } from '~/components/AiButton'
 import { Button, ButtonLink } from '~/components/Button'
 import { CameraButton } from '~/components/CameraButton'
+import { isMobile } from '~/utils/isMobile'
 import { ChatPanel } from '~/components/ChatPanel'
 import { CopyButton } from '~/components/CopyButton'
 import { HighPacketLossWarningsToast } from '~/components/HighPacketLossWarningsToast'
@@ -251,6 +252,14 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 								)}
 							</div>
 						</div>
+						{isMobile() && (
+							<div className="absolute top-4 right-4 z-20">
+								<RaiseHandButton
+									raisedHand={raisedHand}
+									onClick={() => setRaisedHand(!raisedHand)}
+								/>
+							</div>
+						)}
 						<div
 							style={{ '--gap': gridGap + 'px' } as any}
 							className="absolute inset-0 flex isolate p-[--gap] gap-[--gap]"
@@ -275,68 +284,92 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 						<Toast.Viewport className="absolute top-4 right-4" />
 					</div>
 					<div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-4 pt-2 md:gap-4 md:px-8 md:pb-6 md:pt-2">
-						{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
-						<MicButton warnWhenSpeakingWhileMuted />
-						<CameraButton />
-						<Tooltip
-							content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
-						>
-							<Button
-								onClick={() => {
-									console.log(
-										'CC Toggle clicked, current state:',
-										captionsEnabled
-									)
-									setCaptionsEnabled(!captionsEnabled)
-								}}
-								displayType={captionsEnabled ? 'primary' : 'secondary'}
-							>
-								<Icon
-									type={
-										captionsEnabled
-											? 'chatBubbleBottomCenterText'
-											: 'chatBubbleBottomCenterText'
-									}
+						{/* Mobile: Only show core buttons */}
+						{isMobile() ? (
+							<>
+								<MicButton warnWhenSpeakingWhileMuted />
+								<CameraButton />
+								<OverflowMenu
+									bugReportsEnabled={bugReportsEnabled}
+									mobileMode={true}
+									captionsEnabled={captionsEnabled}
+									setCaptionsEnabled={setCaptionsEnabled}
+									chatOpen={chatOpen}
+									setChatOpen={setChatOpen}
+									unreadCount={unreadCount}
+									roomUrl={roomUrl}
 								/>
-								{!captionsEnabled && (
-									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-										<div className="w-[1px] h-6 bg-current rotate-45 opacity-60" />
-									</div>
-								)}
-							</Button>
-						</Tooltip>
-						<ScreenshareButton />
-						<RaiseHandButton
-							raisedHand={raisedHand}
-							onClick={() => setRaisedHand(!raisedHand)}
-						/>
-						<ParticipantsButton
-							identity={identity}
-							otherUsers={otherUsers}
-							className="hidden md:block"
-						></ParticipantsButton>
-						<Tooltip content={chatOpen ? 'Close Chat' : 'Open Chat'}>
-							<Button
-								onClick={() => setChatOpen(!chatOpen)}
-								displayType={chatOpen ? 'primary' : 'secondary'}
-								className="relative"
-							>
-								<Icon type="chatBubbleLeftRight" />
-								{!chatOpen && unreadCount > 0 && (
-									<span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-[10px] font-bold text-white ring-2 ring-zinc-950">
-										{unreadCount > 9 ? '9+' : unreadCount}
-									</span>
-								)}
-							</Button>
-						</Tooltip>
-						<OverflowMenu bugReportsEnabled={bugReportsEnabled} />
-						<LeaveRoomButton
-							navigateToFeedbackPage={hasDb}
-							meetingId={meetingId}
-						/>
-						<CopyButton className="text-sm px-3 py-2" contentValue={roomUrl}>
-							<span className="hidden md:inline">Copy Link</span>
-						</CopyButton>
+								<LeaveRoomButton
+									navigateToFeedbackPage={hasDb}
+									meetingId={meetingId}
+								/>
+							</>
+						) : (
+							<>
+								{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
+								<MicButton warnWhenSpeakingWhileMuted />
+								<CameraButton />
+								<Tooltip
+									content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
+								>
+									<Button
+										onClick={() => {
+											console.log(
+												'CC Toggle clicked, current state:',
+												captionsEnabled
+											)
+											setCaptionsEnabled(!captionsEnabled)
+										}}
+										displayType={captionsEnabled ? 'primary' : 'secondary'}
+									>
+										<Icon
+											type={
+												captionsEnabled
+													? 'chatBubbleBottomCenterText'
+													: 'chatBubbleBottomCenterText'
+											}
+										/>
+										{!captionsEnabled && (
+											<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+												<div className="w-[1px] h-6 bg-current rotate-45 opacity-60" />
+											</div>
+										)}
+									</Button>
+								</Tooltip>
+								<ScreenshareButton />
+								<RaiseHandButton
+									raisedHand={raisedHand}
+									onClick={() => setRaisedHand(!raisedHand)}
+								/>
+								<ParticipantsButton
+									identity={identity}
+									otherUsers={otherUsers}
+									className="hidden md:block"
+								></ParticipantsButton>
+								<Tooltip content={chatOpen ? 'Close Chat' : 'Open Chat'}>
+									<Button
+										onClick={() => setChatOpen(!chatOpen)}
+										displayType={chatOpen ? 'primary' : 'secondary'}
+										className="relative"
+									>
+										<Icon type="chatBubbleLeftRight" />
+										{!chatOpen && unreadCount > 0 && (
+											<span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-[10px] font-bold text-white ring-2 ring-zinc-950">
+												{unreadCount > 9 ? '9+' : unreadCount}
+											</span>
+										)}
+									</Button>
+								</Tooltip>
+								<OverflowMenu bugReportsEnabled={bugReportsEnabled} />
+								<LeaveRoomButton
+									navigateToFeedbackPage={hasDb}
+									meetingId={meetingId}
+								/>
+								<CopyButton className="text-sm px-3 py-2" contentValue={roomUrl}>
+									<span className="hidden md:inline">Copy Link</span>
+								</CopyButton>
+							</>
+						)}
 						{showDebugInfo && meetingId && dashboardDebugLogsBaseUrl && (
 							<ButtonLink
 								className="text-xs"

@@ -1,19 +1,39 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
-import type { FC } from 'react'
+import type { FC, Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
+import { AiButton } from './AiButton'
 import { Button } from './Button'
+import { CopyButton } from './CopyButton'
 import DropdownMenu from './DropdownMenu'
 import { Icon } from './Icon/Icon'
 import { participantCount, ParticipantsDialog } from './ParticipantsMenu'
 import { ReportBugDialog } from './ReportBugDialog'
+import { ScreenshareButton } from './ScreenshareButton'
 import { SettingsDialog } from './SettingsDialog'
+import { Tooltip } from './Tooltip'
 
 interface OverflowMenuProps {
 	bugReportsEnabled: boolean
+	mobileMode?: boolean
+	captionsEnabled?: boolean
+	setCaptionsEnabled?: Dispatch<SetStateAction<boolean>>
+	chatOpen?: boolean
+	setChatOpen?: Dispatch<SetStateAction<boolean>>
+	unreadCount?: number
+	roomUrl?: string
 }
 
-export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
+export const OverflowMenu: FC<OverflowMenuProps> = ({
+	bugReportsEnabled,
+	mobileMode = false,
+	captionsEnabled,
+	setCaptionsEnabled,
+	chatOpen,
+	setChatOpen,
+	unreadCount = 0,
+	roomUrl,
+}) => {
 	const {
 		room: {
 			otherUsers,
@@ -41,6 +61,49 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Portal>
 					<DropdownMenu.Content sideOffset={5}>
+						{/* Mobile mode: Show additional features in menu */}
+						{mobileMode && setCaptionsEnabled && (
+							<DropdownMenu.Item
+								onSelect={() => {
+									setCaptionsEnabled(!captionsEnabled)
+								}}
+							>
+								<Icon type="chatBubbleBottomCenterText" className="mr-2" />
+								{captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
+							</DropdownMenu.Item>
+						)}
+						{mobileMode && setChatOpen && (
+							<DropdownMenu.Item
+								onSelect={() => {
+									setChatOpen(!chatOpen)
+								}}
+							>
+								<Icon type="chatBubbleLeftRight" className="mr-2" />
+								{chatOpen ? 'Close Chat' : 'Open Chat'}
+								{!chatOpen && unreadCount > 0 && ` (${unreadCount})`}
+							</DropdownMenu.Item>
+						)}
+						{mobileMode && (
+							<DropdownMenu.Item
+								onSelect={() => {
+									setParticipantsMenuOpen(true)
+								}}
+							>
+								<Icon type="userGroup" className="mr-2" />
+								{participantCount(otherUsers.length + 1)}
+							</DropdownMenu.Item>
+						)}
+						{mobileMode && roomUrl && (
+							<DropdownMenu.Item
+								onSelect={() => {
+									navigator.clipboard.writeText(roomUrl)
+								}}
+							>
+								<Icon type="ClipboardDocumentIcon" className="mr-2" />
+								Copy Room Link
+							</DropdownMenu.Item>
+						)}
+						{mobileMode && <DropdownMenu.Separator />}
 						{simulcastEnabled && (
 							<DropdownMenu.Item
 								onSelect={() => setDataSaverMode(!dataSaverMode)}
@@ -86,15 +149,17 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
 								Report bug
 							</DropdownMenu.Item>
 						)}
-						<DropdownMenu.Item
-							className="md:hidden"
-							onSelect={() => {
-								setParticipantsMenuOpen(true)
-							}}
-						>
-							<Icon type="userGroup" className="mr-2" />
-							{participantCount(otherUsers.length + 1)}
-						</DropdownMenu.Item>
+						{!mobileMode && (
+							<DropdownMenu.Item
+								className="md:hidden"
+								onSelect={() => {
+									setParticipantsMenuOpen(true)
+								}}
+							>
+								<Icon type="userGroup" className="mr-2" />
+								{participantCount(otherUsers.length + 1)}
+							</DropdownMenu.Item>
+						)}
 						<DropdownMenu.Arrow />
 					</DropdownMenu.Content>
 				</DropdownMenu.Portal>

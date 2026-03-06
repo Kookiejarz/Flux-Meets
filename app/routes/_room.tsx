@@ -5,7 +5,6 @@ import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
 import {
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 	type Dispatch,
 	type SetStateAction,
@@ -377,7 +376,14 @@ function Room({ room, userMedia }: RoomProps) {
 	)
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
-	const [captionsEnabled, setCaptionsEnabled] = useState(false)
+	
+	// Mobile devices should have captions enabled by default
+	const [captionsEnabled, setCaptionsEnabled] = useState(() => {
+		if (typeof window === 'undefined') return false
+		return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+			navigator.userAgent
+		)
+	})
 	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>(
 		'browser'
 	)

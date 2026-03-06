@@ -244,6 +244,12 @@ export const Participant = forwardRef<
 							isSelf && isScreenShare && 'opacity-75'
 						)}
 						videoTrack={videoTrack}
+						onDoubleClick={() => {
+							// Double-click to toggle camera facing on mobile (only for self view)
+							if (isSelf && !isScreenShare) {
+								userMedia.toggleCameraFacing()
+							}
+						}}
 					/>
 					{shouldPullVideo && !pulledVideoTrack && (
 						<div className="absolute inset-0 grid w-full h-full place-items-center">

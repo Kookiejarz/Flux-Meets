@@ -73,6 +73,7 @@ class NativeMediaDevice {
 	private transforms = new Set<TransformFn>()
 	private transformSubscriptions: Subscription[] = []
 	private currentTrack: MediaStreamTrack | null = null
+	private currentFacingMode: 'user' | 'environment' = 'user'
 
 	readonly isBroadcasting$ = createBehaviorSubject<boolean>(false)
 	readonly broadcastTrack$ = createBehaviorSubject<MediaStreamTrack | undefined>(undefined)
@@ -84,6 +85,19 @@ class NativeMediaDevice {
 	constructor(kind: MediaDeviceKind, constraints: MediaTrackConstraints) {
 		this.kind = kind
 		this.constraints = constraints
+	}
+
+	async toggleCameraFacing() {
+		if (this.kind !== 'video') return
+		if (!isMobileDevice()) return
+		
+		this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user'
+		this.constraints.facingMode = this.currentFacingMode
+		
+		// Restart broadcasting with new facing mode
+		if (this.isBroadcasting$.value) {
+			await this.startBroadcasting()
+		}
 	}
 
 	setPreferredDevice(device: MediaDeviceInfo) {
@@ -456,6 +470,7 @@ export default function useUserMedia(options: {
 		videoDeviceId: camera.activeDevice$.value?.deviceId,
 		turnCameraOn,
 		turnCameraOff: camera.stopBroadcasting,
+		toggleCameraFacing: () => camera.toggleCameraFacing(),
 		videoEnabled,
 		videoUnavailableReason,
 		blurVideo,

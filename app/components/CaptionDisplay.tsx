@@ -48,7 +48,9 @@ function DraggableCaption({
 				'absolute bottom-10 left-0 right-0 z-[50] w-full flex justify-center',
 				isDragging ? 'cursor-grabbing' : 'cursor-grab',
 				// Enable pointer events, prevent touch scrolling on mobile
-				'pointer-events-auto touch-none'
+				'pointer-events-auto touch-none select-none',
+				// Better touch target size for mobile
+				'py-2'
 			)}
 			style={{
 				transform: `translate3d(${x}px, ${y}px, 0)`,
@@ -58,9 +60,9 @@ function DraggableCaption({
 		>
 			<div
 				className={cn(
-					'bg-black/60 text-white px-4 py-2 rounded-lg text-sm md:text-base max-w-[90%] break-words text-center shadow-lg backdrop-blur-sm transition-colors duration-300',
-					!isFinal && 'border-b-2 border-orange-400/50',
-					isDragging && 'ring-2 ring-white/50 bg-black/80'
+					'bg-black/70 text-white px-4 py-3 rounded-xl text-sm md:text-base max-w-[90%] break-words text-center shadow-2xl backdrop-blur-md transition-all duration-200',
+					!isFinal && 'border-b-2 border-orange-400/60',
+					isDragging && 'ring-2 ring-white/60 bg-black/85 scale-105 shadow-orange-500/30'
 				)}
 			>
 				{text}
@@ -113,7 +115,10 @@ export function CaptionDisplay({
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
 			activationConstraint: {
-				distance: 5,
+				// Increase distance threshold for better mobile experience
+				distance: 10,
+				// Add tolerance to prevent accidental drags
+				tolerance: 5,
 			},
 		})
 	)

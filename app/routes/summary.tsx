@@ -3,7 +3,7 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 } from '@remix-run/cloudflare'
-import { Form, Link, useLoaderData, useSearchParams } from '@remix-run/react'
+import { Link, useLoaderData, useSearchParams } from '@remix-run/react'
 import { eq } from 'drizzle-orm'
 import {
 	AnalyticsSimpleCallFeedback,
@@ -156,52 +156,52 @@ export default function MeetingSummary() {
 				<div className="absolute top-[5%] left-[10%] w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-full" />
 			</div>
 
-			<div className="relative max-w-xl mx-auto px-6 py-12 md:py-16">
-				<div className="text-center mb-10">
-					<div className="inline-flex p-2.5 bg-orange-500/10 rounded-xl mb-4 ring-1 ring-orange-500/20">
-						<Icon type="CheckIcon" className="w-6 h-6 text-orange-500" />
+			<div className="relative max-w-xl mx-auto px-5 py-8">
+				<div className="text-center mb-6">
+					<div className="inline-flex p-2 bg-orange-500/10 rounded-xl mb-3 ring-1 ring-orange-500/20">
+						<Icon type="CheckIcon" className="w-5 h-5 text-orange-500" />
 					</div>
-					<h1 className="text-3xl font-black tracking-tight mb-2">
+					<h1 className="text-2xl font-black tracking-tight mb-1.5">
 						Meeting Over
 					</h1>
-					<p className="text-zinc-500 text-sm font-medium">
+					<p className="text-zinc-500 text-xs font-medium">
 						Session details and assets
 					</p>
 				</div>
 
 				{/* Compact Stats Row */}
-				<div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
-						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
-							Room
-						</p>
-						<p className="text-sm font-bold truncate">
+				<div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
+					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-3 rounded-xl">
+					<p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">
+						Room
+					</p>
+					<p className="text-xs font-bold truncate">
 							{meeting?.roomName || 'Private'}
 						</p>
 					</div>
-					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
-						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
+					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-3 rounded-xl">
+						<p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">
 							Duration
 						</p>
-						<p className="text-sm font-bold">
+						<p className="text-xs font-bold">
 							{meeting?.created && meeting?.ended
 								? formatDuration(meeting.created, meeting.ended)
 								: '--'}
 						</p>
 					</div>
-					<div className="col-span-2 sm:col-span-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl text-center sm:text-left">
-						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
+					<div className="col-span-2 sm:col-span-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-3 rounded-xl text-center sm:text-left">
+						<p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">
 							Users
 						</p>
-						<p className="text-sm font-bold">{meeting?.peakUserCount ?? '--'}</p>
+						<p className="text-xs font-bold">{meeting?.peakUserCount ?? '--'}</p>
 					</div>
 				</div>
 
-				<div className="space-y-4">
+				<div className="space-y-3">
 					{/* Participants Section - More compact */}
 					{participants.length > 0 && (
-						<div className="bg-zinc-900/30 border border-white/5 p-5 rounded-2xl">
-							<h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">
+						<div className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl">
+							<h2 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
 								Participants
 							</h2>
 							<div className="flex flex-wrap gap-1.5">
@@ -219,21 +219,21 @@ export default function MeetingSummary() {
 						</div>
 					)}
 
-					{/* Download Card - Resized and more elegant */}
-					<div className="group relative bg-orange-500 rounded-2xl p-6 overflow-hidden transition-all active:scale-[0.99] border border-orange-400/20 shadow-lg shadow-orange-500/10">
+					{/* Download Card - Compact */}
+					<div className="group relative bg-orange-500 rounded-xl p-4 overflow-hidden transition-all active:scale-[0.99] border border-orange-400/20 shadow-lg shadow-orange-500/10">
 						<div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600" />
-						<div className="absolute -top-4 -right-4 p-4 opacity-10 group-hover:scale-110 transition-transform">
+						<div className="absolute -top-2 -right-2 p-2 opacity-10 group-hover:scale-110 transition-transform">
 							<Icon
 								type="ArrowDownOnSquareIcon"
-								className="w-20 h-24 text-white"
+								className="w-12 h-12 text-white"
 							/>
 						</div>
-						<div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 							<div className="max-w-[240px]">
-								<h2 className="text-lg font-black text-white mb-1 uppercase tracking-tight">
+								<h2 className="text-base font-black text-white mb-0.5 uppercase tracking-tight">
 									Full Transcript
 								</h2>
-								<p className="text-orange-100 text-[11px] font-medium leading-tight">
+								<p className="text-orange-100 text-[10px] font-medium leading-tight">
 									Complete record of the meeting conversation is ready for
 									download.
 								</p>
@@ -242,46 +242,22 @@ export default function MeetingSummary() {
 								onClick={() =>
 									window.open(`/api/transcript/${meetingId}`, '_blank')
 								}
-								className="bg-white text-orange-600 px-5 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-lg self-start sm:self-center"
+								className="bg-white text-orange-600 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-lg self-start sm:self-center"
 							>
 								Download TXT
 							</button>
 						</div>
 					</div>
-
-					{/* Feedback Box - More compact */}
-					<div className="bg-zinc-900/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl">
-						<h2 className="text-sm font-bold mb-4">How was the call?</h2>
-						<Form className="flex gap-3" method="post">
-							<button
-								className="flex-1 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-zinc-100 py-3 rounded-xl text-xs font-bold transition-all border border-white/5 shadow-sm"
-								value="false"
-								name="experiencedIssues"
-								type="submit"
-							>
-								Great
-							</button>
-							<button
-								className="flex-1 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-500 py-3 rounded-xl text-xs font-bold transition-all border border-red-500/20 shadow-sm"
-								value="true"
-								name="experiencedIssues"
-								type="submit"
-							>
-								Issues
-							</button>
-							<input type="hidden" name="meetingId" value={meetingId} />
-						</Form>
-					</div>
 				</div>
 
-				<div className="text-center mt-10">
+				<div className="text-center mt-6">
 					<Link
 						to="/"
-						className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-100 transition-colors text-xs font-medium group"
+						className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-100 transition-colors text-[11px] font-medium group"
 					>
 						<Icon
 							type="xMark"
-							className="w-3 h-3 transition-transform group-hover:rotate-90"
+							className="w-2.5 h-2.5 transition-transform group-hover:rotate-90"
 						/>
 						<span>Back to Dashboard</span>
 					</Link>

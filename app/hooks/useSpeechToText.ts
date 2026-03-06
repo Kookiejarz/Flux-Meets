@@ -6,6 +6,24 @@ export interface SpeechToTextOptions {
 	language?: string
 }
 
+// Normalize language codes for better compatibility with SpeechRecognition API
+function normalizeLanguage(lang: string): string {
+	// Common normalizations
+	const normalized = lang.toLowerCase().trim()
+	
+	// Map common variants to standard BCP 47 codes
+	if (normalized.startsWith('zh')) {
+		// Default to zh-CN for Chinese
+		return normalized.includes('tw') || normalized.includes('hk') ? 'zh-TW' : 'zh-CN'
+	}
+	if (normalized.startsWith('en')) {
+		// Default to en-US for English
+		return 'en-US'
+	}
+	
+	return lang
+}
+
 export function useSpeechToText({
 	enabled,
 	onCaption,
@@ -38,13 +56,17 @@ export function useSpeechToText({
 
 		setIsSupported(true)
 
+		const normalizedLang = normalizeLanguage(language)
+		console.log('[SpeechToText] Creating new recognition with language:', normalizedLang, '(original:', language, ')')
+
 		const recognition = new SpeechRecognition()
 		recognition.continuous = true
 		recognition.interimResults = true
-		recognition.lang = language
+		recognition.lang = normalizedLang
 
 		recognition.onstart = () => {
 			isActiveRef.current = true
+			console.log('[SpeechToText] Recognition started with language:', normalizedLang)
 		}
 
 		recognition.onresult = (event: any) => {
@@ -68,11 +90,12 @@ export function useSpeechToText({
 
 		recognition.onerror = (event: any) => {
 			if (event.error === 'aborted') return // Expected when stopping or browser pre-empting
-			console.error('Speech recognition error', event.error)
+			console.error('[SpeechToText] Recognition error:', event.error)
 		}
 
 		recognition.onend = () => {
 			isActiveRef.current = false
+			console.log('[SpeechToText] Recognition ended, will restart if enabled')
 			// Restart if still enabled
 			if (enabledRef.current) {
 				setTimeout(() => {
@@ -80,7 +103,7 @@ export function useSpeechToText({
 						try {
 							recognition.start()
 						} catch (e) {
-							// Ignore
+							console.warn('[SpeechToText] Failed to restart recognition:', e)
 						}
 					}
 				}, 200)
@@ -89,13 +112,26 @@ export function useSpeechToText({
 
 		recognitionRef.current = recognition
 
+		// If enabled is true, start the new recognition immediately
+		if (enabledRef.current) {
+			try {
+				console.log('[SpeechToText] Starting recognition immediately (enabled=true)')
+				recognition.start()
+			} catch (e) {
+				console.warn('[SpeechToText] Failed to start recognition:', e)
+			}
+		}
+
 		return () => {
-			enabledRef.current = false
+			console.log('[SpeechToText] Cleaning up recognition')
+			const wasEnabled = enabledRef.current
 			try {
 				recognition.stop()
 			} catch (e) {
 				// Ignore
 			}
+			// Restore enabled state so the new recognition can start if needed
+			enabledRef.current = wasEnabled
 		}
 	}, [language])
 
@@ -132,13 +168,15 @@ export function useSpeechToText({
 
 		if (enabled) {
 			if (!isActiveRef.current) {
+				console.log('[SpeechToText] Enabled changed to true, starting recognition')
 				try {
 					recognition.start()
 				} catch (e) {
-					// Ignore
+					console.warn('[SpeechToText] Failed to start recognition on enable:', e)
 				}
 			}
 		} else {
+			console.log('[SpeechToText] Enabled changed to false, stopping recognition')
 			try {
 				recognition.stop()
 			} catch (e) {
