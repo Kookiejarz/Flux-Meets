@@ -34,6 +34,7 @@ jobs:
         run: npm ci --legacy-peer-deps --prefer-offline --no-audit
 
       - name: Ensure Queues Exist
+        continue-on-error: true
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
