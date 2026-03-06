@@ -190,6 +190,7 @@ export class ChatRoom extends Server<Env> {
 						.update(Meetings)
 						.set(updates)
 						.where(eq(Meetings.id, meeting.id))
+						.run()
 					console.log('D1 Success: Updated meeting state', meetingId, updates)
 				} catch (e) {
 					console.error('D1 Error: Failed to update meeting peak user count', e)
@@ -211,16 +212,20 @@ export class ChatRoom extends Server<Env> {
 		log({ eventName: 'startingMeeting', meetingId, startTime })
 		if (this.db) {
 			try {
-				const result = await this.db.insert(Meetings).values({
-					id: meetingId,
-					roomName: this.ctx.id.toString(), // Partyserver's room name
-					peakUserCount: 1,
-				})
+				// 使用 .run() 确保在 D1 中实际执行
+				const result = await this.db
+					.insert(Meetings)
+					.values({
+						id: meetingId,
+						roomName: this.ctx.id.toString(),
+						peakUserCount: 1,
+					})
+					.run()
 				console.log(
 					'D1 Success: Created meeting record',
 					meetingId,
-					'Result:',
-					result
+					'Changes:',
+					result.meta?.changes || result
 				)
 			} catch (e) {
 				console.error('D1 Error: Failed to create meeting record', e)
@@ -401,12 +406,15 @@ export class ChatRoom extends Server<Env> {
 					const user = await this.ctx.storage.get<User>(
 						`session-${connection.id}`
 					)
-					await this.db.insert(Transcripts).values({
-						meetingId,
-						userId: connection.id,
-						userName: user?.name || 'Unknown',
-						text: data.text,
-					})
+					await this.db
+						.insert(Transcripts)
+						.values({
+							meetingId,
+							userId: connection.id,
+							userName: user?.name || 'Unknown',
+							text: data.text,
+						})
+						.run()
 
 					// Automatic Translation
 					const aiEnabledInConfig = this.env.ENABLE_WORKERS_AI === 'true'
@@ -816,6 +824,7 @@ export class ChatRoom extends Server<Env> {
 					ended: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(Meetings.id, meetingId))
+				.run()
 		}
 	}
 

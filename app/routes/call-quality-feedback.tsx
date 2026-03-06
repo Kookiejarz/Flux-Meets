@@ -33,33 +33,47 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 
 		const db = getDb(context)
 		if (!db) {
+			console.warn('Database binding missing')
 			return json({
 				meeting: null,
 				participants: [],
-				error: 'Database binding missing',
+				error: null, // 允许继续反馈
 			})
 		}
 
-		const [meeting] = await db
-			.select()
-			.from(Meetings)
-			.where(eq(Meetings.id, meetingId))
+		try {
+			const [meeting] = await db
+				.select()
+				.from(Meetings)
+				.where(eq(Meetings.id, meetingId))
 
-		const participants = await db
-			.select({
-				userName: Transcripts.userName,
-				userId: Transcripts.userId,
+			const participants = meeting
+				? await db
+						.select({
+							userName: Transcripts.userName,
+							userId: Transcripts.userId,
+						})
+						.from(Transcripts)
+						.where(eq(Transcripts.meetingId, meetingId))
+						.groupBy(Transcripts.userId, Transcripts.userName)
+				: []
+
+			return json({ meeting, participants, error: null })
+		} catch (dbError: any) {
+			console.error('Database query failed:', dbError)
+			// 数据库错误时返回空数据但不阻止反馈流程
+			return json({
+				meeting: null,
+				participants: [],
+				error: null,
 			})
-			.from(Transcripts)
-			.where(eq(Transcripts.meetingId, meetingId))
-			.groupBy(Transcripts.userId, Transcripts.userName)
-
-		return json({ meeting, participants, error: null })
+		}
 	} catch (e: any) {
+		console.error('Unexpected error:', e)
 		return json({
 			meeting: null,
 			participants: [],
-			error: e.message || String(e),
+			error: null,
 		})
 	}
 }
@@ -73,11 +87,14 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 	const meetingId = formData.get('meetingId')
 	invariant(typeof meetingId === 'string')
 
-	await db.insert(AnalyticsSimpleCallFeedback).values({
-		experiencedIssues: Number(experiencedIssues),
-		version: RELEASE ?? 'dev',
-		meetingId,
-	})
+	await db
+		.insert(AnalyticsSimpleCallFeedback)
+		.values({
+			experiencedIssues: Number(experiencedIssues),
+			version: RELEASE ?? 'dev',
+			meetingId,
+		})
+		.run()
 
 	return redirectToHome
 }
@@ -102,11 +119,12 @@ function formatDuration(startStr: string, endStr: string | null) {
 }
 
 export default function MeetingSummary() {
-	const { meeting, participants, error } = useLoaderData<typeof loader>()
+	const { meeting, participants } = useLoaderData<typeof loader>()
 	const [params] = useSearchParams()
 	const meetingId = params.get('meetingId')
 
-	if (error || !meetingId) {
+	// 只在没有 meetingId 时显示错误（数据库查询失败优雅降级）
+	if (!meetingId) {
 		return (
 			<div className="min-h-[100dvh] bg-zinc-950 flex items-center justify-center p-6">
 				<div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-xs w-full text-center">
@@ -118,7 +136,7 @@ export default function MeetingSummary() {
 						Summary Unavailable
 					</h1>
 					<p className="text-zinc-500 text-xs mb-5">
-						{error || 'Meeting not found'}
+						Meeting not found
 					</p>
 					<Link
 						to="/"
@@ -166,14 +184,16 @@ export default function MeetingSummary() {
 							Duration
 						</p>
 						<p className="text-sm font-bold">
-							{meeting ? formatDuration(meeting.created, meeting.ended) : '--'}
+							{meeting?.created && meeting?.ended
+								? formatDuration(meeting.created, meeting.ended)
+								: '--'}
 						</p>
 					</div>
 					<div className="col-span-2 sm:col-span-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl text-center sm:text-left">
 						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
 							Users
 						</p>
-						<p className="text-sm font-bold">{meeting?.peakUserCount || '1'}</p>
+						<p className="text-sm font-bold">{meeting?.peakUserCount ?? '--'}</p>
 					</div>
 				</div>
 

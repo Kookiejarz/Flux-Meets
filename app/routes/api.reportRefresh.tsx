@@ -8,9 +8,12 @@ export const action = async ({ context }: ActionFunctionArgs) => {
 	if (db === null || mode === 'development')
 		return new Response(null, { status: 200 })
 
-	await db.insert(AnalyticsRefreshes).values({
-		version: RELEASE ?? 'dev',
-	})
+	await db
+		.insert(AnalyticsRefreshes)
+		.values({
+			version: RELEASE ?? 'dev',
+		})
+		.run()
 
 	return new Response(null, { status: 201 })
 }
