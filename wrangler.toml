@@ -21,11 +21,24 @@ MAX_WEBCAM_BITRATE = 8500000
 MAX_WEBCAM_FRAMERATE = 60
 MAX_WEBCAM_QUALITY_LEVEL = 1080
 
-ENABLE_WORKERS_AI = "false"
-OPENAI_MODEL_ID = "gpt-4o-realtime-preview-2024-10-01"
+# ====== 云端CC（语音识别） ======
+ENABLE_WORKERS_AI_ASR = "false"  # 默认禁用
 WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"
-WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"
+
+# ====== 翻译功能（二选一） ======
+# OpenAI 翻译
+USE_OPENAI_TRANSLATION = "false"
+OPENAI_TRANSLATION_MODEL = "gpt-4o-mini"  # 留空则不用
+
+# Workers AI 翻译
+ENABLE_WORKERS_AI = "false"
+WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"  # 留空则不用
+
+# 翻译目标语言
 WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
+
+# AI 助手
+OPENAI_MODEL_ID = "gpt-4o-realtime-preview-2024-10-01"
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB

@@ -401,6 +401,20 @@ function Room({ room, userMedia }: RoomProps) {
 			return typeof val === 'function' ? val(prevVal) : val
 		})
 	}
+	const [storedDisplayCaptionLanguage, setStoredDisplayCaptionLanguage] =
+		useLocalStorage<'all' | 'en' | 'zh' | 'original'>(
+			'settings-display-caption-language',
+			'all'
+		)
+	const displayCaptionLanguage = storedDisplayCaptionLanguage ?? 'all'
+	const setDisplayCaptionLanguage: Dispatch<
+		SetStateAction<'all' | 'en' | 'zh' | 'original'>
+	> = (val) => {
+		setStoredDisplayCaptionLanguage((prev) => {
+			const prevVal = prev ?? 'all'
+			return typeof val === 'function' ? val(prevVal) : val
+		})
+	}
 	const [aiTranslationEnabled, setAiTranslationEnabled] = useState(true)
 	const [moqEnabled, setMoqEnabled] = useState(false)
 	const [chatMessages, setChatMessages] = useState<
@@ -612,6 +626,8 @@ function Room({ room, userMedia }: RoomProps) {
 		setAsrSource,
 		localCcLanguage,
 		setLocalCcLanguage,
+		displayCaptionLanguage,
+		setDisplayCaptionLanguage,
 		aiEnabled,
 		aiTranslationEnabled,
 		setAiTranslationEnabled,

@@ -20,7 +20,12 @@ TURN_SERVICE_ID = "124bb066f462e966159bc4eef4b42048"
 EXPERIMENTAL_SIMULCAST_ENABLED = "true"
 DISABLE_LOBBY_ENFORCEMENT = "true"
 BACKGROUND_IMAGE_URL = ""
-ENABLE_WORKERS_AI = "true"
+
+# 开发环境：使用 Workers AI 节省成本
+ENABLE_WORKERS_AI_ASR = "true"  # 云端CC
+ENABLE_WORKERS_AI = "true"  # Workers AI 翻译
+USE_OPENAI_TRANSLATION = "false"  # 开发不用 OpenAI
+OPENAI_TRANSLATION_MODEL = ""  # 留空
 
 [ai]
 binding = "AI"

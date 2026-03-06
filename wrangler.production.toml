@@ -25,11 +25,29 @@ MAX_WEBCAM_BITRATE = 8500000
 MAX_WEBCAM_FRAMERATE = 60
 MAX_WEBCAM_QUALITY_LEVEL = 1080
 
-ENABLE_WORKERS_AI = "false"
-OPENAI_MODEL_ID = "gpt-4o-realtime-preview-2024-10-01"
-WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"
-WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"
-WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
+# ====== 云端CC（语音识别） ======
+# 发送音频到服务端识别，比浏览器本地识别更准确
+ENABLE_WORKERS_AI_ASR = "true"  # 启用云端CC
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"  # Deepgram语音识别模型
+
+# ====== 翻译功能（二选一） ======
+# 作用：将字幕实时翻译成其他语言
+# 目标语言：下面 WORKERS_AI_TRANSLATION_TARGET_LANGS 配置
+
+# 方式1: OpenAI 翻译（推荐，质量更好）
+USE_OPENAI_TRANSLATION = "true"
+OPENAI_TRANSLATION_MODEL = "gpt-4.1-nano-2025-04-14"  # 或 gpt-4o, gpt-3.5-turbo
+
+# 方式2: Workers AI 翻译（Cloudflare原生，免费但质量一般）
+ENABLE_WORKERS_AI = "false"  # 翻译开关
+WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"  # 留空则不翻译
+
+# 翻译目标语言（逗号分隔）
+# 示例："en,zh" 会将字幕翻译成英文和中文两个版本
+WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"  # 可选：ja,ko,es,fr,de等
+
+# ====== AI 助手（可选） ======
+OPENAI_MODEL_ID = ""
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
@@ -49,7 +67,7 @@ enabled = true
 
 # The necessary secrets are:
 # - CALLS_APP_SECRET
-# - OPENAI_API_TOKEN (if using OpenAI realtime AI)
+# - OPENAI_API_TOKEN (if using OpenAI realtime AI or OpenAI Translation)
 # Run `echo <VALUE> | wrangler secret put <NAME>` for each of these
 
 # Optional vars/secrets for OpenAI realtime AI:
