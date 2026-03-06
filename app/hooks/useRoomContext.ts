@@ -38,6 +38,11 @@ export type RoomContextType = {
 	maxWebcamQualityLevel: number
 	captionsEnabled: boolean
 	setCaptionsEnabled: Dispatch<SetStateAction<boolean>>
+	asrSource: 'browser' | 'workers-ai'
+	setAsrSource: Dispatch<SetStateAction<'browser' | 'workers-ai'>>
+	aiEnabled: boolean
+	aiTranslationEnabled: boolean
+	setAiTranslationEnabled: Dispatch<SetStateAction<boolean>>
 	moqEnabled: boolean
 	setMoqEnabled: Dispatch<SetStateAction<boolean>>
 	chatMessages: {

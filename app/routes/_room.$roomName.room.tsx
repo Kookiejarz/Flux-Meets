@@ -269,7 +269,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 								/>
 							</div>
 						</div>
-						<Toast.Viewport className="absolute bottom-4 right-4" />
+						<Toast.Viewport className="absolute top-4 right-4" />
 					</div>
 					<div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-4 pt-2 md:gap-4 md:px-8 md:pb-6 md:pt-2">
 						{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
@@ -288,7 +288,12 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 								}}
 								displayType={captionsEnabled ? 'primary' : 'secondary'}
 							>
-								<Icon type="chatBubbleBottomCenterText" />
+								<Icon type={captionsEnabled ? 'chatBubbleBottomCenterText' : 'chatBubbleBottomCenterText'} />
+								{!captionsEnabled && (
+									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+										<div className="w-[1px] h-6 bg-current rotate-45 opacity-60" />
+									</div>
+								)}
 							</Button>
 						</Tooltip>
 						<ScreenshareButton />

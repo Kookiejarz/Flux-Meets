@@ -26,8 +26,11 @@ export const DialogContent = forwardRef<
 			'max-h-[85vh]',
 			'overflow-y-auto',
 			'p-6',
-			'bg-inherit',
-			'shadow-xl',
+			'bg-zinc-900/80',
+			'backdrop-blur-xl',
+			'border',
+			'border-white/10',
+			'shadow-2xl',
 			'dark:shadow-none'
 		)}
 	>

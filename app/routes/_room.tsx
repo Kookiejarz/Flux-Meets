@@ -16,6 +16,7 @@ import { type RoomContextType } from '~/hooks/useRoomContext'
 import { useRoomHistory } from '~/hooks/useRoomHistory'
 import { useSpeechToText } from '~/hooks/useSpeechToText'
 import { useStablePojo } from '~/hooks/useStablePojo'
+import { useWorkersAiASR } from '~/hooks/useWorkersAiASR'
 import useUserMedia from '~/hooks/useUserMedia'
 import type { TrackObject } from '~/utils/callsTypes'
 import { useE2EE } from '~/utils/e2ee'
@@ -94,6 +95,7 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		maxApiHistory: numberOrUndefined(MAX_API_HISTORY),
 		simulcastEnabled: EXPERIMENTAL_SIMULCAST_ENABLED === 'true',
 		e2eeEnabled: context.env.E2EE_ENABLED === 'true',
+		aiEnabled: context.env.ENABLE_WORKERS_AI === 'true',
 	})
 }
 
@@ -194,6 +196,7 @@ function Room({ room, userMedia }: RoomProps) {
 		maxApiHistory = 100,
 		simulcastEnabled,
 		e2eeEnabled,
+		aiEnabled,
 	} = useLoaderData<typeof loader>()
 
 	const [webcamBitrate, setWebcamBitrate] = useState(maxWebcamBitrate)
@@ -289,22 +292,31 @@ function Room({ room, userMedia }: RoomProps) {
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 	const [captionsEnabled, setCaptionsEnabled] = useState(false)
+	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>('browser')
+	const [aiTranslationEnabled, setAiTranslationEnabled] = useState(true)
 	const [moqEnabled, setMoqEnabled] = useState(false)
 	const [chatMessages, setChatMessages] = useState<
 		{ id: string; sender: string; text: string; time: Date; isSelf: boolean }[]
 	>([])
 
 	useSpeechToText({
-		enabled: captionsEnabled && joined,
+		enabled: captionsEnabled && joined && asrSource === 'browser',
 		onCaption: (text, isFinal) => {
 			room.websocket.send(
 				JSON.stringify({
 					type: 'caption',
 					text,
 					isFinal,
-				})
+					translate: aiTranslationEnabled,
+				} satisfies ClientMessage)
 			)
 		},
+	})
+
+	useWorkersAiASR({
+		enabled: captionsEnabled && joined && asrSource === 'workers-ai',
+		audioStreamTrack: userMedia.audioStreamTrack,
+		websocket: room.websocket,
 	})
 
 	const { e2eeSafetyNumber, onJoin } = useE2EE({
@@ -345,6 +357,11 @@ function Room({ room, userMedia }: RoomProps) {
 		maxWebcamQualityLevel,
 		captionsEnabled,
 		setCaptionsEnabled,
+		asrSource,
+		setAsrSource,
+		aiEnabled,
+		aiTranslationEnabled,
+		setAiTranslationEnabled,
 		moqEnabled,
 		setMoqEnabled,
 		chatMessages,

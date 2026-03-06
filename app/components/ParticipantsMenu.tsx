@@ -1,3 +1,4 @@
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import type { FC, ReactNode } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { useUserMetadata } from '~/hooks/useUserMetadata'
@@ -6,7 +7,7 @@ import populateTraceLink from '~/utils/populateTraceLink'
 import { cn } from '~/utils/style'
 import { AudioIndicator } from './AudioIndicator'
 import { Button } from './Button'
-import { Dialog, DialogContent, DialogOverlay, Portal, Trigger } from './Dialog'
+import { Description, Dialog, DialogContent, DialogOverlay, DialogTitle, Portal, Trigger } from './Dialog'
 import { Icon } from './Icon/Icon'
 import { MuteUserButton } from './MuteUserButton'
 import { OptionalLink } from './OptionalLink'
@@ -117,9 +118,12 @@ export const ParticipantsDialog: FC<ParticipantDialogProps> = ({
 				<DialogOverlay />
 				<DialogContent>
 					<div className="space-y-4">
-						<h2 className="text-xl font-bold">
+						<DialogTitle>
 							{participantCount(otherUsers.length + 1)}
-						</h2>
+						</DialogTitle>
+						<VisuallyHidden>
+							<Description>List of all current meeting participants.</Description>
+						</VisuallyHidden>
 						<ul className="space-y-2">
 							{allParticipants.map((p) =>
 								p === identity ? (

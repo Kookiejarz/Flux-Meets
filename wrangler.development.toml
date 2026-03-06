@@ -28,7 +28,10 @@ TURN_SERVICE_ID = "124bb066f462e966159bc4eef4b42048"
 EXPERIMENTAL_SIMULCAST_ENABLED = "true"
 DISABLE_LOBBY_ENFORCEMENT = "true"
 BACKGROUND_IMAGE_URL = ""
+ENABLE_WORKERS_AI = "true"
 
+[ai]
+binding = "AI"
 
 [[queues.producers]]
  queue = "orange-meets-feedback-queue-development"

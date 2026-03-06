@@ -1,9 +1,10 @@
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { useSearchParams } from '@remix-run/react'
 import { useState, type ReactNode } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import type { ClientMessage } from '~/types/Messages'
 import { Button } from './Button'
-import { Dialog, DialogContent, DialogOverlay, Portal } from './Dialog'
+import { Description, Dialog, DialogContent, DialogOverlay, DialogTitle, Portal } from './Dialog'
 
 const aiVoices = [
 	'Alloy',
@@ -34,6 +35,10 @@ export function InviteAiDialog(props: { children?: ReactNode }) {
 			<Portal>
 				<DialogOverlay />
 				<DialogContent>
+					<DialogTitle>Invite AI Assistant</DialogTitle>
+					<VisuallyHidden>
+						<Description>Configure the AI voice and instructions for the meeting.</Description>
+					</VisuallyHidden>
 					<form
 						className="flex flex-col gap-4 mt-8"
 						onSubmit={(e) => {

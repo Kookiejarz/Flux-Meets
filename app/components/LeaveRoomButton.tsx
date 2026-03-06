@@ -20,11 +20,15 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 			<Button
 				displayType="danger"
 				onClick={() => {
+					console.log('Leave Button Clicked - meetingId:', meetingId, 'hasDb:', navigateToFeedbackPage)
 					const params = new URLSearchParams()
-					if (meetingId) params.set('meetingId', meetingId)
-					navigate(
-						navigateToFeedbackPage ? `/call-quality-feedback?${params}` : '/'
-					)
+					if (meetingId) {
+						params.set('meetingId', meetingId)
+						navigate(`/call-quality-feedback?${params}`)
+					} else {
+						console.warn('No meetingId found, redirecting to home')
+						navigate('/')
+					}
 				}}
 			>
 				<VisuallyHidden>Leave</VisuallyHidden>

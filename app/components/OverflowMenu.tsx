@@ -15,7 +15,11 @@ interface OverflowMenuProps {
 
 export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
 	const {
-		room: { otherUsers, identity },
+		room: {
+			otherUsers,
+			identity,
+			roomState: { meetingId },
+		},
 		dataSaverMode,
 		setDataSaverMode,
 		audioOnlyMode,
@@ -54,6 +58,16 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({ bugReportsEnabled }) => {
 							<Icon type="PhoneIcon" className="mr-2" />
 							{audioOnlyMode ? 'Disable Audio Only' : 'Enable Audio Only'}
 						</DropdownMenu.Item>
+						{meetingId && (
+							<DropdownMenu.Item
+								onSelect={() => {
+									window.open(`/api/transcript/${meetingId}`, '_blank')
+								}}
+							>
+								<Icon type="chatBubbleBottomCenterText" className="mr-2" />
+								Download Transcript
+							</DropdownMenu.Item>
+						)}
 						<DropdownMenu.Item
 							onSelect={() => {
 								setSettingMenuOpen(true)

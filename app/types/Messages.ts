@@ -80,6 +80,7 @@ export type ClientMessage =
 			type: 'caption'
 			text: string
 			isFinal: boolean
+			translate?: boolean
 	  }
 	| {
 			type: 'directMessage'
@@ -117,6 +118,10 @@ export type ClientMessage =
 	  }
 	| {
 			type: 'relenquishAiControl'
+	  }
+	| {
+			type: 'audioChunk'
+			data: string // Base64 encoded audio
 	  }
 	| {
 			type: 'callsApiHistoryEntry'

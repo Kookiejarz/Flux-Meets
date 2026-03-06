@@ -146,6 +146,7 @@ export const Participant = forwardRef<
 			if (data.type === 'caption') {
 				const isThisUser =
 					data.userId === id || (isSelf && data.userId === identity?.id)
+				console.log('Caption received:', { dataUserId: data.userId, participantId: id, isSelf, identityId: identity?.id, isThisUser, text: data.text })
 				if (isThisUser) {
 					setCaption({ text: data.text, isFinal: data.isFinal })
 				}

@@ -13,7 +13,7 @@ import {
 	type ConnectionContext,
 	type WSMessage,
 } from 'partyserver'
-import { getDb, Meetings } from 'schema'
+import { getDb, Meetings, Transcripts } from 'schema'
 import invariant from 'tiny-invariant'
 import { log } from '~/utils/logging'
 import {
@@ -44,7 +44,7 @@ export class ChatRoom extends Server<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
 		this.env = env
-		this.db = getDb(this)
+		this.db = getDb({ env })
 	}
 
 	// a small typesafe wrapper around connection.send
@@ -55,7 +55,7 @@ export class ChatRoom extends Server<Env> {
 	async onStart(): Promise<void> {
 		const meetingId = await this.getMeetingId()
 		log({ eventName: 'onStart', meetingId })
-		this.db = getDb(this)
+		this.db = getDb({ env: this.env })
 	}
 
 	async onRequest(request: Request): Promise<Response> {
@@ -158,24 +158,32 @@ export class ChatRoom extends Server<Env> {
 		const meeting = await this.getMeeting(meetingId)
 
 		await this.cleanupOldConnections()
-		if (this.db) {
-			if (!meeting) return
+		if (this.db && meeting) {
+			const updates: any = {}
+			
 			if (meeting.ended !== null) {
-				await this.db
-					.update(Meetings)
-					.set({ ended: null })
-					.where(eq(Meetings.id, meeting.id))
+				updates.ended = null
+			}
+			
+			if (!meeting.roomName) {
+				updates.roomName = this.id
 			}
 
-			const previousCount = meeting.peakUserCount
 			const userCount = (await this.getUsers()).size
-			if (userCount > previousCount) {
-				await this.db
-					.update(Meetings)
-					.set({
-						peakUserCount: userCount,
-					})
-					.where(eq(Meetings.id, meeting.id))
+			if (userCount > meeting.peakUserCount) {
+				updates.peakUserCount = userCount
+			}
+
+			if (Object.keys(updates).length > 0) {
+				try {
+					await this.db
+						.update(Meetings)
+						.set(updates)
+						.where(eq(Meetings.id, meeting.id))
+					console.log('D1 Success: Updated meeting state', meetingId, updates)
+				} catch (e) {
+					console.error('D1 Error: Failed to update meeting peak user count', e)
+				}
 			}
 		}
 		return meetingId
@@ -192,10 +200,18 @@ export class ChatRoom extends Server<Env> {
 		await this.ctx.storage.put('startTime', startTime)
 		log({ eventName: 'startingMeeting', meetingId, startTime })
 		if (this.db) {
-			await this.db.insert(Meetings).values({
-				id: meetingId,
-				peakUserCount: 1,
-			})
+			try {
+				const result = await this.db.insert(Meetings).values({
+					id: meetingId,
+					roomName: this.id, // Partyserver's room name
+					peakUserCount: 1,
+				})
+				console.log('D1 Success: Created meeting record', meetingId, 'Result:', result)
+			} catch (e) {
+				console.error('D1 Error: Failed to create meeting record', e)
+			}
+		} else {
+			console.warn('D1 Warning: Database not found during meeting creation')
 		}
 		return meetingId
 	}
@@ -315,6 +331,105 @@ export class ChatRoom extends Server<Env> {
 		await this.broadcastRoomState()
 	}
 
+	async handleAudioChunk(
+		connection: Connection<User>,
+		data: { type: 'audioChunk'; data: string }
+	) {
+		const aiEnabledInConfig = this.env.ENABLE_WORKERS_AI === 'true'
+		if (this.env.AI && aiEnabledInConfig) {
+			try {
+				// Base64 to ArrayBuffer
+				const audioBuffer = Uint8Array.from(atob(data.data), (c) =>
+					c.charCodeAt(0)
+				)
+
+				const response: any = await this.env.AI.run('@cf/deepgram/nova-3', {
+					audio: {
+						body: audioBuffer,
+						contentType: 'audio/webm',
+					},
+					smart_format: true,
+					detect_language: true,
+				})
+
+				if (response?.results?.channels[0]?.alternatives[0]?.transcript) {
+					const text = response.results.channels[0].alternatives[0].transcript
+					const captionMessage = {
+						type: 'caption',
+						userId: connection.id,
+						text: text,
+						isFinal: true,
+						translate: true, // Auto-translate for Workers AI ASR
+					} as const
+
+					this.broadcastMessage(captionMessage)
+
+					// Trigger persistence and translation
+					this.handleCaption(connection, captionMessage).catch(err => {
+						console.error('Secondary caption handler error:', err)
+					})
+				}
+			} catch (e) {
+				console.error('Workers AI ASR Error (Nova-3):', e)
+			}
+		}
+	}
+
+	async handleCaption(
+		connection: Connection<User>,
+		data: { text: string; isFinal: boolean; translate?: boolean }
+	) {
+		try {
+			if (data.isFinal && this.db) {
+				const meetingId = await this.getMeetingId()
+				if (meetingId) {
+					const user = await this.ctx.storage.get<User>(
+						`session-${connection.id}`
+					)
+					await this.db.insert(Transcripts).values({
+						meetingId,
+						userId: connection.id,
+						userName: user?.name || 'Unknown',
+						text: data.text,
+					})
+
+					// Automatic Translation
+					const aiEnabledInConfig = this.env.ENABLE_WORKERS_AI === 'true'
+					if (this.env.AI && aiEnabledInConfig && data.translate) {
+						try {
+							const targetLangs = ['en', 'zh']
+							for (const lang of targetLangs) {
+								const translation = await this.env.AI.run(
+									'@cf/meta/m2m100-1.2b',
+									{
+										text: data.text,
+										target_lang: lang,
+									}
+								)
+
+								if (
+									translation?.translated_text &&
+									translation.translated_text !== data.text
+								) {
+									this.broadcastMessage({
+										type: 'caption',
+										userId: connection.id,
+										text: `[${lang.toUpperCase()}] ${translation.translated_text}`,
+										isFinal: true,
+									})
+								}
+							}
+						} catch (e) {
+							console.error('Translation error:', e)
+						}
+					}
+				}
+			}
+		} catch (dbErr) {
+			console.error('D1 Transcript Persistence Error:', dbErr)
+		}
+	}
+
 	async onMessage(
 		connection: Connection<User>,
 		message: WSMessage
@@ -363,6 +478,15 @@ export class ChatRoom extends Server<Env> {
 						text: data.text,
 						isFinal: data.isFinal,
 					})
+
+					// Process DB and translation asynchronously
+					this.handleCaption(connection, data).catch(e => {
+						console.error('Error handling caption:', e)
+					})
+					break
+				}
+				case 'audioChunk': {
+					await this.handleAudioChunk(connection, data)
 					break
 				}
 				case 'callsApiHistoryEntry': {
@@ -678,7 +802,6 @@ export class ChatRoom extends Server<Env> {
 				})
 				.where(eq(Meetings.id, meetingId))
 		}
-		await this.ctx.storage.deleteAll()
 	}
 
 	userLeftNotification(id: string) {

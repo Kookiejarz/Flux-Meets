@@ -1,9 +1,11 @@
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import type { FC, ReactNode } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { cn } from '~/utils/style'
 import { AudioInputSelector } from './AudioInputSelector'
 import { Button } from './Button'
 import {
+	Description,
 	Dialog,
 	DialogContent,
 	DialogOverlay,
@@ -55,6 +57,11 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		maxWebcamQualityLevel,
 		moqEnabled,
 		setMoqEnabled,
+		aiEnabled,
+		aiTranslationEnabled,
+		setAiTranslationEnabled,
+		asrSource,
+		setAsrSource,
 	} = useRoomContext()
 
 	return (
@@ -64,6 +71,9 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 				<DialogOverlay />
 				<DialogContent className="max-w-2xl">
 					<DialogTitle>Settings</DialogTitle>
+					<VisuallyHidden>
+						<Description>Adjust your camera, microphone, and other meeting settings.</Description>
+					</VisuallyHidden>
 					<div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-x-6 gap-y-6 mt-8 items-center">
 						<Label className="md:text-right" htmlFor="camera">
 							Camera
@@ -75,7 +85,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 						</Label>
 						<AudioInputSelector id="mic" />
 
-						<div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 my-2"></div>
+						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 
 						<Label className="md:text-right" htmlFor="bitrate">
 							Bitrate
@@ -157,7 +167,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								))}
 						</div>
 
-						<div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 my-2"></div>
+						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 
 						<Label className="md:text-right" htmlFor="blurBackground">
 							Blur
@@ -177,7 +187,54 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							onCheckedChange={setSuppressNoise}
 						/>
 
-						<div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 my-2"></div>
+						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+
+						{aiEnabled && (
+							<>
+								<Label className="md:text-right" htmlFor="asrSource">
+									ASR Source
+								</Label>
+								<div className="flex flex-wrap gap-2">
+									{[
+										{ label: 'Browser', val: 'browser' },
+										{ label: 'Workers AI', val: 'workers-ai' },
+									].map((source) => (
+										<button
+											key={source.val}
+											onClick={() =>
+												setAsrSource(source.val as 'browser' | 'workers-ai')
+											}
+											className={cn(
+												'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',
+												asrSource === source.val
+													? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+													: 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-orange-200'
+											)}
+										>
+											{source.label}
+										</button>
+									))}
+								</div>
+
+								<Label className="md:text-right" htmlFor="aiTranslation">
+									AI Translation
+								</Label>
+								<div className="flex items-center gap-4">
+									<Toggle
+										id="aiTranslation"
+										checked={aiTranslationEnabled}
+										onCheckedChange={setAiTranslationEnabled}
+									/>
+									{aiTranslationEnabled && (
+										<span className="text-xs text-zinc-500">
+											Multi-language CC Enabled
+										</span>
+									)}
+								</div>
+
+								<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+							</>
+						)}
 
 						<Label className="md:text-right" htmlFor="moq">
 							<div className="flex flex-col md:items-end">

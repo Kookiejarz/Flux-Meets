@@ -32,8 +32,20 @@ export const AnalyticsSimpleCallFeedback = sqliteTable(
 export const Meetings = sqliteTable('Meetings', {
 	...metadataColumns,
 	id: text('id').primaryKey(),
+	roomName: text('roomName'),
 	peakUserCount: integer('userCount').notNull(),
 	ended: text('ended'),
+})
+
+export const Transcripts = sqliteTable('Transcripts', {
+	...metadataColumns,
+	meetingId: text('meetingId')
+		.references(() => Meetings.id)
+		.notNull(),
+	userId: text('userId').notNull(),
+	userName: text('userName').notNull(),
+	text: text('text').notNull(),
+	language: text('language'),
 })
 
 export function getDb(context: { env: Env }) {

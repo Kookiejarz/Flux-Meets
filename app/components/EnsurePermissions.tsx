@@ -28,6 +28,8 @@ async function getExistingPermissionState(): Promise<PermissionState> {
 export function EnsurePermissions(props: EnsurePermissionsProps) {
 	const [permissionState, setPermissionState] =
 		useState<PermissionState | null>(null)
+	const [initTimeout, setInitTimeout] = useState(false)
+	const [justGranted, setJustGranted] = useState(false) // 追踪是否刚刚授予权限
 
 	const mountedRef = useRef(true)
 
@@ -46,6 +48,22 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		}
 	}, [])
 
+	// 等待设备真正开始广播后才显示子组件
+	// 这避免了在移动设备上权限授予但设备尚未启动的问题
+	const devicesReady = micIsBroadcasting || cameraIsBroadcasting
+	// 只在刚授予权限时才启用，防止影响已有权限的情况
+	useEffect(() => {
+		if (permissionState === 'granted' && justGranted && !devicesReady) {
+			const timer = setTimeout(() => {
+				if (mountedRef.current && !micIsBroadcasting && !cameraIsBroadcasting) {
+					console.error('Device initialization timeout')
+					setInitTimeout(true)
+				}
+			}, 5000) // 减少到 5 秒
+			return () => clearTimeout(timer)
+		}
+	}, [permissionState, justGranted, devicesReady, micIsBroadcasting, cameraIsBroadcasting])
+
 	// Sync device IDs back to parent
 	useEffect(() => {
 		if (micActiveDevice?.deviceId) {
@@ -59,8 +77,80 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		}
 	}, [cameraActiveDevice, props])
 
-	if (permissionState === 'granted') {
+	// 如果权限已经授予（刷新或重新进入），直接显示子组件
+	// 只有在用户刚刚点击授权后才等待设备启动
+	if (permissionState === 'granted' && (!justGranted || devicesReady)) {
 		return props.children
+	}
+
+	// 设备初始化超时
+	if (initTimeout) {
+		return (
+			<div className="grid items-center min-h-[100dvh] bg-zinc-950 text-zinc-100 p-6">
+				<div className="mx-auto space-y-4 max-w-80 text-center">
+					<h1 className="text-3xl font-black text-red-500 uppercase">
+						Initialization Failed
+					</h1>
+					<p className="text-zinc-400 text-sm leading-relaxed">
+						We were unable to start your camera or microphone within the expected time.
+					</p>
+					<div className="flex flex-col gap-2">
+						<Button 
+							className="w-full" 
+							onClick={() => {
+								console.log('User chose to skip and continue anyway')
+								setInitTimeout(false)
+								setJustGranted(false)
+							}}
+						>
+							Continue Anyway
+						</Button>
+						<Button 
+							className="w-full" 
+							displayType="secondary"
+							onClick={() => {
+								window.location.reload()
+							}}
+						>
+							Reload Page
+						</Button>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
+	// 正在初始化设备
+	if (permissionState === 'granted' && !devicesReady) {
+		return (
+			<div className="grid items-center min-h-[100dvh] bg-zinc-950 text-zinc-100 p-6">
+				<div className="mx-auto space-y-4 max-w-80 text-center">
+					<div className="flex justify-center">
+						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+					</div>
+					<h1 className="text-2xl font-black orange-glow-text uppercase">
+						Starting Devices
+					</h1>
+					<p className="text-zinc-400 text-sm leading-relaxed">
+						Initializing your camera and microphone...
+					</p>
+					<div className="text-xs text-zinc-600 space-y-1">
+						<p>Mic: {micIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
+						<p>Camera: {cameraIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
+					</div>
+					<Button 
+						className="w-full mt-4" 
+						displayType="secondary"
+						onClick={() => {
+							console.log('User chose to skip device initialization')
+							setJustGranted(false)
+						}}
+					>
+						Skip and Continue
+					</Button>
+				</div>
+			</div>
+		)
 	}
 
 	if (permissionState === 'denied') {
@@ -116,21 +206,28 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 										video: { facingMode: 'user' } // 默认请求前置摄像头
 									})
 									.then(async (stream) => {
-										console.log('getUserMedia success')
+										console.log('getUserMedia success, stopping temp tracks...')
 										// IMPORTANT: Stop the temporary tracks FIRST to release
 										// the hardware before partytracks tries to acquire it.
 										// On iOS Safari, holding the device while calling
 										// getUserMedia again causes a NotReadableError.
 										stream.getTracks().forEach((t) => t.stop())
 
-										// Give iOS Safari time to fully release the camera/mic hardware
-										await new Promise((resolve) => setTimeout(resolve, 500))
+										// Give iOS/mobile browsers time to fully release the camera/mic hardware
+										console.log('Waiting for hardware release...')
+										await new Promise((resolve) => setTimeout(resolve, 800))
 
+										console.log('Starting broadcasting...')
 										// Now start broadcasting — devices should be free
 										mic.startBroadcasting()
 										camera.startBroadcasting()
 
-										if (mountedRef.current) setPermissionState('granted')
+										// Set permission state and mark as just granted
+										if (mountedRef.current) {
+											console.log('Permission granted, waiting for devices to start...')
+											setJustGranted(true) // 标记为刚刚授予
+											setPermissionState('granted')
+										}
 									})
 									.catch((err) => {
 										console.error('Permission request failed:', err)

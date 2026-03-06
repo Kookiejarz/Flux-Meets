@@ -39,15 +39,20 @@ export const NotificationToastsProvider = (props: { children?: ReactNode }) => {
 	const [messages, setMessages] = useState<Notification[]>([])
 
 	const dispatch = useCallback(
-		(content: ReactNode, options?: { duration?: number; id?: string }) =>
-			setMessages((ms) => [
-				...ms.filter((m) => m.id !== options?.id),
-				{
-					...options,
-					id: options?.id ?? nanoid(14),
-					content,
-				},
-			]),
+		(content: ReactNode, options?: { duration?: number; id?: string }) => {
+			const id = options?.id ?? (typeof content === 'string' ? content : nanoid(14))
+			setMessages((ms) => {
+				if (ms.some((m) => m.id === id)) return ms
+				return [
+					...ms,
+					{
+						...options,
+						id,
+						content,
+					},
+				]
+			})
+		},
 		[]
 	)
 

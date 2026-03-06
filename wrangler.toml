@@ -16,6 +16,16 @@ MAX_WEBCAM_BITRATE=8500000
 MAX_WEBCAM_FRAMERATE=60
 MAX_WEBCAM_QUALITY_LEVEL=1080
 
+ENABLE_WORKERS_AI = "false"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "orange-meets-db-development"
+database_id = "6b0eceef-c836-4ba7-aac2-fa9b6f702e3b"
+
+[ai]
+binding = "AI"
+
 # Optional vars
 # OPENAI_MODEL_ENDPOINT = ""
 
