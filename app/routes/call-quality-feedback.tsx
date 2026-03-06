@@ -152,8 +152,8 @@ export default function MeetingSummary() {
 				</div>
 
 				{/* Compact Stats Row */}
-				<div className="flex flex-col sm:flex-row gap-3 mb-6">
-					<div className="flex-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
+				<div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
 						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
 							Room
 						</p>
@@ -161,7 +161,7 @@ export default function MeetingSummary() {
 							{meeting?.roomName || 'Private'}
 						</p>
 					</div>
-					<div className="flex-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
+					<div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
 						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
 							Duration
 						</p>
@@ -169,7 +169,7 @@ export default function MeetingSummary() {
 							{meeting ? formatDuration(meeting.created, meeting.ended) : '--'}
 						</p>
 					</div>
-					<div className="flex-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl">
+					<div className="col-span-2 sm:col-span-1 bg-zinc-900/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl text-center sm:text-left">
 						<p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">
 							Users
 						</p>
@@ -234,7 +234,7 @@ export default function MeetingSummary() {
 						<h2 className="text-sm font-bold mb-4">How was the call?</h2>
 						<Form className="flex gap-3" method="post">
 							<button
-								className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 py-3 rounded-xl text-xs font-bold transition-all border border-white/5"
+								className="flex-1 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-zinc-100 py-3 rounded-xl text-xs font-bold transition-all border border-white/5 shadow-sm"
 								value="false"
 								name="experiencedIssues"
 								type="submit"
@@ -242,7 +242,7 @@ export default function MeetingSummary() {
 								Great
 							</button>
 							<button
-								className="flex-1 bg-red-500/5 hover:bg-red-500/10 text-red-500/80 py-3 rounded-xl text-xs font-bold transition-all border border-red-500/10"
+								className="flex-1 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-500 py-3 rounded-xl text-xs font-bold transition-all border border-red-500/20 shadow-sm"
 								value="true"
 								name="experiencedIssues"
 								type="submit"
@@ -257,9 +257,12 @@ export default function MeetingSummary() {
 				<div className="text-center mt-10">
 					<Link
 						to="/"
-						className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-100 transition-colors text-xs font-medium"
+						className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-100 transition-colors text-xs font-medium group"
 					>
-						<Icon type="xMark" className="w-3 h-3" />
+						<Icon
+							type="xMark"
+							className="w-3 h-3 transition-transform group-hover:rotate-90"
+						/>
 						<span>Back to Dashboard</span>
 					</Link>
 				</div>

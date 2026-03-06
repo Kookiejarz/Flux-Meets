@@ -5,6 +5,7 @@ import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { of } from 'rxjs'
 import invariant from 'tiny-invariant'
+import { Button } from '~/components/Button'
 import { EnsureOnline } from '~/components/EnsureOnline'
 import { EnsurePermissions } from '~/components/EnsurePermissions'
 import { Icon } from '~/components/Icon/Icon'
@@ -151,13 +152,35 @@ function RoomPreparation(props: {
 	}
 
 	return (
-		<div className="grid place-items-center h-full">
-			<div className="text-center space-y-4">
-				<Spinner className="text-gray-500 mx-auto" />
-				{isTimedOut && (
-					<p className="text-sm text-zinc-500 animate-pulse">
-						Taking longer than usual... checking connection
+		<div className="grid place-items-center h-full bg-zinc-950">
+			<div className="text-center space-y-6 max-w-xs px-6">
+				<Spinner className="text-orange-500 mx-auto w-10 h-10" />
+				<div className="space-y-2">
+					<h2 className="text-xl font-black text-zinc-100 uppercase tracking-tight">
+						Connecting to Room
+					</h2>
+					<p className="text-sm text-zinc-500">
+						Establishing a secure connection to the meeting...
 					</p>
+				</div>
+				{isTimedOut && (
+					<div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+						<p className="text-xs text-orange-500/80 font-medium">
+							Taking longer than usual. This might be due to a poor network
+							connection or server delay.
+						</p>
+						<div className="flex flex-col gap-2">
+							<Button
+								className="w-full"
+								onClick={() => window.location.reload()}
+							>
+								Retry Connection
+							</Button>
+							<p className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
+								Room: {roomName}
+							</p>
+						</div>
+					</div>
 				)}
 			</div>
 		</div>

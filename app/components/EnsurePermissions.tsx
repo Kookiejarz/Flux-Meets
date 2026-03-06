@@ -33,12 +33,14 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 
 	const mountedRef = useRef(true)
 
-	// Monitor the broadcasting state of the global mic/camera objects
+	// Monitor the broadcasting state and errors of the global mic/camera objects
 	const micIsBroadcasting = useObservableAsValue(mic.isBroadcasting$, false)
 	const cameraIsBroadcasting = useObservableAsValue(
 		camera.isBroadcasting$,
 		false
 	)
+	const micError = useObservableAsValue(mic.error$, null)
+	const cameraError = useObservableAsValue(camera.error$, null)
 	const micActiveDevice = useObservableAsValue(mic.activeDevice$)
 	const cameraActiveDevice = useObservableAsValue(camera.activeDevice$)
 
@@ -59,10 +61,12 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 		if (permissionState === 'granted' && justGranted && !devicesReady) {
 			const timer = setTimeout(() => {
 				if (mountedRef.current && !micIsBroadcasting && !cameraIsBroadcasting) {
-					console.error('Device initialization timeout')
+					console.error(
+						'Device initialization timeout: mic and camera failed to broadcast within 10s'
+					)
 					setInitTimeout(true)
 				}
-			}, 5000) // 减少到 5 秒
+			}, 10000) // 增加到 10 秒以适应较慢的移动设备
 			return () => clearTimeout(timer)
 		}
 	}, [
@@ -76,12 +80,14 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 	// Sync device IDs back to parent
 	useEffect(() => {
 		if (micActiveDevice?.deviceId) {
+			console.log('Mic selected:', micActiveDevice.label)
 			props.onMicSelected(micActiveDevice.deviceId)
 		}
 	}, [micActiveDevice, props])
 
 	useEffect(() => {
 		if (cameraActiveDevice?.deviceId) {
+			console.log('Camera selected:', cameraActiveDevice.label)
 			props.onCameraSelected(cameraActiveDevice.deviceId)
 		}
 	}, [cameraActiveDevice, props])
@@ -101,19 +107,45 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 						Initialization Failed
 					</h1>
 					<p className="text-zinc-400 text-sm leading-relaxed">
-						We were unable to start your camera or microphone within the
-						expected time.
+						We were unable to start your camera or microphone. This can happen
+						if another app is using them or if the browser hasn't released them.
 					</p>
+					{(micError || cameraError) && (
+						<div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-left space-y-1">
+							{micError && (
+								<p className="text-[10px] text-red-400 font-mono break-all">
+									Mic Error: {micError.name} - {micError.message}
+								</p>
+							)}
+							{cameraError && (
+								<p className="text-[10px] text-red-400 font-mono break-all">
+									Camera Error: {cameraError.name} - {cameraError.message}
+								</p>
+							)}
+						</div>
+					)}
 					<div className="flex flex-col gap-2">
 						<Button
 							className="w-full"
+							onClick={() => {
+								console.log('Retrying device start...')
+								setInitTimeout(false)
+								mic.startBroadcasting()
+								camera.startBroadcasting()
+							}}
+						>
+							Retry Initialization
+						</Button>
+						<Button
+							className="w-full"
+							displayType="secondary"
 							onClick={() => {
 								console.log('User chose to skip and continue anyway')
 								setInitTimeout(false)
 								setJustGranted(false)
 							}}
 						>
-							Continue Anyway
+							Skip and Continue
 						</Button>
 						<Button
 							className="w-full"
@@ -144,6 +176,20 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 					<p className="text-zinc-400 text-sm leading-relaxed">
 						Initializing your camera and microphone...
 					</p>
+					{(micError || cameraError) && (
+						<div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-left space-y-1">
+							{micError && (
+								<p className="text-[10px] text-red-400 font-mono break-all">
+									Mic Error: {micError.name} - {micError.message}
+								</p>
+							)}
+							{cameraError && (
+								<p className="text-[10px] text-red-400 font-mono break-all">
+									Camera Error: {cameraError.name} - {cameraError.message}
+								</p>
+							)}
+						</div>
+					)}
 					<div className="text-xs text-zinc-600 space-y-1">
 						<p>Mic: {micIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>
 						<p>Camera: {cameraIsBroadcasting ? '✓ Ready' : '○ Waiting...'}</p>

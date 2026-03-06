@@ -149,9 +149,10 @@ export default function useUserMedia(options: {
 		// Use a short delay to avoid racing with EnsurePermissions on iOS Safari,
 		// where the hardware may not yet be released from the temp getUserMedia stream.
 		const timeout = setTimeout(() => {
+			console.log('Automatically starting broadcasting...')
 			mic.startBroadcasting()
 			camera.startBroadcasting()
-		}, 100)
+		}, 1000)
 
 		// 清理函数：只清除 timeout，不停止广播
 		// mic 和 camera 是全局单例，由 partytracks 管理生命周期
