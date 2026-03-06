@@ -79,7 +79,10 @@ export default function Lobby() {
 	}
 
 	return (
-		<div className="flex flex-col items-center justify-center h-full p-4">
+		<div
+			className="flex flex-col items-center justify-center h-full p-4"
+			translate="no"
+		>
 			<div className="flex-1"></div>
 			<div className="space-y-4 w-96">
 				<div className="space-y-1">

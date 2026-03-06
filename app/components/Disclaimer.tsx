@@ -18,9 +18,11 @@ export const Disclaimer: FC<DisclaimerProps> = ({ className }) => {
 				Cloudflare Calls
 			</a>
 			<br />
-			<a className="underline" href="https://liuu.org/">
-				Powered by Kenneth Liu and Cloudflare Infrastructure
-			</a>
+			<span className="block text-center">
+				<a className="underline" href="https://liuu.org/">
+					Powered by Kenneth Liu and Cloudflare Infrastructure
+				</a>
+			</span>
 		</p>
 	)
 }

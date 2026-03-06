@@ -33,8 +33,10 @@ export function ParticipantLayout({
 		return null
 	}
 
+	const flipKey = users.map((u) => u.id).join(',')
+
 	return (
-		<Flipper flipKey={id + users.length}>
+		<Flipper flipKey={flipKey}>
 			<div
 				className="absolute inset-[--gap] h-[--height] w-[--width] isolate flex flex-wrap justify-around"
 				ref={$el}

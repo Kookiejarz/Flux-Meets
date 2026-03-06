@@ -11,8 +11,8 @@ compatibility_flags = ["nodejs_compat"]
 CALLS_APP_ID = "bf67b659a7dad4da746fffcaa8e3ac56"
 TURN_SERVICE_ID = "d47b72813b70550b4e4724c25afa85a0"
 BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
-MAX_WEBCAM_BITRATE=6000000
-MAX_WEBCAM_FRAMERATE=34
+MAX_WEBCAM_BITRATE=6500000
+MAX_WEBCAM_FRAMERATE=60
 MAX_WEBCAM_QUALITY_LEVEL=1080
 
 # Optional vars

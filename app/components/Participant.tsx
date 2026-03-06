@@ -140,6 +140,7 @@ export const Participant = forwardRef<
 			className="grow shrink text-base basis-[calc(var(--flex-container-width)_-_var(--gap)_*_3)]"
 			ref={ref}
 			style={style}
+			translate="no"
 		>
 			<Flipped flipId={id + pinned}>
 				<div
@@ -207,18 +208,6 @@ export const Participant = forwardRef<
 					)}
 					<HoverFade className="absolute inset-0 grid w-full h-full place-items-center">
 						<div className="flex gap-2 p-2 rounded bg-zinc-900/30">
-							<Tooltip content={pinned ? 'Restore' : 'Maximize'}>
-								<Button
-									onClick={() =>
-										setPinnedTileIds((ids) =>
-											pinned ? ids.filter((i) => i !== id) : [...ids, id]
-										)
-									}
-									displayType="ghost"
-								>
-									<Icon type={pinned ? 'arrowsIn' : 'arrowsOut'} />
-								</Button>
-							</Tooltip>
 							{!isScreenShare && (
 								<MuteUserButton
 									displayType="ghost"

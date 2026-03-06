@@ -2,7 +2,7 @@ import { useEffect, useState, type RefObject } from 'react'
 
 export function useVideoDimensions(ref: RefObject<HTMLVideoElement>) {
 	const [videoHeight, setVideoHeight] = useState(ref.current?.videoHeight ?? 0)
-	const [videoWidth, setVideoWidth] = useState(ref.current?.videoHeight ?? 0)
+	const [videoWidth, setVideoWidth] = useState(ref.current?.videoWidth ?? 0)
 
 	useEffect(() => {
 		const video = ref.current
@@ -12,8 +12,10 @@ export function useVideoDimensions(ref: RefObject<HTMLVideoElement>) {
 			setVideoWidth(video.videoWidth)
 		}
 		video.addEventListener('resize', handler)
+		video.addEventListener('loadedmetadata', handler)
 		return () => {
 			video.removeEventListener('resize', handler)
+			video.removeEventListener('loadedmetadata', handler)
 		}
 	}, [ref])
 
