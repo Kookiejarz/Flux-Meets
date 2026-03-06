@@ -15,6 +15,7 @@ import { usePeerConnection } from '~/hooks/usePeerConnection'
 import useRoom from '~/hooks/useRoom'
 import { type RoomContextType } from '~/hooks/useRoomContext'
 import { useRoomHistory } from '~/hooks/useRoomHistory'
+import { useSpeechToText } from '~/hooks/useSpeechToText'
 import { useStablePojo } from '~/hooks/useStablePojo'
 import useUserMedia from '~/hooks/useUserMedia'
 import type { TrackObject } from '~/utils/callsTypes'
@@ -278,6 +279,20 @@ function Room({ room, userMedia }: RoomProps) {
 	)
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
+	const [captionsEnabled, setCaptionsEnabled] = useState(false)
+
+	useSpeechToText({
+		enabled: captionsEnabled && joined,
+		onCaption: (text, isFinal) => {
+			room.websocket.send(
+				JSON.stringify({
+					type: 'caption',
+					text,
+					isFinal,
+				})
+			)
+		},
+	})
 
 	const { e2eeSafetyNumber, onJoin } = useE2EE({
 		enabled: e2eeEnabled,
@@ -315,6 +330,8 @@ function Room({ room, userMedia }: RoomProps) {
 		maxWebcamBitrate,
 		maxWebcamFramerate,
 		maxWebcamQualityLevel,
+		captionsEnabled,
+		setCaptionsEnabled,
 		traceLink,
 		userMedia,
 		userDirectoryUrl,

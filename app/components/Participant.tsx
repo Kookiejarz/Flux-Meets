@@ -31,6 +31,8 @@ import { usePulledAudioTrack } from './PullAudioTracks'
 import { Spinner } from './Spinner'
 import { Tooltip } from './Tooltip'
 import { VideoSrcObject } from './VideoSrcObject'
+import { CaptionDisplay } from './CaptionDisplay'
+import { useEffect, useState } from 'react'
 
 function useMid(track?: MediaStreamTrack) {
 	const { partyTracks } = useRoomContext()
@@ -70,6 +72,7 @@ export const Participant = forwardRef<
 		setPinnedTileIds,
 		showDebugInfo,
 		userMedia,
+		room,
 		room: { identity },
 	} = useRoomContext()
 	const peerConnection = useObservableAsValue(partyTracks.peerConnection$)
@@ -135,6 +138,34 @@ export const Participant = forwardRef<
 	const audioMid = useMid(audioTrack)
 	const videoMid = useMid(videoTrack)
 
+	const [caption, setCaption] = useState<{ text: string; isFinal: boolean } | null>(
+		null
+	)
+
+	useEffect(() => {
+		const handleMessage = (event: MessageEvent) => {
+			const data = JSON.parse(event.data)
+			if (data.type === 'caption') {
+				const isThisUser =
+					data.userId === id || (isSelf && data.userId === identity?.id)
+				if (isThisUser) {
+					setCaption({ text: data.text, isFinal: data.isFinal })
+				}
+			}
+		}
+
+		partyTracks.peerConnection$.subscribe((pc) => {
+			// This is not the right place for DO messages, but room.websocket is available
+		})
+
+		const socket = room.websocket
+		socket.addEventListener('message', handleMessage)
+
+		return () => {
+			socket.removeEventListener('message', handleMessage)
+		}
+	}, [id, isSelf, identity?.id, partyTracks, room.websocket])
+
 	return (
 		<div
 			className="grow shrink text-base basis-[calc(var(--flex-container-width)_-_var(--gap)_*_3)]"
@@ -149,6 +180,7 @@ export const Participant = forwardRef<
 						'relative max-w-[--participant-max-width] rounded-xl'
 					)}
 				>
+					{caption && <CaptionDisplay text={caption.text} isFinal={caption.isFinal} />}
 					{!isScreenShare && !user.tracks.videoEnabled && (
 						<div
 							className={cn(

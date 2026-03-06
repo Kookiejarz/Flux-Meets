@@ -326,6 +326,18 @@ export class ChatRoom extends Server<Env> {
 					await this.broadcastRoomState()
 					break
 				}
+				case 'caption': {
+					this.broadcastMessage(
+						{
+							type: 'caption',
+							userId: connection.id,
+							text: data.text,
+							isFinal: data.isFinal,
+						},
+						connection
+					)
+					break
+				}
 				case 'callsApiHistoryEntry': {
 					const { entry, sessionId } = data
 					log({

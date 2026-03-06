@@ -36,6 +36,8 @@ export type RoomContextType = {
 	maxWebcamBitrate: number
 	maxWebcamFramerate: number
 	maxWebcamQualityLevel: number
+	captionsEnabled: boolean
+	setCaptionsEnabled: Dispatch<SetStateAction<boolean>>
 	pushedTracks: {
 		video?: string
 		audio?: string

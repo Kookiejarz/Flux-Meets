@@ -45,6 +45,7 @@ export default function useRoom({
 				case 'partyserver-pong':
 				case 'e2eeMlsMessage':
 				case 'userLeftNotification':
+				case 'caption':
 					// do nothing
 					break
 				default:

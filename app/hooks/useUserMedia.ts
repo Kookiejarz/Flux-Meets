@@ -18,10 +18,10 @@ export const errorMessageMap = {
 
 type UserMediaError = keyof typeof errorMessageMap
 
-const broadcastByDefault = mode === 'production'
-export const mic = getMic({ broadcasting: broadcastByDefault })
+const broadcastByDefault = false
+export const mic = getMic({ broadcasting: false })
 export const camera = getCamera({
-	broadcasting: true,
+	broadcasting: false,
 	constraints: { width: { ideal: 1280 }, height: { ideal: 720 } },
 })
 export const screenshare = getScreenshare({ audio: false })
@@ -117,6 +117,14 @@ export default function useUserMedia(options: {
 
 	const micDevices = useObservableAsValue(mic.devices$, [])
 	const cameraDevices = useObservableAsValue(camera.devices$, [])
+
+	useEffect(() => {
+		// Auto-start if possible. This handles cases where permission was already granted.
+		// On mobile, this might fail if a user gesture is required, but we also have 
+		// the "Allow access" button in EnsurePermissions which provides that gesture.
+		mic.startBroadcasting()
+		camera.startBroadcasting()
+	}, [])
 
 	useObservable(mic.error$, (e) => {
 		const reason =

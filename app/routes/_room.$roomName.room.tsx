@@ -24,6 +24,9 @@ import { RaiseHandButton } from '~/components/RaiseHandButton'
 import { SafetyNumberToast } from '~/components/SafetyNumberToast'
 import { ScreenshareButton } from '~/components/ScreenshareButton'
 import Toast, { useDispatchToast } from '~/components/Toast'
+import { Tooltip } from '~/components/Tooltip'
+import { Icon } from '~/components/Icon/Icon'
+import { Button } from '~/components/Button'
 import useBroadcastStatus from '~/hooks/useBroadcastStatus'
 import useIsSpeaking from '~/hooks/useIsSpeaking'
 import { useRoomContext } from '~/hooks/useRoomContext'
@@ -87,6 +90,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		showDebugInfo,
 		pinnedTileIds,
 		room,
+		captionsEnabled,
+		setCaptionsEnabled,
 		e2eeSafetyNumber,
 		e2eeOnJoin,
 	} = useRoomContext()
@@ -197,6 +202,23 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 					{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
 					<MicButton warnWhenSpeakingWhileMuted />
 					<CameraButton />
+					<Tooltip
+						content={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
+					>
+						<Button
+							onClick={() => setCaptionsEnabled(!captionsEnabled)}
+							displayType={captionsEnabled ? 'primary' : 'secondary'}
+						>
+							<Icon
+								type={
+									captionsEnabled
+										? 'chatBubbleBottomCenterText'
+										: 'chatBubbleLeftEllipsis'
+								}
+							/>
+							<span className="ml-2 hidden md:inline">CC</span>
+						</Button>
+					</Tooltip>
 					<ScreenshareButton />
 					<RaiseHandButton
 						raisedHand={raisedHand}

@@ -58,11 +58,22 @@ export type ServerMessage =
 			type: 'userLeftNotification'
 			id: string
 	  }
+	| {
+			type: 'caption'
+			userId: string
+			text: string
+			isFinal: boolean
+	  }
 
 export type ClientMessage =
 	| {
 			type: 'userUpdate'
 			user: User
+	  }
+	| {
+			type: 'caption'
+			text: string
+			isFinal: boolean
 	  }
 	| {
 			type: 'directMessage'

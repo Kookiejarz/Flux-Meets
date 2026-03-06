@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { mic, camera } from '~/hooks/useUserMedia'
 import { Button } from './Button'
 
 export interface EnsurePermissionsProps {
@@ -40,26 +41,28 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 	if (permissionState === 'denied') {
 		return (
 			<div className="grid items-center h-full">
-				<div className="mx-auto space-y-2 max-w-80">
-					<h1 className="text-2xl font-bold">Permission denied</h1>
-					<p>
+				<div className="mx-auto space-y-2 max-w-80 text-center">
+					<h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Permission denied</h1>
+					<p className="text-zinc-600 dark:text-zinc-400">
 						You will need to go into your browser settings and manually
-						re-enable permission.
+						re-enable permission for your camera and microphone.
 					</p>
 				</div>
 			</div>
 		)
 	}
 
-	if (permissionState === 'prompt') {
+	if (permissionState === 'prompt' || permissionState === 'unable-to-determine') {
 		return (
 			<div className="grid items-center h-full">
-				<div className="mx-auto max-w-80">
-					<p className="mb-8">
+				<div className="mx-auto max-w-80 text-center">
+					<h1 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">Media Access</h1>
+					<p className="mb-8 text-zinc-600 dark:text-zinc-400">
 						In order to use Orange Meets, you will need to grant permission to
-						your camera and microphone. You will be prompted for access.
+						your camera and microphone.
 					</p>
 					<Button
+						className="w-full"
 						onClick={() => {
 							navigator.mediaDevices
 								.getUserMedia({
@@ -67,14 +70,19 @@ export function EnsurePermissions(props: EnsurePermissionsProps) {
 									audio: true,
 								})
 								.then((ms) => {
+									// Trigger partytracks broadcasting as part of the same user gesture
+									mic.startBroadcasting()
+									camera.startBroadcasting()
+
 									if (mountedRef.current) setPermissionState('granted')
-									const micId = ms.getAudioTracks()[0].getSettings().deviceId
+									const micId = ms.getAudioTracks()[0]?.getSettings().deviceId
 									if (micId) props.onMicSelected(micId)
-									const cameraId = ms.getVideoTracks()[0].getSettings().deviceId
+									const cameraId = ms.getVideoTracks()[0]?.getSettings().deviceId
 									if (cameraId) props.onCameraSelected(cameraId)
 									ms.getTracks().forEach((t) => t.stop())
 								})
-								.catch(() => {
+								.catch((err) => {
+									console.error('Permission request failed:', err)
 									if (mountedRef.current) setPermissionState('denied')
 								})
 						}}
