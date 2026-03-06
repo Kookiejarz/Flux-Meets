@@ -187,8 +187,10 @@ export class ChatRoom extends Server<Env> {
 
 	async createMeeting() {
 		const meetingId = crypto.randomUUID()
+		const startTime = Date.now()
 		await this.ctx.storage.put('meetingId', meetingId)
-		log({ eventName: 'startingMeeting', meetingId })
+		await this.ctx.storage.put('startTime', startTime)
+		log({ eventName: 'startingMeeting', meetingId, startTime })
 		if (this.db) {
 			await this.db.insert(Meetings).values({
 				id: meetingId,
@@ -240,6 +242,7 @@ export class ChatRoom extends Server<Env> {
 
 	async broadcastRoomState() {
 		const meetingId = await this.getMeetingId()
+		const startTime = await this.ctx.storage.get<number>('startTime')
 		const aiEnabled =
 			(await this.ctx.storage.get<boolean>('ai:enabled')) ?? false
 		const aiSessionId =
@@ -259,6 +262,7 @@ export class ChatRoom extends Server<Env> {
 					error: await this.ctx.storage.get<string>('ai:error'),
 				},
 				meetingId,
+				startTime,
 				users: [
 					...(await this.getUsers()).values(),
 					...(aiEnabled

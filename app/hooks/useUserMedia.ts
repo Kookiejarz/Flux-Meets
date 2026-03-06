@@ -153,11 +153,14 @@ export default function useUserMedia(options: {
 			camera.startBroadcasting()
 		}, 100)
 
-		// 清理函数：组件卸载时停止广播，释放媒体设备
+		// 清理函数：只清除 timeout，不停止广播
+		// mic 和 camera 是全局单例，由 partytracks 管理生命周期
+		// 在这里停止会导致权限允许后立即消失
 		return () => {
 			clearTimeout(timeout)
-			mic.stopBroadcasting()
-			camera.stopBroadcasting()
+			// 不要在这里调用 stopBroadcasting，会导致视频消失
+			// mic.stopBroadcasting()
+			// camera.stopBroadcasting()
 		}
 	}, [])
 

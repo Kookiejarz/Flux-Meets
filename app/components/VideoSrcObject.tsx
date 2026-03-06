@@ -38,14 +38,11 @@ export const VideoSrcObject = forwardRef<HTMLVideoElement, VideoSrcObjectProps>(
 		})
 
 		return () => {
-			// 清理函数：停止所有媒体轨道，释放资源，防止内存泄漏
-			if (video.srcObject instanceof MediaStream) {
-				video.srcObject.getTracks().forEach(track => {
-					track.stop()
-				})
-			}
-			}
-		}, [videoTrack])
+			// 清理函数：只清空 srcObject，不停止 track
+			// track 的生命周期由外部管理（partytracks），不应该在这里停止
+			video.srcObject = null
+		}
+	}, [videoTrack])
 
 		return (
 			<video

@@ -42,6 +42,7 @@ import isNonNullable from '~/utils/isNonNullable'
 
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { MeetingTimer } from '~/components/MeetingTimer'
 import { playSound } from '~/utils/playSound'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
@@ -234,6 +235,16 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 			<div className="flex h-full bg-zinc-950 text-zinc-100 overflow-hidden">
 				<div className="flex flex-col flex-1 min-w-0">
 					<div className="relative flex-grow bg-zinc-900 isolate sm:m-4 sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-white/10 overflow-hidden">
+						<div className="absolute top-4 left-4 z-20 pointer-events-none flex flex-col gap-2">
+							<div className="flex items-center gap-2">
+								<MeetingTimer startTime={room.roomState.startTime} />
+								{showDebugInfo && meetingId && (
+									<div className="bg-zinc-950/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-zinc-400 border border-white/10 shadow-lg select-all pointer-events-auto">
+										ID: {meetingId.slice(0, 8)}
+									</div>
+								)}
+							</div>
+						</div>
 						<div
 							style={{ '--gap': gridGap + 'px' } as any}
 							className="absolute inset-0 flex isolate p-[--gap] gap-[--gap]"
