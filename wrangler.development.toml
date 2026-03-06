@@ -47,7 +47,7 @@ binding = "AI"
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "orange-meets-db-development"
-database_id = "6b0eceef-c836-4ba7-aac2-fa9b6f702e3b"
+database_id = "722818b7-63af-4395-bad1-c68ce86d2bd4"
 
 # Indicate that you want the ChatRoom and RateLimiter classes to be callable as Durable Objects.
 [[migrations]]
