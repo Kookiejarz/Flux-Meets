@@ -22,6 +22,7 @@ interface OverflowMenuProps {
 	setChatOpen?: Dispatch<SetStateAction<boolean>>
 	unreadCount?: number
 	roomUrl?: string
+	className?: string
 }
 
 export const OverflowMenu: FC<OverflowMenuProps> = ({
@@ -33,6 +34,7 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({
 	setChatOpen,
 	unreadCount = 0,
 	roomUrl,
+	className,
 }) => {
 	const {
 		room: {
@@ -54,7 +56,7 @@ export const OverflowMenu: FC<OverflowMenuProps> = ({
 		<>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger asChild>
-					<Button displayType="secondary">
+				<Button displayType="secondary" className={className}>
 						<VisuallyHidden>More options</VisuallyHidden>
 						<Icon type="EllipsisVerticalIcon" />
 					</Button>

@@ -4,21 +4,25 @@ import type { FC } from 'react'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
 import { Tooltip } from './Tooltip'
+import { mic, camera, screenshare } from '../hooks/useUserMedia'
 
 interface LeaveRoomButtonProps {
 	navigateToFeedbackPage: boolean
 	meetingId?: string
+	className?: string
 }
 
 export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 	navigateToFeedbackPage,
 	meetingId,
+	className,
 }) => {
 	const navigate = useNavigate()
 	return (
 		<Tooltip content="Leave">
 			<Button
 				displayType="danger"
+				className={className}
 				onClick={() => {
 					console.log(
 						'Leave Button Clicked - meetingId:',
@@ -26,6 +30,11 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 						'hasDb:',
 						navigateToFeedbackPage
 					)
+					// Stop all media devices before leaving
+					mic.stopBroadcasting()
+					camera.stopBroadcasting()
+					screenshare.stopBroadcasting()
+					
 					const params = new URLSearchParams()
 					if (meetingId) {
 						// best-effort mark meeting ended using client timestamp

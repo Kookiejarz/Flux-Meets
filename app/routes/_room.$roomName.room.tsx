@@ -284,11 +284,11 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 						<Toast.Viewport className="absolute top-4 right-4" />
 					</div>
 					<div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-4 pt-2 md:gap-4 md:px-8 md:pb-6 md:pt-2">
-						{/* Mobile: Only show core buttons */}
+						{/* Mobile: Only show core buttons with larger touch targets */}
 						{isMobile() ? (
-							<>
-								<MicButton warnWhenSpeakingWhileMuted />
-								<CameraButton />
+							<div className="grid grid-cols-2 gap-4 w-full max-w-md mx-auto">
+								<MicButton warnWhenSpeakingWhileMuted className="!px-6 !py-4 !text-base" />
+								<CameraButton className="!px-6 !py-4 !text-base" />
 								<OverflowMenu
 									bugReportsEnabled={bugReportsEnabled}
 									mobileMode={true}
@@ -298,12 +298,14 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 									setChatOpen={setChatOpen}
 									unreadCount={unreadCount}
 									roomUrl={roomUrl}
+									className="!px-6 !py-4 !text-base"
 								/>
 								<LeaveRoomButton
 									navigateToFeedbackPage={hasDb}
 									meetingId={meetingId}
+									className="!px-6 !py-4 !text-base"
 								/>
-							</>
+							</div>
 						) : (
 							<>
 								{hasAiCredentials && <AiButton recordActivity={recordActivity} />}
