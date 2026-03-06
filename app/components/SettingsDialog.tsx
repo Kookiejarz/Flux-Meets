@@ -52,6 +52,8 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		setWebcamFramerate,
 		webcamQuality,
 		setWebcamQuality,
+		videoDenoise,
+		setVideoDenoise,
 		maxWebcamBitrate,
 		maxWebcamFramerate,
 		maxWebcamQualityLevel,
@@ -169,6 +171,20 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								))}
 						</div>
 
+							<Label className="md:text-right" htmlFor="videoDenoise">
+								Video Denoise
+							</Label>
+							<div className="flex flex-col gap-1">
+								<Toggle
+									id="videoDenoise"
+									checked={videoDenoise}
+									onCheckedChange={setVideoDenoise}
+								/>
+								<span className="text-xs text-zinc-500">
+									Raises video bitrate and reduces downscaling to keep low-light details. Uses more bandwidth.
+								</span>
+							</div>
+
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 
 						<Label className="md:text-right" htmlFor="blurBackground">
@@ -188,6 +204,9 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							checked={suppressNoise}
 							onCheckedChange={setSuppressNoise}
 						/>
+						<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
+							Use only in noisy rooms or on speakers. Headphones usually sound better with this off.
+						</p>
 
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 

@@ -33,6 +33,8 @@ export type RoomContextType = {
 	setWebcamFramerate: Dispatch<SetStateAction<number>>
 	webcamQuality: number
 	setWebcamQuality: Dispatch<SetStateAction<number>>
+	videoDenoise: boolean
+	setVideoDenoise: Dispatch<SetStateAction<boolean>>
 	maxWebcamBitrate: number
 	maxWebcamFramerate: number
 	maxWebcamQualityLevel: number

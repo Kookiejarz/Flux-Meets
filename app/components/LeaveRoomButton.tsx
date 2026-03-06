@@ -28,6 +28,9 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 					)
 					const params = new URLSearchParams()
 					if (meetingId) {
+						// best-effort mark meeting ended using client timestamp
+						const body = new URLSearchParams({ meetingId })
+						fetch('/api/meeting-end', { method: 'POST', body }).catch(() => {})
 						params.set('meetingId', meetingId)
 						navigate(`/call-quality-feedback?${params}`)
 					} else {

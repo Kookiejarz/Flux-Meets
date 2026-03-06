@@ -40,7 +40,9 @@ type MediaDeviceKind = 'audio' | 'video'
 function getAudioConstraints(): MediaTrackConstraints {
 	return {
 		echoCancellation: true,
-		noiseSuppression: true,
+		// 浏览器内置降噪关闭，避免与 rnnoise worklet 双重处理
+		// 如需降噪，通过设置面板的 suppress-noise 开关启用 rnnoise
+		noiseSuppression: false,
 		autoGainControl: true,
 	}
 }
@@ -168,8 +170,9 @@ class NativeMediaDevice {
 
 			this.currentTrack = processedTrack
 			this.broadcastTrack$.next(processedTrack)
-			// For now localMonitorTrack mirrors broadcast
-			this.localMonitorTrack$.next(processedTrack)
+			// localMonitorTrack 始终使用原始未处理的轨道
+			// 这样本地音量指示器等不受 transform 管线影响
+			this.localMonitorTrack$.next(track)
 			this.isBroadcasting$.next(true)
 			this.error$.next(null)
 		} catch (err: any) {
@@ -181,6 +184,26 @@ class NativeMediaDevice {
 
 	stopBroadcasting = () => {
 		this.stopCurrentTrack()
+	}
+
+	mute = () => {
+		if (!this.currentTrack) {
+			this.broadcastTrack$.next(undefined)
+			this.localMonitorTrack$.next(undefined)
+			this.isBroadcasting$.next(false)
+			return
+		}
+		this.broadcastTrack$.next(undefined)
+		this.isBroadcasting$.next(false)
+	}
+
+	unmute = async () => {
+		if (this.currentTrack) {
+			this.broadcastTrack$.next(this.currentTrack)
+			this.isBroadcasting$.next(true)
+			return
+		}
+		return this.startBroadcasting()
 	}
 }
 
@@ -222,7 +245,9 @@ export const camera = new NativeMediaDevice('video', getVideoConstraints())
 export const screenshare = new NativeScreenshare()
 
 function useNoiseSuppression() {
-	const [suppressNoise, setSuppressNoise] = useLocalStorage('suppress-noise', true)
+	// 默认关闭 rnnoise worklet 降噪，避免 AudioContext 管线引入延迟和音质损失
+	// 用户可在设置中手动开启（适合嘈杂环境/外放场景）
+	const [suppressNoise, setSuppressNoise] = useLocalStorage('suppress-noise', false)
 	useEffect(() => {
 		if (suppressNoise) mic.addTransform(noiseSuppression)
 		return () => {
@@ -379,7 +404,7 @@ export default function useUserMedia(options: {
 
 	const turnMicOn = useCallback(() => {
 		setAudioUnavailableReason(undefined)
-		mic.startBroadcasting().catch(() => {})
+		mic.unmute().catch(() => {})
 	}, [])
 
 	const turnCameraOn = useCallback(() => {
@@ -395,18 +420,14 @@ export default function useUserMedia(options: {
 	const screenShareEnabled = useSubjectValue(screenshare.video.isBroadcasting$)
 	const screenShareVideoTrack = useSubjectValue(screenshare.video.broadcastTrack$)
 
-	// Non-null observables for partyTracks.push
-	const publicAudioTrack$ = useMemo(() => mic.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
+	// Non-null observables for partyTracks.push (screenshare keeps undefined to signal stop)
+	const publicAudioTrack$ = mic.broadcastTrack$
 	const privateAudioTrack$ = useMemo(() => mic.localMonitorTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
 	const videoTrack$ = useMemo(() => camera.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))), [])
-	const screenShareVideoTrack$Filtered = useMemo(
-		() => screenshare.video.broadcastTrack$.pipe(filter((t): t is MediaStreamTrack => Boolean(t))),
-		[]
-	)
 
 	return {
 		turnMicOn,
-		turnMicOff: mic.stopBroadcasting,
+		turnMicOff: mic.mute,
 		audioStreamTrack,
 		audioMonitorStreamTrack,
 		audioEnabled,
@@ -439,7 +460,7 @@ export default function useUserMedia(options: {
 		endScreenShare,
 		screenShareVideoTrack,
 		screenShareEnabled,
-		screenShareVideoTrack$: screenShareVideoTrack$Filtered,
+		screenShareVideoTrack$,
 	}
 }
 
