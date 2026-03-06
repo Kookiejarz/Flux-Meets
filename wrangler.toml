@@ -1,48 +1,56 @@
 name = "orange-meets"
+
+account_id = "7829299e6cefc232ded8635f50b53462"
+main = "build/index.mjs"
 # https://developers.cloudflare.com/workers/platform/compatibility-dates
 compatibility_date = "2025-01-01"
-main = "build/index.mjs"
 compatibility_flags = ["nodejs_compat"]
-account_id = "7829299e6cefc232ded8635f50b53462"
 
 [site]
   bucket = "./public"
 
 [vars]
-CALLS_APP_ID = "bf67b659a7dad4da746fffcaa8e3ac56"
+CALLS_APP_ID = "f3324a25c97d9902cff9018a0efcf3b1"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
-TURN_SERVICE_ID = "d47b72813b70550b4e4724c25afa85a0"
+TURN_SERVICE_ID = "3dba939d4fa9d8bf17639482bc2c2c61"
+
+EXPERIMENTAL_SIMULCAST_ENABLED = "true"
 BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
 
-MAX_WEBCAM_BITRATE=8500000
-MAX_WEBCAM_FRAMERATE=60
-MAX_WEBCAM_QUALITY_LEVEL=1080
+MAX_WEBCAM_BITRATE = 8500000
+MAX_WEBCAM_FRAMERATE = 60
+MAX_WEBCAM_QUALITY_LEVEL = 1080
 
 ENABLE_WORKERS_AI = "false"
+OPENAI_MODEL_ID = "gpt-4o-realtime-preview-2024-10-01"
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"
+WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"
+WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
 
 [[d1_databases]]
-binding = "DB"
+binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "orange-meets-db"
 database_id = "722818b7-63af-4395-bad1-c68ce86d2bd4"
 
 [ai]
 binding = "AI"
 
-# Optional vars
-# OPENAI_MODEL_ENDPOINT = ""
-
 [[durable_objects.bindings]]
 name = "rooms"
 class_name = "ChatRoom"
 
-# Indicate that you want the ChatRoom class to be callable as Durable Objects.
+# Durable Object migrations
 [[migrations]]
 tag = "v1" # Should be unique for each entry
-new_sqlite_classes = ["ChatRoom"]
+new_classes = ["ChatRoom"]
+
+[observability]
+enabled = true
 
 # The necessary secrets are:
 # - CALLS_APP_SECRET
-# To add secret, run `echo <VALUE> | wrangler secret put <NAME>`
+# - OPENAI_API_TOKEN (if using OpenAI realtime AI)
+# Run `echo <VALUE> | wrangler secret put <NAME>` for each of these
 
-# Optional secrets:
-# OPENAI_API_TOKEN = ""
+# Optional vars/secrets for OpenAI realtime AI:
+# OPENAI_MODEL_ENDPOINT = ""
