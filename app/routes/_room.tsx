@@ -431,7 +431,8 @@ function Room({ room, userMedia }: RoomProps) {
 		[userMedia.screenShareVideoTrack$]
 	)
 
-	// 屏幕共享使用和webcam相同的上限参数配置
+	// 屏幕共享使用和webcam相同的上限参数配置，帧率可选：高帧率模式30fps或低延迟模式15fps
+	const screenshareFps = highFpsScreenshare ? 30 : 15
 	const screenshareEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
 		simulcastEnabled
 			? [
@@ -439,7 +440,8 @@ function Room({ room, userMedia }: RoomProps) {
 						rid: 'a',
 						// 屏幕共享高质量层：使用90%配置上限
 						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.9),
-						maxFramerate: webcamFramerate,
+						// 高帧率模式30fps，低延迟模式15fps
+						maxFramerate: screenshareFps,
 						active: true,
 					},
 					{
@@ -447,7 +449,7 @@ function Room({ room, userMedia }: RoomProps) {
 						scaleResolutionDownBy: 1.5,
 						// 屏幕共享中质量层：使用55%配置上限
 						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.55),
-						maxFramerate: Math.min(30.0, webcamFramerate),
+						maxFramerate: Math.floor(screenshareFps * 0.8),
 						active: true,
 					},
 					{
@@ -455,13 +457,14 @@ function Room({ room, userMedia }: RoomProps) {
 						scaleResolutionDownBy: 2.0,
 						// 屏幕共享低质量层
 						maxBitrate: Math.min(1_200_000, Math.floor(effectiveWebcamBitrate * 0.35)),
-						maxFramerate: Math.min(24.0, webcamFramerate),
+						maxFramerate: Math.floor(screenshareFps * 0.6),
 						active: true,
 					},
 				]
 			: [
 					{
-						maxFramerate: Math.min(maxWebcamFramerate, webcamFramerate),
+						// 非 simulcast 模式
+						maxFramerate: screenshareFps,
 						maxBitrate: Math.min(maxWebcamBitrate, effectiveWebcamBitrate),
 					},
 				]
@@ -524,6 +527,7 @@ function Room({ room, userMedia }: RoomProps) {
 	}
 	const [aiTranslationEnabled, setAiTranslationEnabled] = useState(true)
 	const [moqEnabled, setMoqEnabled] = useState(false)
+	const [highFpsScreenshare, setHighFpsScreenshare] = useState(false)
 	const [chatMessages, setChatMessages] = useState<
 		{ id: string; sender: string; text: string; time: Date; isSelf: boolean }[]
 	>([])
@@ -929,6 +933,8 @@ function Room({ room, userMedia }: RoomProps) {
 		setAiTranslationEnabled,
 		moqEnabled,
 		setMoqEnabled,
+		highFpsScreenshare,
+		setHighFpsScreenshare,
 		chatMessages,
 		setChatMessages,
 		traceLink,

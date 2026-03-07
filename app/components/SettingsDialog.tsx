@@ -59,6 +59,8 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		maxWebcamQualityLevel,
 		moqEnabled,
 		setMoqEnabled,
+		highFpsScreenshare,
+		setHighFpsScreenshare,
 		aiEnabled,
 		aiTranslationEnabled,
 		setAiTranslationEnabled,
@@ -330,7 +332,30 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								</div>
 							</>
 						)}
-
+							<Label className="md:text-right" htmlFor="highFpsScreenshare">
+								<div className="flex flex-col md:items-end">
+									<span>High FPS Screenshare</span>
+									<span className="text-[10px] text-zinc-500 font-medium">
+										30fps (higher latency)
+									</span>
+								</div>
+							</Label>
+							<div className="flex items-center gap-4">
+								<Toggle
+									id="highFpsScreenshare"
+									checked={highFpsScreenshare}
+									onCheckedChange={setHighFpsScreenshare}
+								/>
+								{highFpsScreenshare ? (
+									<span className="text-xs text-orange-500">
+										30fps - Smooth but ~2s delay
+									</span>
+								) : (
+									<span className="text-xs text-green-500">
+										15fps - Low latency
+									</span>
+								)}
+							</div>
 						<Label className="md:text-right" htmlFor="moq">
 							<div className="flex flex-col md:items-end">
 								<span>Media over QUIC</span>

@@ -56,6 +56,8 @@ export type RoomContextType = {
 	setAiTranslationEnabled: Dispatch<SetStateAction<boolean>>
 	moqEnabled: boolean
 	setMoqEnabled: Dispatch<SetStateAction<boolean>>
+	highFpsScreenshare: boolean
+	setHighFpsScreenshare: Dispatch<SetStateAction<boolean>>
 	chatMessages: {
 		id: string
 		sender: string

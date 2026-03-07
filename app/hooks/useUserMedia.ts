@@ -272,6 +272,13 @@ class NativeScreenshare {
 			})
 			const track = stream.getVideoTracks()[0]
 			if (!track) throw new Error('No screenshare track')
+			
+			// 监听track结束事件（用户在浏览器中点击"停止共享"按钮）
+			track.addEventListener('ended', () => {
+				console.log('🛑 Screenshare track ended by user')
+				this.stopBroadcasting()
+			})
+			
 			this.video.broadcastTrack$.next(track)
 			this.video.isBroadcasting$.next(true)
 		} catch (err) {

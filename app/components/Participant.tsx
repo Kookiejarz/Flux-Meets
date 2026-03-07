@@ -450,6 +450,8 @@ export const Participant = forwardRef<
 							isSelf && isScreenShare && 'opacity-75'
 						)}
 						videoTrack={videoTrack}
+						// 屏幕共享使用低延迟模式
+						lowLatency={isScreenShare}
 						onDoubleClick={() => {
 							// Double-click to toggle camera facing on mobile (only for self view)
 							if (isSelf && !isScreenShare) {
