@@ -4,22 +4,19 @@
 
 This project is an advanced fork of [Cloudflare/orange](https://github.com/cloudflare/orange), extensively enhanced with AI capabilities, adaptive streaming, and production-ready features.
 
-![A screenshot showing a room in Orange Meets](orange-meets.png)
-
 ---
 
 ## 🌟 Key Features
 
 ### 🤖 AI-Powered Real-Time Captions
 
-- **Cloud-Based Speech Recognition**: Powered by Cloudflare Workers AI (Deepgram Nova-3) or browser SpeechRecognition API
-- **Multi-Language Translation**: Real-time translation to English, Chinese, Japanese, Korean, Spanish, French, German via OpenAI or Cloudflare Workers AI
+- **Cloud-Based Speech Recognition**: Powered by Cloudflare Workers AI (Deepgram Nova-3), Assembly AI (Cloud based CC) or browser SpeechRecognition API
+- **Multi-Language Translation**: Real-time translation to multi-language via OpenAI, Gemini or Cloudflare Workers AI
 - **Smart Deduplication**: Advanced similarity-based algorithm prevents duplicate captions
 - **Intelligent Caption Routing**: Captions automatically follow the speaker's active tile (webcam or screenshare)
 - **Draggable Positioning**: Freely position captions anywhere on screen with persistent storage
 - **Automatic Language Detection**: Browser language detection with fallback to original transcripts
-- **Smooth Animations**: Elegant slide-in effects with auto-fade after 3.5 seconds
-- **Caption Filtering**: Filter by language (English, Chinese, All, or Auto-detect)
+- **Caption Filtering**: Display filter by language (English, Chinese, All, or Auto-detect)
 
 ### 🔒 Enterprise-Grade Security
 
@@ -32,9 +29,9 @@ This project is an advanced fork of [Cloudflare/orange](https://github.com/cloud
 ### 📡 Adaptive Streaming & Quality Control
 
 - **Simulcast Support**: Dual-layer adaptive encoding that scales with user settings
-  - High quality (rid 'a'): 80% of configured max bitrate @ user's framerate
+  - High quality (rid 'a'): 90% of configured max bitrate @ user's framerate
   - Low quality (rid 'b'): 35% (max 1.2Mbps) @ 24fps, 2x downscale
-  - Dynamically adjusts from default 2.5Mbps up to 8.5Mbps based on settings
+  - Dynamically adjusts based on settings
 - **Automatic Quality Switching**: Server-side bandwidth estimation adapts to network conditions
 - **Configurable Encoding**: Per-user settings for bitrate (up to 8.5Mbps), framerate (up to 60fps), resolution (up to 1080p)
 - **Screen Share Optimization**: Same adaptive encoding as webcam for consistent quality
@@ -57,7 +54,6 @@ This project is an advanced fork of [Cloudflare/orange](https://github.com/cloud
 - **Persistent Settings**: All preferences saved locally
 - **Device Hot-Swap**: Change mic/camera mid-call without reconnecting
 - **Background Blur**: Client-side video processing
-- **Meeting History**: Persistent room state with database storage
 
 ### 🚀 Performance & Reliability
 
@@ -113,7 +109,7 @@ Orange Meets leverages a **serverless, edge-native architecture** that combines 
    - React 18 with Server Components
    - Type-safe loaders and actions
    - Deployed as Cloudflare Worker
-   - Global CDN with edge caching
+   - Global CDN with edge caching ☁️⚡️
 
 2. **Cloudflare Calls** (WebRTC SFU)
    - Selective Forwarding Unit for media routing
@@ -182,7 +178,7 @@ Microphone → MediaRecorder → Audio Chunks → Workers AI → Transcript → 
                                               ↓
                                     [Translation (Optional)]
                                               ↓
-                                   Tagged Caption [EN]/[ZH]
+                                        Tagged Caption
 ```
 
 ---
