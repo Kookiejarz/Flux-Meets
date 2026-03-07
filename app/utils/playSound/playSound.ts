@@ -50,11 +50,19 @@ const volumeMap = {
 	videoOff: 0.15,
 } satisfies Record<keyof typeof sounds, number>
 
+import { getGlobalAudioContext } from '../audioContextManager'
+
 export async function playSound(sound: keyof typeof sounds) {
 	const arrayBuffer = await fetchOnce(sounds[sound]).then((res) =>
 		res.arrayBuffer()
 	)
-	const context = new AudioContext()
+	const context = getGlobalAudioContext()
+	
+	// Ensure the context is running
+	if (context.state === 'suspended') {
+		context.resume().catch(() => {})
+	}
+	
 	const audioBuffer = await context.decodeAudioData(arrayBuffer)
 	const source = context.createBufferSource()
 	const gainNode = context.createGain()

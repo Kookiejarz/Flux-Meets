@@ -197,30 +197,6 @@ class NativeMediaDevice {
 				settings: track.getSettings(),
 				isMobile: isMobileDevice(),
 			})
-			
-			// Extra validation for mobile: check if track is actually capturing
-			if (this.kind === 'audio' && isMobileDevice()) {
-				const testContext = new AudioContext()
-				const testStream = new MediaStream([track])
-				try {
-					const testSource = testContext.createMediaStreamSource(testStream)
-					const testAnalyser = testContext.createAnalyser()
-					testSource.connect(testAnalyser)
-					const testData = new Float32Array(testAnalyser.fftSize)
-					testAnalyser.getFloatTimeDomainData(testData)
-					const hasSignal = testData.some(v => Math.abs(v) > 0.001)
-					console.log('📊 Mobile audio test:', { 
-						hasSignal, 
-						sampleData: Array.from(testData.slice(0, 10)).map(v => v.toFixed(4))
-					})
-					testSource.disconnect()
-					testAnalyser.disconnect()
-				} catch (err) {
-					console.warn('⚠️ Audio validation test failed:', err)
-				} finally {
-					testContext.close()
-				}
-			}
 
 			// Update active device from settings if available
 			const settingsId = track.getSettings().deviceId

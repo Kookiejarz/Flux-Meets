@@ -2,6 +2,7 @@
 
 import { Observable } from 'rxjs'
 import invariant from 'tiny-invariant'
+import { getGlobalAudioContext } from './audioContextManager'
 
 export default function noiseSuppression(
 	originalAudioStreamTrack: MediaStreamTrack
@@ -61,7 +62,13 @@ class NoiseSuppressionEffect {
 	 * @returns {MediaStream} - MediaStream containing both audio tracks mixed together.
 	 */
 	startEffect(audioStream: MediaStream): MediaStream {
-		this._audioContext = new AudioContext()
+		this._audioContext = getGlobalAudioContext()
+		
+		// Ensure the context is running
+		if (this._audioContext.state === 'suspended') {
+			this._audioContext.resume().catch(() => {})
+		}
+		
 		this._originalMediaTrack = audioStream.getAudioTracks()[0]
 		this._audioSource = this._audioContext.createMediaStreamSource(audioStream)
 		this._audioDestination = this._audioContext.createMediaStreamDestination()
@@ -118,6 +125,5 @@ class NoiseSuppressionEffect {
 		this._audioDestination?.disconnect()
 		this._noiseSuppressorNode?.disconnect()
 		this._audioSource?.disconnect()
-		this._audioContext?.close()
 	}
 }

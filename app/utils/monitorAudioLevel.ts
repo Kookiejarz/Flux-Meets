@@ -1,4 +1,4 @@
-import { registerAudioContext } from './audioContextManager'
+import { getGlobalAudioContext } from './audioContextManager'
 
 export default function monitorAudioLevel({
 	mediaStreamTrack,
@@ -21,8 +21,7 @@ export default function monitorAudioLevel({
 		return () => {} // Return no-op cleanup
 	}
 
-	const audioContext = new AudioContext()
-	const unregister = registerAudioContext(audioContext)
+	const audioContext = getGlobalAudioContext()
 	
 	const stream = new MediaStream()
 	stream.addTrack(mediaStreamTrack)
@@ -76,18 +75,14 @@ export default function monitorAudioLevel({
 		tick()
 
 		return () => {
-			unregister()
 			mediaStreamAudioSourceNode.disconnect()
 			analyserNode.disconnect()
-			audioContext.close()
 			clearInterval(interval)
 			clearTimeout(timeout)
 			stream.removeTrack(mediaStreamTrack)
 		}
 	} catch (error) {
 		console.error('❌ Failed to create audio monitoring pipeline:', error)
-		unregister()
-		audioContext.close()
 		return () => {}
 	}
 }

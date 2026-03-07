@@ -62,3 +62,13 @@ export function registerAudioContext(ctx: AudioContext) {
 export function getHasUserInteracted() {
 	return hasUserInteracted
 }
+
+let globalAudioContext: AudioContext | null = null
+
+export function getGlobalAudioContext(): AudioContext {
+	if (!globalAudioContext) {
+		globalAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+		registerAudioContext(globalAudioContext)
+	}
+	return globalAudioContext
+}

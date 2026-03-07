@@ -1,8 +1,14 @@
 import { Observable } from 'rxjs'
+import { getGlobalAudioContext } from '../audioContextManager'
 
 export const inaudibleAudioTrack$ = new Observable<MediaStreamTrack>(
 	(subscriber) => {
-		const audioContext = new window.AudioContext()
+		const audioContext = getGlobalAudioContext()
+		
+		// Ensure the context is running
+		if (audioContext.state === 'suspended') {
+			audioContext.resume().catch(() => {})
+		}
 
 		const oscillator = audioContext.createOscillator()
 		oscillator.type = 'triangle'
@@ -25,7 +31,10 @@ export const inaudibleAudioTrack$ = new Observable<MediaStreamTrack>(
 		subscriber.next(track)
 		return () => {
 			track.stop()
-			audioContext.close()
+			oscillator.stop()
+			oscillator.disconnect()
+			gainNode.disconnect()
+			destination.disconnect()
 		}
 	}
 )
