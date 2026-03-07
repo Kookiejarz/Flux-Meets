@@ -212,7 +212,8 @@ export const Participant = forwardRef<
 				return lang === effectiveLanguage
 			}
 
-			return false
+			// 没有语言标签的原文字幕，总是显示（除了'original'模式已在上面处理）
+			return isOriginalCaption
 		},
 		[displayCaptionLanguage, getBrowserLanguage]
 	)

@@ -231,12 +231,22 @@ class NativeMediaDevice {
 			this.isBroadcasting$.next(false)
 			return
 		}
+		// Disable the track to stop capturing audio from the microphone
+		this.currentTrack.enabled = false
+		if (this.originalTrack) {
+			this.originalTrack.enabled = false
+		}
 		this.broadcastTrack$.next(undefined)
 		this.isBroadcasting$.next(false)
 	}
 
 	unmute = async () => {
 		if (this.currentTrack) {
+			// Re-enable the track to resume capturing audio
+			this.currentTrack.enabled = true
+			if (this.originalTrack) {
+				this.originalTrack.enabled = true
+			}
 			this.broadcastTrack$.next(this.currentTrack)
 			this.isBroadcasting$.next(true)
 			return
