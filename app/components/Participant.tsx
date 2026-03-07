@@ -36,6 +36,8 @@ import { MuteUserButton } from './MuteUserButton'
 import { OptionalLink } from './OptionalLink'
 import { usePulledAudioTrack } from './PullAudioTracks'
 import { Spinner } from './Spinner'
+import { SafetyNumberToast } from './SafetyNumberToast'
+import { useDispatchToast } from './Toast'
 import { Tooltip } from './Tooltip'
 import { VideoSrcObject } from './VideoSrcObject'
 
@@ -78,8 +80,11 @@ export const Participant = forwardRef<
 		showDebugInfo,
 		userMedia,
 		room,
+		e2eeSafetyNumber,
+		e2eeStatus,
 		room: { identity },
 	} = useRoomContext()
+	const dispatchToast = useDispatchToast()
 	const peerConnection = useObservableAsValue(partyTracks.peerConnection$)
 	const id = user.id
 	const isSelf = identity && id.startsWith(identity.id)
@@ -146,6 +151,7 @@ export const Participant = forwardRef<
 	)
 
 	const packetLoss = useObservableAsValue(packetLoss$, 0)
+	const [showInlineSafetyNumber, setShowInlineSafetyNumber] = useState(false)
 
 	const videoRef = useRef<HTMLVideoElement>(null)
 	const { videoHeight, videoWidth } = useVideoDimensions(
@@ -527,6 +533,57 @@ export const Participant = forwardRef<
 					{data?.displayName && user.transceiverSessionId && (
 						<div className="flex items-center gap-2 absolute m-3 left-0 bottom-0 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium">
 							<ConnectionIndicator quality={getConnectionQuality(packetLoss)} />
+							{!isScreenShare && e2eeStatus.enabled && (
+								<Tooltip
+									content={
+										<div className="space-y-1">
+											<div>
+												{e2eeStatus.strictReady
+													? 'E2EE is enabled and verified'
+													: 'E2EE is enabled, waiting for verification'}
+											</div>
+											<div className="font-mono text-xs select-all break-all">
+												Safety Number: {e2eeSafetyNumber ?? 'pending'}
+											</div>
+											{e2eeStatus.peerExchangeRequired &&
+												!e2eeStatus.peerExchangeCompleted && (
+													<div className="text-xs">
+														Waiting for peer key exchange...
+													</div>
+												)}
+										</div>
+									}
+								>
+									<div className="relative flex items-center justify-center">
+										{showInlineSafetyNumber && e2eeSafetyNumber && (
+											<div className="absolute bottom-full mb-2 px-2 py-1 bg-zinc-900/90 backdrop-blur-md border border-emerald-500/30 rounded-md shadow-xl animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+												<span className="font-mono text-[10px] text-emerald-400 whitespace-nowrap">
+													{e2eeSafetyNumber.slice(0, 8)}
+												</span>
+												{/* Triangle pointer */}
+												<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900/90" />
+											</div>
+										)}
+										<button
+											onClick={(e) => {
+												e.stopPropagation()
+												setShowInlineSafetyNumber(!showInlineSafetyNumber)
+											}}
+											className="flex items-center"
+										>
+											<Icon
+												type="LockClosedIcon"
+												className={cn(
+													'w-4 h-4 cursor-pointer',
+													e2eeStatus.strictReady
+														? 'text-emerald-400'
+														: 'text-yellow-300'
+												)}
+											/>
+										</button>
+									</div>
+								</Tooltip>
+							)}
 							<OptionalLink
 								className="leading-none text-white/90"
 								href={populateTraceLink(user.transceiverSessionId, traceLink)}

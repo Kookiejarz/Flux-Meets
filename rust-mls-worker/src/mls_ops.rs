@@ -1,6 +1,6 @@
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
-    sync::{Arc, Mutex},
 };
 
 use log::info;
@@ -450,8 +450,8 @@ impl WorkerState {
     /// Takes a message, encrypts it, frames it as an `MlsMessageOut`, and serializes it. If
     /// `self.mls_group` doesn't exist, returns all 0s, with the length of `msg`.
     fn encrypt_app_msg_nofail(&mut self, msg: &[u8]) -> Vec<u8> {
-        // We can't encrypt every part of a VP8 frame. Leave some of the header.
-        let (header, msg_to_encrypt) = split_vp8_header(msg).unwrap_or_default();
+        // We can't encrypt every part of a frame. Leave some of the header.
+        let (header, msg_to_encrypt) = split_frame_header(msg).unwrap_or_default();
 
         // Encrypt the non-header part
         let encrypted_payload = self
@@ -478,7 +478,7 @@ impl WorkerState {
     fn decrypt_app_msg(&mut self, ct: &[u8]) -> Result<Vec<u8>, DecryptAppMsgError> {
         // Only the header is encrypted
         let (unencrypted_prefix, msg_to_decrypt) =
-            split_vp8_header(ct).ok_or(DecryptAppMsgError::WrongMsgType("inavlid VP8 frame"))?;
+            split_frame_header(ct).ok_or(DecryptAppMsgError::WrongMsgType("invalid frame"))?;
 
         let group = self.mls_group.as_mut().ok_or(DecryptAppMsgError::NoGroup)?;
         let framed = MlsMessageIn::tls_deserialize_exact_bytes(msg_to_decrypt)?;
@@ -521,7 +521,7 @@ impl WorkerState {
 // over the underlying methods
 
 thread_local! {
-    static STATE: Arc<Mutex<WorkerState>> = Arc::new(Mutex::new(WorkerState::default()));
+    static STATE: RefCell<WorkerState> = RefCell::new(WorkerState::default());
 }
 
 /// A create, join, add, or remove operation might result in a welcome package, one or more MLS
@@ -545,9 +545,9 @@ pub(crate) struct WorkerResponse {
 pub fn new_state(uid: &str) -> WorkerResponse {
     let uid_bytes = uid.as_bytes().to_vec();
     STATE
-        .try_with(|mutex| {
+        .try_with(|state_cell| {
             // Create a new state and start a new group
-            let mut state = mutex.lock().expect("couldn't lock mutex");
+            let mut state = state_cell.borrow_mut();
             let (new_state, key_pkg) = WorkerState::new(uid_bytes);
 
             // Update the state
@@ -566,9 +566,9 @@ pub fn new_state(uid: &str) -> WorkerResponse {
 pub fn new_state_and_start_group(uid: &str) -> WorkerResponse {
     let uid_bytes = uid.as_bytes().to_vec();
     STATE
-        .try_with(|mutex| {
+        .try_with(|state_cell| {
             // Create a new state and start a new group
-            let mut state = mutex.lock().expect("couldn't lock mutex");
+            let mut state = state_cell.borrow_mut();
             let (mut new_state, _) = WorkerState::new(uid_bytes);
             let safety_number = new_state.start_group();
 
@@ -589,12 +589,7 @@ pub fn new_state_and_start_group(uid: &str) -> WorkerResponse {
 /// 0s with the length of `msg`
 pub fn encrypt_msg(msg: &[u8]) -> Vec<u8> {
     STATE
-        .try_with(|mutex| {
-            mutex
-                .lock()
-                .expect("couldn't lock mutex")
-                .encrypt_app_msg_nofail(msg)
-        })
+        .try_with(|state_cell| state_cell.borrow_mut().encrypt_app_msg_nofail(msg))
         .expect("couldn't acquire thread-local storage")
 }
 
@@ -602,12 +597,7 @@ pub fn encrypt_msg(msg: &[u8]) -> Vec<u8> {
 /// returns the empty vector.
 pub fn decrypt_msg(msg: &[u8]) -> Vec<u8> {
     STATE
-        .try_with(|mutex| {
-            mutex
-                .lock()
-                .expect("couldn't lock mutex")
-                .decrypt_app_msg_nofail(msg)
-        })
+        .try_with(|state_cell| state_cell.borrow_mut().decrypt_app_msg_nofail(msg))
         .expect("couldn't acquire thread-local storage")
 }
 
@@ -616,12 +606,7 @@ pub fn add_user(serialized_kp: &[u8]) -> WorkerResponse {
     let key_pkg = KeyPackageIn::tls_deserialize_exact_bytes(serialized_kp).unwrap();
 
     STATE
-        .try_with(|mutex| {
-            mutex
-                .lock()
-                .expect("couldn't lock mutex")
-                .user_joined(key_pkg)
-        })
+        .try_with(|state_cell| state_cell.borrow_mut().user_joined(key_pkg))
         .expect("couldn't acquire thread-local storage")
 }
 
@@ -630,12 +615,7 @@ pub fn remove_user(uid_to_remove: &str) -> WorkerResponse {
     let uid_bytes = uid_to_remove.as_bytes();
 
     STATE
-        .try_with(|mutex| {
-            mutex
-                .lock()
-                .expect("couldn't lock mutex")
-                .user_left(uid_bytes)
-        })
+        .try_with(|state_cell| state_cell.borrow_mut().user_left(uid_bytes))
         .expect("couldn't acquire thread-local storage")
 }
 
@@ -645,14 +625,11 @@ pub fn join_group(serialized_welcome: &[u8], serialized_rtree: &[u8]) -> WorkerR
     let ratchet_tree = RatchetTreeIn::tls_deserialize_exact_bytes(serialized_rtree).unwrap();
 
     STATE
-        .try_with(|mutex| {
-            mutex
-                .lock()
-                .expect("couldn't lock mutex")
-                .join_group(WelcomePackageIn {
-                    welcome,
-                    ratchet_tree,
-                })
+        .try_with(|state_cell| {
+            state_cell.borrow_mut().join_group(WelcomePackageIn {
+                welcome,
+                ratchet_tree,
+            })
         })
         .expect("couldn't acquire thread-local storage")
 }
@@ -663,8 +640,8 @@ pub fn handle_commit(serialized_commit: &[u8], sender_uid: &str) -> WorkerRespon
     let commit = MlsMessageIn::tls_deserialize_exact_bytes(serialized_commit).unwrap();
 
     STATE
-        .try_with(|mutex| {
-            let mut state = mutex.lock().expect("couldn't lock mutex");
+        .try_with(|state_cell| {
+            let mut state = state_cell.borrow_mut();
             // A user cannot process a commit created by themselves. Ignore
             if state.uid() == uid_bytes {
                 WorkerResponse::default()
@@ -675,14 +652,56 @@ pub fn handle_commit(serialized_commit: &[u8], sender_uid: &str) -> WorkerRespon
         .expect("couldn't acquire thread-local storage")
 }
 
-/// Splits the given VP8 frame ("uncompressed data chunk") into a part to leave plain and a part to
-/// encrypt.  The part that's left plain is all or part of the VP8 payload header (1–10 bytes).
+/// Splits the given frame ("uncompressed data chunk") into a part to leave plain and a part to
+/// encrypt. For VP8, the part that's left plain is all or part of the VP8 payload header (1–10 bytes).
 /// The header must be intact in order for the browser's depacketizer to not freak out.
-fn split_vp8_header(frame: &[u8]) -> Option<(&[u8], &[u8])> {
-    // We follow https://github.com/discord/dave-protocol/blob/29c431b67a1366223f555a3f66a1f385b17215b9/protocol.md#vp8
-    // If this is a keyframe, keep 10 bytes unencrypted. Otherwise, 1 is enough
-    let is_keyframe = frame[0] >> 7 == 0;
-    let unencrypted_prefix_size = if is_keyframe { 10 } else { 1 };
+fn split_frame_header(frame: &[u8]) -> Option<(&[u8], &[u8])> {
+    if frame.is_empty() {
+        return None;
+    }
+
+    fn starts_with_annex_b(frame: &[u8]) -> Option<usize> {
+        if frame.len() >= 4 && frame[0..4] == [0, 0, 0, 1] {
+            Some(4)
+        } else if frame.len() >= 3 && frame[0..3] == [0, 0, 1] {
+            Some(3)
+        } else {
+            None
+        }
+    }
+
+    fn looks_like_hevc_nalu_header(first: u8, second: u8) -> bool {
+        // forbidden_zero_bit must be 0; nal_unit_type in 0..=63
+        let forbidden_zero_bit_is_clear = (first & 0b1000_0000) == 0;
+        let nal_unit_type = (first & 0b0111_1110) >> 1;
+        // nuh_temporal_id_plus1 occupies low 3 bits of second byte and must be non-zero
+        let temporal_id_plus1 = second & 0b0000_0111;
+        forbidden_zero_bit_is_clear && nal_unit_type <= 63 && temporal_id_plus1 != 0
+    }
+
+    // Strategy:
+    // 1) Annex-B H.264/H.265: keep start code + NALU header (1 byte for H.264, 2 bytes for H.265)
+    // 2) VP8: keep 10 bytes for keyframes, 1 byte for inter-frames
+    // 3) Fallback: keep 1 byte
+    let unencrypted_prefix_size = if let Some(start_code_len) = starts_with_annex_b(frame) {
+        let after_start_code = &frame[start_code_len..];
+        if after_start_code.len() >= 2
+            && looks_like_hevc_nalu_header(after_start_code[0], after_start_code[1])
+        {
+            start_code_len + 2
+        } else {
+            start_code_len + 1
+        }
+    } else {
+        // VP8 keyframe detection: bit 0 of first byte is 0
+        let is_vp8_keyframe = (frame[0] & 0x01) == 0;
+        if is_vp8_keyframe && frame.len() > 10 {
+            10
+        } else {
+            1
+        }
+    };
+
     frame.split_at_checked(unencrypted_prefix_size)
 }
 
@@ -858,7 +877,7 @@ mod tests {
             assert_eq!(num_messages_to_read.len(), self.states.len());
 
             for (i, &num_msgs) in num_messages_to_read.iter().enumerate() {
-                let Some((ref mut s, next_msg_idx)) = &mut self.states[i] else {
+                let Some((s, next_msg_idx)) = &mut self.states[i] else {
                     continue;
                 };
 

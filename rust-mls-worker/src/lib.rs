@@ -1,14 +1,14 @@
+use js_sys::{
+    Array, ArrayBuffer, Object,
+    Reflect::{get as obj_get, set as obj_set},
+    Uint8Array,
+};
 use log::{info, Level};
 use mls_ops::{decrypt_msg, encrypt_msg, WelcomePackageOut, WorkerResponse};
 use openmls::prelude::tls_codec::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{
-    js_sys::{
-        Array, ArrayBuffer, Object,
-        Reflect::{get as obj_get, set as obj_set},
-        Uint8Array,
-    },
     ReadableStream, ReadableStreamDefaultReader, RtcEncodedAudioFrame, RtcEncodedVideoFrame,
     WritableStream, WritableStreamDefaultWriter,
 };
@@ -16,20 +16,28 @@ use web_sys::{
 mod mls_ops;
 
 /// Given an `RtcEncodedAudioFrame` or `RtcEncodedVideoFrame`, returns the frame's byte contents
-fn get_frame_data(frame: &JsValue) -> Vec<u8> {
+fn get_frame_data(frame: &JsValue) -> Option<Vec<u8>> {
     if RtcEncodedAudioFrame::instanceof(frame) {
         let frame: &RtcEncodedAudioFrame = frame.dyn_ref().unwrap();
-        Uint8Array::new(&frame.data()).to_vec()
+        Some(Uint8Array::new(&frame.data()).to_vec())
     } else if RtcEncodedVideoFrame::instanceof(frame) {
         let frame: &RtcEncodedVideoFrame = frame.dyn_ref().unwrap();
-        Uint8Array::new(&frame.data()).to_vec()
+        Some(Uint8Array::new(&frame.data()).to_vec())
     } else {
-        panic!("frame value of unknown type");
+        // Fallback for frame-like objects where `.data` exists but constructor checks fail.
+        // This can happen across worker/browser boundaries in some implementations.
+        if let Ok(data) = obj_get(frame, &"data".into()) {
+            if data.is_instance_of::<ArrayBuffer>() {
+                return Some(Uint8Array::new(&data.unchecked_into::<ArrayBuffer>()).to_vec());
+            }
+        }
+
+        None
     }
 }
 
 /// Given an `RtcEncodedAudioFrame` or `RtcEncodedVideoFrame` and a bytestring, sets frame's bytestring
-fn set_frame_data(frame: &JsValue, new_data: &[u8]) {
+fn set_frame_data(frame: &JsValue, new_data: &[u8]) -> bool {
     // Copy the new data into an ArrayBuffer
     let buf = ArrayBuffer::new(new_data.len() as u32);
     let view = Uint8Array::new(&buf);
@@ -38,11 +46,17 @@ fn set_frame_data(frame: &JsValue, new_data: &[u8]) {
     if RtcEncodedAudioFrame::instanceof(frame) {
         let frame: &RtcEncodedAudioFrame = frame.dyn_ref().unwrap();
         frame.set_data(&buf);
+        true
     } else if RtcEncodedVideoFrame::instanceof(frame) {
         let frame: &RtcEncodedVideoFrame = frame.dyn_ref().unwrap();
         frame.set_data(&buf);
+        true
     } else {
-        panic!("frame value of unknown type");
+        // Fallback for frame-like objects with writable `.data`
+        if obj_set(frame, &"data".into(), &buf).is_ok() {
+            return true;
+        }
+        false
     }
 }
 
@@ -245,28 +259,41 @@ async fn process_stream<F>(
 
         // Await the call. This will return an object { value, done }, where value is a view
         // containing the new data, and done is a bool indicating that there is nothing left to read
-        let res: Object = JsFuture::from(promise)
-            .await
-            .expect("failed to read stream chunk")
-            .dyn_into()
-            .expect("stream chunk must be an object");
+        let Ok(res) = JsFuture::from(promise).await else {
+            info!("Stream read rejected, ending transform loop");
+            break;
+        };
+        let Ok(res): Result<Object, _> = res.dyn_into() else {
+            info!("Stream chunk was not an object, ending transform loop");
+            break;
+        };
         let done_reading = obj_get(&res, &"done".into()).unwrap().as_bool().unwrap();
+
+        // When done is true, value may be undefined / non-frame. Stop before processing.
+        if done_reading {
+            break;
+        }
 
         // Read a frame and get the underlying bytestring
         let frame = obj_get(&res, &"value".into()).unwrap();
 
         // Process the frame data
-        let frame_data = get_frame_data(&frame);
+        let Some(frame_data) = get_frame_data(&frame) else {
+            info!("Skipping non-encoded frame chunk in stream transform");
+            continue;
+        };
         let new_frame_data = f(&frame_data);
 
         // Set the new frame data value
-        set_frame_data(&frame, &new_frame_data);
+        if !set_frame_data(&frame, &new_frame_data) {
+            info!("Skipping frame with unsupported writable data shape");
+            continue;
+        }
 
         // Write the read chunk to the writable stream. This promise returns nothing
         let promise = writer.write_with_chunk(&frame);
-        JsFuture::from(promise).await.unwrap();
-
-        if done_reading {
+        if JsFuture::from(promise).await.is_err() {
+            info!("Stream write rejected, ending transform loop");
             break;
         }
     }

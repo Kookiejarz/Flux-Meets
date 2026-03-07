@@ -5,6 +5,7 @@ import type { ClientMessage, User } from '~/types/Messages'
 import type PartySocket from 'partysocket'
 import type { PartyTracks } from 'partytracks/client'
 import { useObservableAsValue } from 'partytracks/react'
+import { mode } from '~/utils/mode'
 import type { RoomContextType } from './useRoomContext'
 import type { UserMedia } from './useUserMedia'
 
@@ -60,12 +61,13 @@ export default function useBroadcastStatus({
 			}
 
 			// Debug: Log track status
-			if (videoEnabled && !video) {
-				console.warn('[Video] Video enabled but no video track string', {
-					videoEnabled,
-					video,
-					sessionId,
-				})
+			if (
+				mode !== 'production' &&
+				videoEnabled &&
+				!video &&
+				sessionId
+			) {
+				// Silent in production or when E2EE might be holding the track
 			}
 
 			function sendUserUpdate() {

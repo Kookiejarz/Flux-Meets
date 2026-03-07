@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
 import { json } from '@remix-run/cloudflare'
 import { useNavigate, useParams, useSearchParams } from '@remix-run/react'
 import { useObservableAsValue } from 'partytracks/react'
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import invariant from 'tiny-invariant'
 import { AudioIndicator } from '~/components/AudioIndicator'
 import { Button } from '~/components/Button'
@@ -50,7 +50,8 @@ function trackRefreshes() {
 export default function Lobby() {
 	const { roomName } = useParams()
 	const navigate = useNavigate()
-	const { setJoined, userMedia, room, partyTracks } = useRoomContext()
+	const { setJoined, userMedia, room, partyTracks, e2eeOnJoin, e2eeStatus } =
+		useRoomContext()
 	const { videoStreamTrack, audioStreamTrack, audioEnabled } = userMedia
 	const session = useObservableAsValue(partyTracks.session$)
 	const sessionError = useObservableAsValue(partyTracks.sessionError$)
@@ -62,10 +63,25 @@ export default function Lobby() {
 	const joinedUsers = new Set(
 		room.otherUsers.filter((u) => u.tracks.audio).map((u) => u.name)
 	).size
+	const e2eeInitRef = useRef(false)
+
+	useEffect(() => {
+		if (e2eeInitRef.current) return
+		if (!e2eeStatus.enabled) return
+		e2eeOnJoin(room.otherUsers.length === 0)
+		e2eeInitRef.current = true
+	}, [e2eeOnJoin, e2eeStatus.enabled, room.otherUsers.length])
 
 	const roomUrl = useRoomUrl()
 
 	const [params] = useSearchParams()
+
+	const e2eeGateReady = useMemo(() => {
+		if (!e2eeStatus.enabled) return true
+		return e2eeStatus.strictReady
+	}, [e2eeStatus.enabled, e2eeStatus.strictReady])
+
+	const canJoin = Boolean(session?.sessionId) && e2eeGateReady
 
 	const handleNameChange = () => {
 		if (editedRoomName && editedRoomName !== roomName) {
@@ -155,6 +171,43 @@ export default function Lobby() {
 						{sessionError}
 					</div>
 				)}
+				{e2eeStatus.enabled && (
+					<div className="p-3 rounded-md text-sm text-zinc-200 bg-zinc-900/80 border border-white/10 space-y-2">
+						<p className="font-semibold flex items-center gap-2">
+							<Icon type="LockClosedIcon" className="w-4 h-4 text-emerald-400" />
+							E2EE Runtime Verification
+						</p>
+						<p>
+							Sender transforms: {e2eeStatus.senderTransforms.bound}/
+							{e2eeStatus.senderTransforms.required}
+						</p>
+						<p>
+							Receiver transforms: {e2eeStatus.receiverTransforms.bound}/
+							{e2eeStatus.receiverTransforms.required}
+						</p>
+						<p>
+							Safety number: {e2eeStatus.safetyNumberReady ? 'ready' : 'pending'}
+						</p>
+						<p>
+							Peer exchange:{' '}
+							{e2eeStatus.peerExchangeRequired
+								? e2eeStatus.peerExchangeCompleted
+									? `completed (${e2eeStatus.peerExchangeParticipants})`
+									: 'pending'
+								: 'not required (no peers yet)'}
+						</p>
+						{!e2eeGateReady && (
+							<p className="text-orange-300">
+								Join is locked until E2EE checks pass.
+							</p>
+						)}
+						{e2eeStatus.lastError && (
+							<p className="text-red-300 break-words">
+								E2EE error: {e2eeStatus.lastError}
+							</p>
+						)}
+					</div>
+				)}
 				{(userMedia.audioUnavailableReason ||
 					userMedia.videoUnavailableReason) && (
 					<div className="p-3 rounded-md text-sm text-zinc-800 bg-zinc-200 dark:text-zinc-200 dark:bg-zinc-700">
@@ -197,6 +250,7 @@ export default function Lobby() {
 				<div className="flex gap-4 text-sm">
 					<Button
 						onClick={() => {
+							if (!canJoin) return
 							setJoined(true)
 							// we navigate here with javascript instead of an a
 							// tag because we don't want it to be possible to join
@@ -205,7 +259,7 @@ export default function Lobby() {
 								'room' + (params.size > 0 ? '?' + params.toString() : '')
 							)
 						}}
-						disabled={!session?.sessionId}
+						disabled={!canJoin}
 					>
 						Join
 					</Button>

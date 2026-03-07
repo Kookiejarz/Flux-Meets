@@ -4,6 +4,25 @@ import invariant from 'tiny-invariant'
 import type useRoom from '~/hooks/useRoom'
 import type { ServerMessage } from '~/types/Messages'
 
+type TransformCoverage = {
+	required: number
+	bound: number
+}
+
+export type E2EEVerificationStatus = {
+	enabled: boolean
+	joined: boolean
+	workerInitialized: boolean
+	safetyNumberReady: boolean
+	peerExchangeRequired: boolean
+	peerExchangeCompleted: boolean
+	peerExchangeParticipants: number
+	senderTransforms: TransformCoverage
+	receiverTransforms: TransformCoverage
+	strictReady: boolean
+	lastError?: string
+}
+
 type MessagesToE2eeWorker =
 	| {
 			type: 'userJoined'
@@ -303,108 +322,372 @@ export function useE2EE({
 	room: ReturnType<typeof useRoom>
 }) {
 	const [safetyNumber, setSafetyNumber] = useState<string>()
+	const [joined, setJoined] = useState(false)
+	const [firstUser, setFirstUser] = useState(false)
+	const [audioWorkerInitialized, setAudioWorkerInitialized] = useState(false)
+	const [videoWorkerInitialized, setVideoWorkerInitialized] = useState(false)
+	const workerInitialized = audioWorkerInitialized && videoWorkerInitialized
+	const [peerExchangeParticipants, setPeerExchangeParticipants] = useState(0)
+	const [peerExchangeCompleted, setPeerExchangeCompleted] = useState(false)
+	const [lastError, setLastError] = useState<string>()
+	const [senderKeys, setSenderKeys] = useState<Set<string>>(new Set())
+	const [boundSenderKeys, setBoundSenderKeys] = useState<Set<string>>(new Set())
+	const [receiverKeys, setReceiverKeys] = useState<Set<string>>(new Set())
+	const [boundReceiverKeys, setBoundReceiverKeys] = useState<Set<string>>(
+		new Set()
+	)
+	const [peerExchangeSenders, setPeerExchangeSenders] = useState<Set<string>>(
+		new Set()
+	)
+	const senderTransforms: TransformCoverage = {
+		required: senderKeys.size,
+		bound: boundSenderKeys.size,
+	}
+	const receiverTransforms: TransformCoverage = {
+		required: receiverKeys.size,
+		bound: boundReceiverKeys.size,
+	}
 
-	const encryptionWorker = useMemo(
+	const peerExchangeRequired = room.otherUsers.length > 0
+	const safetyNumberReady = Boolean(safetyNumber)
+	const transformsReady =
+		senderTransforms.required === senderTransforms.bound &&
+		receiverTransforms.required === receiverTransforms.bound
+	const strictReady = enabled
+		? joined &&
+			workerInitialized &&
+			transformsReady &&
+			safetyNumberReady &&
+			(!peerExchangeRequired || peerExchangeCompleted) &&
+			!lastError
+		: true
+
+	const e2eeStatus: E2EEVerificationStatus = {
+		enabled,
+		joined,
+		workerInitialized,
+		safetyNumberReady,
+		peerExchangeRequired,
+		peerExchangeCompleted,
+		peerExchangeParticipants,
+		senderTransforms,
+		receiverTransforms,
+		strictReady,
+		lastError,
+	}
+
+	const audioWorker = useMemo(
 		() =>
 			new EncryptionWorker({
-				id: room.websocket.id,
+				id: `${room.websocket.id}-audio`,
 			}),
 		[room.websocket.id]
 	)
 
+	const videoWorker = useMemo(
+		() =>
+			new EncryptionWorker({
+				id: `${room.websocket.id}-video`,
+			}),
+		[room.websocket.id]
+	)
+
+	const getTransceiverKey = useCallback(
+		(transceiver: RTCRtpTransceiver, role: 'sender' | 'receiver') => {
+			if (transceiver.mid) return `${role}:mid:${transceiver.mid}`
+			const trackId =
+				role === 'sender'
+					? transceiver.sender.track?.id
+					: transceiver.receiver.track?.id
+			if (trackId) return `${role}:track:${trackId}`
+			return undefined
+		},
+		[]
+	)
+
+	const registerRequiredKey = useCallback(
+		(role: 'sender' | 'receiver', key?: string) => {
+			if (!key) return
+			if (role === 'sender') {
+				setSenderKeys((prev) => {
+					if (prev.has(key)) return prev
+					const next = new Set(prev)
+					next.add(key)
+					return next
+				})
+				return
+			}
+			setReceiverKeys((prev) => {
+				if (prev.has(key)) return prev
+				const next = new Set(prev)
+				next.add(key)
+				return next
+			})
+		},
+		[]
+	)
+
+	const registerBoundKey = useCallback(
+		(role: 'sender' | 'receiver', key?: string) => {
+			if (!key) return
+			if (role === 'sender') {
+				setBoundSenderKeys((prev) => {
+					if (prev.has(key)) return prev
+					const next = new Set(prev)
+					next.add(key)
+					return next
+				})
+				return
+			}
+			setBoundReceiverKeys((prev) => {
+				if (prev.has(key)) return prev
+				const next = new Set(prev)
+				next.add(key)
+				return next
+			})
+		},
+		[]
+	)
+
+	const resetVerificationState = useCallback(() => {
+		setSafetyNumber(undefined)
+		setAudioWorkerInitialized(false)
+		setVideoWorkerInitialized(false)
+		setLastError(undefined)
+		setPeerExchangeParticipants(0)
+		setPeerExchangeCompleted(false)
+		setSenderKeys(new Set())
+		setBoundSenderKeys(new Set())
+		setReceiverKeys(new Set())
+		setBoundReceiverKeys(new Set())
+		setPeerExchangeSenders(new Set())
+	}, [])
+
 	useEffect(() => {
 		return () => {
-			encryptionWorker.dispose()
+			audioWorker.dispose()
+			videoWorker.dispose()
 		}
-	}, [encryptionWorker])
+	}, [audioWorker, videoWorker])
 
 	useEffect(() => {
-		if (!enabled) return
+		if (!enabled || !joined) return
 
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
-			if (transceiver.direction === 'sendonly') {
-				if (transceiver.sender.track?.kind === 'video') {
-					const capability = RTCRtpSender.getCapabilities('video')
-					const codecs = capability ? capability.codecs : []
-					const vp8codec = codecs.filter(
-						(a) => a.mimeType === 'video/VP8' || a.mimeType === 'video/rtx'
-					)
-					transceiver.setCodecPreferences(vp8codec)
+			const shouldHandleSender =
+				transceiver.direction === 'sendonly' ||
+				transceiver.direction === 'sendrecv'
+			if (!shouldHandleSender) return
+
+			const senderKey = getTransceiverKey(transceiver, 'sender')
+			const kind = transceiver.sender.track?.kind
+			const worker = kind === 'audio' ? audioWorker : videoWorker
+
+			registerRequiredKey('sender', senderKey)
+
+			if (kind === 'video') {
+				const capability = RTCRtpSender.getCapabilities('video')
+				const codecs = capability ? capability.codecs : []
+
+				const getMime = (codec: (typeof codecs)[number]) =>
+					codec.mimeType.toUpperCase()
+				const isRtx = (codec: (typeof codecs)[number]) =>
+					getMime(codec) === 'VIDEO/RTX'
+				const isH265 = (codec: (typeof codecs)[number]) => {
+					const mime = getMime(codec)
+					return mime === 'VIDEO/H265' || mime === 'VIDEO/HEVC'
 				}
-				encryptionWorker.setupSenderTransform(transceiver.sender)
+				const isH264 = (codec: (typeof codecs)[number]) =>
+					getMime(codec) === 'VIDEO/H264'
+				const isVp8 = (codec: (typeof codecs)[number]) =>
+					getMime(codec) === 'VIDEO/VP8'
+				const isVp9 = (codec: (typeof codecs)[number]) =>
+					getMime(codec) === 'VIDEO/VP9'
+
+				const h265Codecs = codecs.filter(isH265)
+				const h264Codecs = codecs.filter(isH264)
+				const vp8Codecs = codecs.filter(isVp8)
+				const vp9Codecs = codecs.filter(isVp9)
+				const rtxCodecs = codecs.filter(isRtx)
+
+				const preferredCodecs = [
+					...h265Codecs,
+					...h264Codecs,
+					...vp8Codecs,
+					...vp9Codecs,
+					...rtxCodecs,
+				]
+
+				if (preferredCodecs.length > 0) {
+					transceiver.setCodecPreferences(preferredCodecs)
+				}
 			}
+
+			if (senderKey && boundSenderKeys.has(senderKey)) return
+
+			worker
+				.setupSenderTransform(transceiver.sender)
+				.then(() => {
+					registerBoundKey('sender', senderKey)
+				})
+				.catch((error) => {
+					setLastError(
+						(error as Error)?.message || `Failed to bind ${kind} sender transform`
+					)
+				})
 		})
 
 		return () => {
 			subscription.unsubscribe()
 		}
-	}, [enabled, encryptionWorker, partyTracks.transceiver$])
+	}, [
+		enabled,
+		joined,
+		audioWorker,
+		videoWorker,
+		partyTracks.transceiver$,
+		getTransceiverKey,
+		registerRequiredKey,
+		registerBoundKey,
+		boundSenderKeys,
+	])
 
 	useEffect(() => {
-		if (!enabled) return
+		if (!enabled || !joined) return
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
-			if (transceiver.direction === 'recvonly') {
-				encryptionWorker.setupReceiverTransform(transceiver.receiver)
-			}
+			const shouldHandleReceiver =
+				transceiver.direction === 'recvonly' ||
+				transceiver.direction === 'sendrecv'
+			if (!shouldHandleReceiver) return
+
+			const receiverKey = getTransceiverKey(transceiver, 'receiver')
+			const kind = transceiver.receiver.track?.kind
+			const worker = kind === 'audio' ? audioWorker : videoWorker
+
+			registerRequiredKey('receiver', receiverKey)
+
+			if (receiverKey && boundReceiverKeys.has(receiverKey)) return
+
+			worker
+				.setupReceiverTransform(transceiver.receiver)
+				.then(() => {
+					registerBoundKey('receiver', receiverKey)
+				})
+				.catch((error) => {
+					setLastError(
+						(error as Error)?.message ||
+							`Failed to bind ${kind} receiver transform`
+					)
+				})
 		})
 
 		return () => {
 			subscription.unsubscribe()
 		}
-	}, [enabled, encryptionWorker, partyTracks.transceiver$])
-
-	const [joined, setJoined] = useState(false)
-	const [firstUser, setFirstUser] = useState(false)
+	}, [
+		enabled,
+		joined,
+		audioWorker,
+		videoWorker,
+		partyTracks.transceiver$,
+		getTransceiverKey,
+		registerRequiredKey,
+		registerBoundKey,
+		boundReceiverKeys,
+	])
 
 	const onJoin = useCallback(
 		(firstUser: boolean) => {
 			if (!enabled) return
+			if (joined) return
+			resetVerificationState()
 			setJoined(true)
 			setFirstUser(firstUser)
 		},
-		[enabled]
+		[enabled, joined, resetVerificationState]
 	)
 
 	useEffect(() => {
 		if (!joined) return
-		encryptionWorker.onNewSafetyNumber((buffer) =>
-			setSafetyNumber(arrayBufferToDecimal(buffer as unknown as ArrayBuffer))
-		)
-		encryptionWorker.handleOutgoingEvents((data) => {
-			console.log('📬 sending e2eeMlsMessage to peers', data)
-			room.websocket.send(
-				JSON.stringify({
-					type: 'e2eeMlsMessage',
-					payload: data,
-				})
-			)
-		})
+
+		const setupWorker = (worker: EncryptionWorker, type: 'audio' | 'video') => {
+			worker.onNewSafetyNumber((buffer) => {
+				if (type === 'video') {
+					// Video safety number as primary
+					setSafetyNumber(arrayBufferToDecimal(buffer as unknown as ArrayBuffer))
+				}
+			})
+			worker.handleOutgoingEvents((data) => {
+				room.websocket.send(
+					JSON.stringify({
+						type: 'e2eeMlsMessage',
+						mediaType: type,
+						payload: data,
+					})
+				)
+			})
+		}
+
+		setupWorker(audioWorker, 'audio')
+		setupWorker(videoWorker, 'video')
+
 		const handler = (event: MessageEvent) => {
-			const message = JSON.parse(event.data) as ServerMessage
+			const message = JSON.parse(event.data)
 			if (message.type === 'e2eeMlsMessage') {
-				console.log('📨 incoming e2eeMlsMessage from peer', message)
-				encryptionWorker.handleIncomingEvent(message.payload)
+				const targetWorker =
+					message.mediaType === 'audio' ? audioWorker : videoWorker
+				setPeerExchangeCompleted(true)
+				try {
+					const payload = JSON.parse(message.payload) as { senderId?: string }
+					if (payload.senderId) {
+						setPeerExchangeSenders((prev) => {
+							if (prev.has(payload.senderId!)) return prev
+							const next = new Set(prev)
+							next.add(payload.senderId!)
+							setPeerExchangeParticipants(next.size)
+							return next
+						})
+					}
+				} catch {
+					if (peerExchangeParticipants === 0) {
+						setPeerExchangeParticipants(1)
+					}
+				}
+				targetWorker.handleIncomingEvent(message.payload)
 			}
 			if (message.type === 'userLeftNotification') {
-				encryptionWorker.userLeft(message.id)
+				audioWorker.userLeft(message.id)
+				videoWorker.userLeft(message.id)
 			}
 		}
 
 		room.websocket.addEventListener('message', handler)
 
 		if (firstUser) {
-			encryptionWorker.initializeAndCreateGroup()
+			audioWorker.initializeAndCreateGroup()
+			videoWorker.initializeAndCreateGroup()
 		} else {
-			encryptionWorker.initialize()
+			audioWorker.initialize()
+			videoWorker.initialize()
 		}
+		setAudioWorkerInitialized(true)
+		setVideoWorkerInitialized(true)
 
 		return () => {
 			room.websocket.removeEventListener('message', handler)
 		}
-	}, [encryptionWorker, firstUser, joined, room.websocket])
+	}, [
+		audioWorker,
+		videoWorker,
+		firstUser,
+		joined,
+		room.websocket,
+		peerExchangeParticipants,
+	])
 
 	return {
 		e2eeSafetyNumber: enabled ? safetyNumber : undefined,
+		e2eeStatus,
 		onJoin,
 	}
 }

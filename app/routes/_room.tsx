@@ -10,7 +10,7 @@ import {
 	type SetStateAction,
 } from 'react'
 import { useLocalStorage } from 'react-use'
-import { filter, of } from 'rxjs'
+import { EMPTY, filter, of } from 'rxjs'
 import invariant from 'tiny-invariant'
 import { Button } from '~/components/Button'
 import { EnsureOnline } from '~/components/EnsureOnline'
@@ -318,6 +318,12 @@ function Room({ room, userMedia }: RoomProps) {
 	})
 	const peerConnection = useObservableAsValue(partyTracks.peerConnection$)
 	const roomHistory = useRoomHistory(partyTracks, room)
+	const { e2eeSafetyNumber, e2eeStatus, onJoin } = useE2EE({
+		enabled: e2eeEnabled,
+		room,
+		partyTracks,
+	})
+	const e2eeMediaGateOpen = !e2eeEnabled || e2eeStatus.strictReady
 
 	const setWebcamBitrate: Dispatch<SetStateAction<number>> = (val) => {
 		setStoredWebcamBitrate((prev) => {
@@ -394,10 +400,10 @@ function Room({ room, userMedia }: RoomProps) {
 
 	const pushedVideoTrack$ = useMemo(
 		() =>
-			partyTracks.push(userMedia.videoTrack$, {
+			partyTracks.push(e2eeMediaGateOpen ? userMedia.videoTrack$ : EMPTY, {
 				sendEncodings$,
 			}),
-		[partyTracks, userMedia.videoTrack$, sendEncodings$]
+		[partyTracks, userMedia.videoTrack$, sendEncodings$, e2eeMediaGateOpen]
 	)
 
 	const pushedVideoTrack = useObservableAsValue(pushedVideoTrack$)
@@ -425,10 +431,13 @@ function Room({ room, userMedia }: RoomProps) {
 		: rawAudioTrack
 
 	const publicAudioTrack$ = useMemo(
-		() => of(effectiveAudioTrack).pipe(
-			filter((track): track is MediaStreamTrack => track !== undefined)
-		),
-		[effectiveAudioTrack]
+		() =>
+			e2eeMediaGateOpen
+				? of(effectiveAudioTrack).pipe(
+						filter((track): track is MediaStreamTrack => track !== undefined)
+				  )
+				: EMPTY,
+		[effectiveAudioTrack, e2eeMediaGateOpen]
 	)
 
 	const pushedAudioTrack$ = useMemo(
@@ -462,10 +471,14 @@ function Room({ room, userMedia }: RoomProps) {
 
 	const screenShareVideoTrack$ = useMemo(
 		() =>
-			userMedia.screenShareVideoTrack$.pipe(
+			(
+				e2eeMediaGateOpen
+					? userMedia.screenShareVideoTrack$
+					: of(undefined as MediaStreamTrack | undefined)
+			).pipe(
 				filter((track): track is MediaStreamTrack => track !== undefined)
 			),
-		[userMedia.screenShareVideoTrack$]
+		[userMedia.screenShareVideoTrack$, e2eeMediaGateOpen]
 	)
 
 	// 屏幕共享使用和webcam相同的上限参数配置，帧率可选：高帧率模式30fps或低延迟模式15fps
@@ -913,12 +926,6 @@ function Room({ room, userMedia }: RoomProps) {
 		websocket: room.websocket as any,
 	})
 
-	const { e2eeSafetyNumber, onJoin } = useE2EE({
-		enabled: e2eeEnabled,
-		room,
-		partyTracks,
-	})
-
 	const context: RoomContextType & {
 		webcamBitrate: number
 		setWebcamBitrate: Dispatch<SetStateAction<number>>
@@ -984,6 +991,7 @@ function Room({ room, userMedia }: RoomProps) {
 		partyTracks,
 		roomHistory,
 		e2eeSafetyNumber,
+		e2eeStatus,
 		e2eeOnJoin: onJoin,
 		iceConnectionState,
 		room,

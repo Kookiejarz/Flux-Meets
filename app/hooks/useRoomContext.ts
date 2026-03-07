@@ -2,6 +2,7 @@ import { useOutletContext } from '@remix-run/react'
 import type { PartyTracks } from 'partytracks/client'
 import type { Dispatch, SetStateAction } from 'react'
 import type { UserMedia } from '~/hooks/useUserMedia'
+import type { E2EEVerificationStatus } from '~/utils/e2ee'
 import type useRoom from './useRoom'
 import type { useRoomHistory } from './useRoomHistory'
 
@@ -26,6 +27,7 @@ export type RoomContextType = {
 	roomHistory: ReturnType<typeof useRoomHistory>
 	simulcastEnabled: boolean
 	e2eeSafetyNumber?: string
+	e2eeStatus: E2EEVerificationStatus
 	e2eeOnJoin: (firstUser: boolean) => void
 	webcamBitrate: number
 	setWebcamBitrate: Dispatch<SetStateAction<number>>

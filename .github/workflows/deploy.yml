@@ -33,6 +33,19 @@ jobs:
         # 使用 ci 代替 install，增加 --prefer-offline 减少网络请求
         run: npm ci --legacy-peer-deps --prefer-offline --no-audit
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: Build E2EE WASM worker
+        run: npm run build:e2ee-worker
+
       - name: Build and Deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
