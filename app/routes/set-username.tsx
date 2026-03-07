@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs } from '@remix-run/cloudflare'
+import { type ActionFunctionArgs, type LinksFunction } from '@remix-run/cloudflare'
 import { Form } from '@remix-run/react'
 import React, { useState } from 'react'
 import invariant from 'tiny-invariant'
@@ -9,6 +9,8 @@ import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import { setUsername } from '~/utils/getUsername.server'
 import { safeRedirect } from '~/utils/safeReturnUrl'
 import { cn } from '~/utils/style'
+
+export const links: LinksFunction = () => []
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	const url = new URL(request.url)

@@ -22,7 +22,22 @@ export { queue } from './app/queue'
 const baseRemixHandler = createRequestHandler(build, mode)
 
 export const remixHandler = (request: Request, env: AppLoadContext) => {
-	return baseRemixHandler(request, { ...env, mode })
+	const result = baseRemixHandler(request, { ...env, mode })
+	
+	// Ensure HTML is never cached, always fresh
+	if (result instanceof Response && request.method === 'GET') {
+		const url = new URL(request.url)
+		// Only apply cache control to HTML documents
+		if (!url.pathname.startsWith('/build/') && 
+		    !url.pathname.startsWith('/e2ee/') &&
+		    !url.pathname.includes('.') ) {
+			const newResponse = new Response(result.body, result)
+			newResponse.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
+			return newResponse
+		}
+	}
+	
+	return result
 }
 
 const notImplemented = () => {

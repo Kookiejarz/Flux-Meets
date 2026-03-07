@@ -7,7 +7,6 @@ import {
 	useSearchParams,
 } from '@remix-run/react'
 import React, { useEffect, useState } from 'react'
-import invariant from 'tiny-invariant'
 import { Button } from '~/components/Button'
 import { Disclaimer } from '~/components/Disclaimer'
 import { Input } from '~/components/Input'
@@ -21,7 +20,12 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const directoryUrl =
 		context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
 	const username = await getUsername(request)
-	invariant(username)
+	
+	// If no username after redirect, redirect to set-username again
+	if (!username) {
+		throw redirect(`/set-username?return-url=${encodeURIComponent(request.url)}`)
+	}
+	
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
 	return json({ username, usedAccess, directoryUrl })
 }

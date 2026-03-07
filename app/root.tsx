@@ -42,12 +42,10 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 		throw safeRedirect(redirectUrl.toString())
 	}
 
+	const env = (context as any).env || context
 	const defaultResponse = json({
-		userDirectoryUrl:
-			context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL,
-		backgroundImageUrl:
-			context.env?.BACKGROUND_IMAGE_URL ??
-			(context as any).BACKGROUND_IMAGE_URL,
+		userDirectoryUrl: env.USER_DIRECTORY_URL ?? '',
+		backgroundImageUrl: env.BACKGROUND_IMAGE_URL ?? '',
 	})
 
 	// we only care about verifying token freshness if request was a user

@@ -6,7 +6,9 @@ export const { getSession, commitSession, destroySession } =
 		cookie: {
 			name: '__session',
 			secrets: ['oooOOooOOoOOoOOOOoo'],
-			sameSite: true,
+			sameSite: 'lax',
 			httpOnly: true,
+			path: '/',
+			maxAge: 60 * 60 * 24 * 30, // 30 days
 		},
 	})
