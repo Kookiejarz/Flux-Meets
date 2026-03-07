@@ -37,11 +37,13 @@ type TransformFn = (track: MediaStreamTrack) => Observable<MediaStreamTrack>
 type MediaDeviceKind = 'audio' | 'video'
 
 function getAudioConstraints(): MediaTrackConstraints {
+	const isMobile = isMobileDevice()
 	return {
 		echoCancellation: true,
 		// 浏览器内置降噪关闭，避免与 rnnoise worklet 双重处理
 		// 如需降噪，通过设置面板的 suppress-noise 开关启用 rnnoise
-		noiseSuppression: false,
+		// 移动设备上某些浏览器可能不支持手动关闭 noiseSuppression，使用 true 作为默认值
+		noiseSuppression: isMobile ? true : false,
 		autoGainControl: true,
 	}
 }
@@ -183,6 +185,15 @@ class NativeMediaDevice {
 					: stream.getVideoTracks()[0]
 			if (!track) throw new Error('No track returned from getUserMedia')
 
+			console.log(`✅ Got ${this.kind} track:`, {
+				readyState: track.readyState,
+				enabled: track.enabled,
+				muted: track.muted,
+				label: track.label,
+				settings: track.getSettings(),
+				isMobile: isMobileDevice(),
+			})
+
 			// Update active device from settings if available
 			const settingsId = track.getSettings().deviceId
 			const device = this.devices$.value.find((d) => d.deviceId === settingsId)
@@ -190,6 +201,17 @@ class NativeMediaDevice {
 
 			// Save original track reference
 			this.originalTrack = track
+
+			// Monitor track state changes (especially important on mobile)
+			track.addEventListener('mute', () => {
+				console.warn(`🔇 ${this.kind} track muted by system`)
+			})
+			track.addEventListener('unmute', () => {
+				console.log(`🔊 ${this.kind} track unmuted by system`)
+			})
+			track.addEventListener('ended', () => {
+				console.warn(`⚠️ ${this.kind} track ended`)
+			})
 
 			let processedTrack: MediaStreamTrack = track
 
@@ -225,6 +247,7 @@ class NativeMediaDevice {
 	}
 
 	mute = () => {
+		console.log(`🔇 Muting ${this.kind}...`)
 		if (!this.currentTrack) {
 			this.broadcastTrack$.next(undefined)
 			this.localMonitorTrack$.next(undefined)
@@ -236,6 +259,10 @@ class NativeMediaDevice {
 		if (this.originalTrack) {
 			this.originalTrack.enabled = false
 		}
+		console.log(`🔇 Muted ${this.kind} track (disabled, not stopped):`, {
+			readyState: this.currentTrack.readyState,
+			enabled: this.currentTrack.enabled,
+		})
 		this.broadcastTrack$.next(undefined)
 		this.isBroadcasting$.next(false)
 	}
@@ -244,10 +271,19 @@ class NativeMediaDevice {
 		if (this.currentTrack) {
 			// On mobile browsers tracks can end when app is backgrounded/paused.
 			// If we only toggle `enabled`, an ended track stays silent forever.
+			// Also check if track is muted by system (e.g., permission revoked or device busy)
 			if (
 				this.currentTrack.readyState === 'ended' ||
-				this.originalTrack?.readyState === 'ended'
+				this.originalTrack?.readyState === 'ended' ||
+				this.currentTrack.muted ||
+				this.originalTrack?.muted
 			) {
+				console.log(`♻️ ${this.kind} track ended or muted, reacquiring...`, {
+					currentEnded: this.currentTrack.readyState === 'ended',
+					originalEnded: this.originalTrack?.readyState === 'ended',
+					currentMuted: this.currentTrack.muted,
+					originalMuted: this.originalTrack?.muted,
+				})
 				this.stopCurrentTrack()
 				return this.startBroadcasting()
 			}
@@ -257,10 +293,16 @@ class NativeMediaDevice {
 			if (this.originalTrack) {
 				this.originalTrack.enabled = true
 			}
+			console.log(`🔊 Unmuted ${this.kind} track:`, {
+				readyState: this.currentTrack.readyState,
+				enabled: this.currentTrack.enabled,
+				muted: this.currentTrack.muted,
+			})
 			this.broadcastTrack$.next(this.currentTrack)
 			this.isBroadcasting$.next(true)
 			return
 		}
+		console.log(`🎤 No existing ${this.kind} track, starting new broadcast...`)
 		return this.startBroadcasting()
 	}
 }

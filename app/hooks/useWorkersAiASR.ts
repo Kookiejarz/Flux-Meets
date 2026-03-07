@@ -37,11 +37,18 @@ export function useWorkersAiASR({
 	useEffect(() => {
 		if (!enabled || !audioStreamTrack || !isSocketOpen) {
 			if (recorderRef.current) {
+				console.log('[WorkersAiASR] Stopping recorder:', { enabled, hasTrack: !!audioStreamTrack, isSocketOpen })
 				recorderRef.current.stop()
 				recorderRef.current = null
 			}
 			return
 		}
+
+		console.log('[WorkersAiASR] Starting recorder...', {
+			trackId: audioStreamTrack.id,
+			readyState: audioStreamTrack.readyState,
+			enabled: audioStreamTrack.enabled,
+		})
 
 		try {
 			if (typeof MediaRecorder === 'undefined') {
@@ -84,12 +91,14 @@ export function useWorkersAiASR({
 			// Slice every 1.5 seconds for a balance between latency and accuracy
 			recorder.start(1500)
 			recorderRef.current = recorder
+			console.log('[WorkersAiASR] ✅ Recorder started successfully')
 		} catch (e) {
 			console.error('Error starting Workers AI ASR Recorder:', e)
 		}
 
 		return () => {
 			if (recorderRef.current) {
+				console.log('[WorkersAiASR] Cleanup: stopping recorder')
 				recorderRef.current.stop()
 				recorderRef.current = null
 			}

@@ -54,9 +54,20 @@ export function useSpeechToText({
 			shouldAutoRestartRef.current = true
 			restartDelayMsRef.current = 200
 		} else {
+			// When disabled, stop recognition immediately
+			shouldAutoRestartRef.current = false
 			if (restartTimerRef.current !== null) {
 				window.clearTimeout(restartTimerRef.current)
 				restartTimerRef.current = null
+			}
+			const recognition = recognitionRef.current
+			if (recognition) {
+				try {
+					console.log('[SpeechToText] Stopping recognition (enabled=false)')
+					recognition.stop()
+				} catch (e) {
+					// Ignore
+				}
 			}
 		}
 	}, [enabled])

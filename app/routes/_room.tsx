@@ -852,7 +852,7 @@ function Room({ room, userMedia }: RoomProps) {
 	])
 
 	useSpeechToText({
-		enabled: captionsEnabled && joined && asrSource === 'browser',
+		enabled: captionsEnabled && joined && userMedia.audioEnabled && asrSource === 'browser',
 		language:
 			localCcLanguage === 'browser'
 				? typeof navigator !== 'undefined' && navigator.language
@@ -872,7 +872,7 @@ function Room({ room, userMedia }: RoomProps) {
 	})
 
 	useWorkersAiASR({
-		enabled: captionsEnabled && joined && (asrSource === 'workers-ai' || asrSource === 'assembly-ai'),
+		enabled: captionsEnabled && joined && userMedia.audioEnabled && (asrSource === 'workers-ai' || asrSource === 'assembly-ai'),
 		audioStreamTrack: userMedia.audioStreamTrack ?? null,
 		websocket: room.websocket as any,
 	})
