@@ -11,20 +11,12 @@ export default function useAudioLevel(mediaStreamTrack?: MediaStreamTrack) {
 			return
 		}
 		
-		console.log('🎚️ Starting audio level monitoring for track:', {
-			id: mediaStreamTrack.id,
-			readyState: mediaStreamTrack.readyState,
-			enabled: mediaStreamTrack.enabled,
-			muted: mediaStreamTrack.muted,
-		})
-		
 		const cancel = monitorAudioLevel({
 			onMeasure: (v) => setAudioLevel(Math.round(v * 100) / 100),
 			mediaStreamTrack,
 		})
 
 		return () => {
-			console.log('🛑 Stopping audio level monitoring')
 			cancel()
 		}
 	}, [mediaStreamTrack])

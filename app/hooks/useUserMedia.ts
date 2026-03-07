@@ -572,19 +572,29 @@ export default function useUserMedia(options: {
 		return () => sub.unsubscribe()
 	}, [])
 
-	// Auto-start when permission already granted
+	// Auto-start when permission already granted (only if not already broadcasting)
 	useEffect(() => {
 		let cancelled = false
 		const run = async () => {
 			try {
+				// Don't auto-start if already broadcasting
+				if (mic.isBroadcasting$.value || camera.isBroadcasting$.value) {
+					console.log('⏭️ Skipping auto-start: devices already broadcasting')
+					return
+				}
+				
 				const perm = await navigator.permissions?.query({
 					name: 'microphone' as any,
 				})
 				if (perm?.state === 'granted' && !cancelled) {
-					console.log('Permission already granted, auto-starting mic/camera')
+					console.log('✅ Permission already granted, auto-starting mic/camera')
 					setTimeout(() => {
-						mic.startBroadcasting().catch(() => {})
-						camera.startBroadcasting().catch(() => {})
+						if (!cancelled && !mic.isBroadcasting$.value) {
+							mic.startBroadcasting().catch(() => {})
+						}
+						if (!cancelled && !camera.isBroadcasting$.value) {
+							camera.startBroadcasting().catch(() => {})
+						}
 					}, 500)
 				}
 			} catch {

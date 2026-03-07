@@ -17,6 +17,15 @@ export const AudioStream: FC<AudioStreamProps> = ({
 }) => {
 	const mediaStreamRef = useRef(new MediaStream())
 	const ref = useRef<HTMLAudioElement>(null)
+	const { speakerVolume } = useRoomContext()
+
+	// Apply speaker volume to audio element
+	useEffect(() => {
+		const audio = ref.current
+		if (!audio) return
+		// Convert percentage to 0-1 range (0-150% → 0-1.5)
+		audio.volume = Math.min(1, speakerVolume / 100)
+	}, [speakerVolume])
 
 	const tryPlay = () => {
 		const audio = ref.current

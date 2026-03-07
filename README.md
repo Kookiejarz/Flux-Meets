@@ -1,4 +1,4 @@
-# Flux Meets 🍊
+# Flux Meets 🎬
 
 **Flux Meets** is a next-generation, AI-powered video conferencing platform built on Cloudflare's edge infrastructure. It delivers enterprise-grade real-time communication with end-to-end encryption, intelligent captions, and adaptive quality—all running serverlessly at the edge.
 

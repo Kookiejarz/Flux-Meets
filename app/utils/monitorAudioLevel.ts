@@ -1,3 +1,5 @@
+import { registerAudioContext } from './audioContextManager'
+
 export default function monitorAudioLevel({
 	mediaStreamTrack,
 	onMeasure,
@@ -20,14 +22,7 @@ export default function monitorAudioLevel({
 	}
 
 	const audioContext = new AudioContext()
-	
-	// On mobile, AudioContext may start in 'suspended' state. Resume it.
-	if (audioContext.state === 'suspended') {
-		console.log('🎵 AudioContext suspended, attempting to resume...')
-		audioContext.resume().catch((err) => {
-			console.error('Failed to resume AudioContext:', err)
-		})
-	}
+	const unregister = registerAudioContext(audioContext)
 	
 	const stream = new MediaStream()
 	stream.addTrack(mediaStreamTrack)
@@ -43,6 +38,21 @@ export default function monitorAudioLevel({
 
 		const pcmData = new Float32Array(analyserNode.fftSize)
 		let peak = 0
+		
+		// Resume AudioContext if suspended (requires user interaction)
+		const ensureRunning = async () => {
+			if (audioContext.state === 'suspended') {
+				try {
+					await audioContext.resume()
+					console.log('✅ AudioContext resumed successfully')
+				} catch (err) {
+					console.warn('Failed to resume AudioContext:', err)
+				}
+			}
+		}
+		
+		// Try to resume immediately
+		ensureRunning()
 
 		interval = window.setInterval(() => {
 			onMeasure(peak)
@@ -66,6 +76,7 @@ export default function monitorAudioLevel({
 		tick()
 
 		return () => {
+			unregister()
 			mediaStreamAudioSourceNode.disconnect()
 			analyserNode.disconnect()
 			audioContext.close()
@@ -75,6 +86,7 @@ export default function monitorAudioLevel({
 		}
 	} catch (error) {
 		console.error('❌ Failed to create audio monitoring pipeline:', error)
+		unregister()
 		audioContext.close()
 		return () => {}
 	}

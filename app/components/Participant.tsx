@@ -204,6 +204,9 @@ export const Participant = forwardRef<
 			// 如果是 'auto' 模式，根据浏览器语言进行过滤
 			let effectiveLanguage: string = displayCaptionLanguage
 			if (effectiveLanguage === 'auto') {
+				// AUTO 下自己只显示 STT 原文，不显示翻译
+				if (isSelf) return isOriginalCaption
+
 				// AUTO 下保留原文，避免无 [EN]/[ZH] 标签时字幕不显示
 				if (isOriginalCaption) return true
 				effectiveLanguage = getBrowserLanguage()
@@ -217,7 +220,7 @@ export const Participant = forwardRef<
 			// 没有语言标签的原文字幕，总是显示（除了'original'模式已在上面处理）
 			return isOriginalCaption
 		},
-		[displayCaptionLanguage, getBrowserLanguage]
+		[displayCaptionLanguage, getBrowserLanguage, isSelf]
 	)
 
 	const normalizeCaptionText = useCallback((text: string) => {

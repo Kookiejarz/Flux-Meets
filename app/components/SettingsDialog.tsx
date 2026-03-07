@@ -70,6 +70,10 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		setLocalCcLanguage,
 		displayCaptionLanguage,
 		setDisplayCaptionLanguage,
+		micVolume,
+		setMicVolume,
+		speakerVolume,
+		setSpeakerVolume,
 	} = useRoomContext()
 
 	return (
@@ -94,6 +98,48 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							Mic
 						</Label>
 						<AudioInputSelector id="mic" />
+						
+						<Label className="md:text-right" htmlFor="micVolume">
+							Mic Volume
+						</Label>
+						<div className="flex items-center gap-3">
+							<input
+								type="range"
+								id="micVolume"
+								min="0"
+								max="200"
+								value={micVolume}
+								onChange={(e) => setMicVolume(Number(e.target.value))}
+								className="flex-1 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+							/>
+							<span className="text-sm font-mono text-zinc-400 w-12 text-right">
+								{micVolume}%
+							</span>
+						</div>
+						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+							Adjust microphone input gain (100% = normal, 200% = boost for quiet mics)
+						</p>
+						
+						<Label className="md:text-right" htmlFor="speakerVolume">
+							Speaker Volume
+						</Label>
+						<div className="flex items-center gap-3">
+							<input
+								type="range"
+								id="speakerVolume"
+								min="0"
+								max="150"
+								value={speakerVolume}
+								onChange={(e) => setSpeakerVolume(Number(e.target.value))}
+								className="flex-1 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+							/>
+							<span className="text-sm font-mono text-zinc-400 w-12 text-right">
+								{speakerVolume}%
+							</span>
+						</div>
+						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+							Adjust speaker output volume (100% = normal)
+						</p>
 
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 

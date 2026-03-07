@@ -26,7 +26,7 @@ export default function useIsSpeaking(mediaStreamTrack?: MediaStreamTrack) {
 		return () => {
 			clearInterval(interval)
 		}
-	}, [isSpeaking, isSpeakingRef, mediaStreamTrack])
+	}, [isSpeaking, mediaStreamTrack])
 
 	useEffect(() => {
 		if (!mediaStreamTrack) return
@@ -34,11 +34,14 @@ export default function useIsSpeaking(mediaStreamTrack?: MediaStreamTrack) {
 		const cleanup = monitorAudioLevel({
 			mediaStreamTrack,
 			onMeasure: (vol) => {
+				// Lower threshold for better sensitivity to normal conversation
+				// Initial: 0.035 (normal speaking), Sustained: 0.015 (lower for speech patterns)
+				const threshold = isSpeakingRef.current ? 0.015 : 0.035
 				const audioLevelAboveThreshold =
 					// once the user has been determined to be speaking, we want
 					// to lower the threshold because speech patterns don't always
-					// kick up above 0.1
-					vol > (isSpeakingRef.current ? 0.02 : 0.1)
+					// stay consistently high
+					vol > threshold
 				if (audioLevelAboveThreshold) {
 					// user is still speaking, clear timeout & reset
 					clearTimeout(timeout)
@@ -51,7 +54,7 @@ export default function useIsSpeaking(mediaStreamTrack?: MediaStreamTrack) {
 						isSpeakingRef.current = false
 						// reset timeout
 						timeout = -1
-					}, 1000)
+					}, 800)
 				}
 			},
 		})
@@ -59,7 +62,9 @@ export default function useIsSpeaking(mediaStreamTrack?: MediaStreamTrack) {
 		return () => {
 			cleanup()
 		}
-	}, [isSpeaking, mediaStreamTrack])
+		// Only re-run when track changes, not when isSpeaking state changes
+		// (we use isSpeakingRef internally to avoid unnecessary re-creates)
+	}, [mediaStreamTrack])
 
 	return isSpeaking
 }

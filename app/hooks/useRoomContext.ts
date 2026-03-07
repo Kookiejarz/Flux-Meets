@@ -58,6 +58,10 @@ export type RoomContextType = {
 	setMoqEnabled: Dispatch<SetStateAction<boolean>>
 	highFpsScreenshare: boolean
 	setHighFpsScreenshare: Dispatch<SetStateAction<boolean>>
+	micVolume: number
+	setMicVolume: Dispatch<SetStateAction<number>>
+	speakerVolume: number
+	setSpeakerVolume: Dispatch<SetStateAction<number>>
 	chatMessages: {
 		id: string
 		sender: string

@@ -27,6 +27,7 @@ import { useSpeechToText } from '~/hooks/useSpeechToText'
 import { useStablePojo } from '~/hooks/useStablePojo'
 import useUserMedia from '~/hooks/useUserMedia'
 import { useWorkersAiASR } from '~/hooks/useWorkersAiASR'
+import { useMicrophoneGain } from '~/hooks/useMicrophoneGain'
 import type { TrackObject } from '~/utils/callsTypes'
 import { useE2EE } from '~/utils/e2ee'
 import { getIceServers } from '~/utils/getIceServers.server'
@@ -400,13 +401,34 @@ function Room({ room, userMedia }: RoomProps) {
 	)
 
 	const pushedVideoTrack = useObservableAsValue(pushedVideoTrack$)
+	
+	// Microphone volume control
+	const [storedMicVolume, setStoredMicVolume] = useLocalStorage<number>(
+		'settings-mic-volume',
+		100
+	)
+	const micVolume = storedMicVolume ?? 100
+	const setMicVolume: Dispatch<SetStateAction<number>> = (val) => {
+		setStoredMicVolume((prev) => {
+			const prevVal = prev ?? 100
+			return typeof val === 'function' ? val(prevVal) : val
+		})
+	}
+
+	// Apply microphone gain if volume is not 100%
+	const rawAudioTrack = userMedia.audioStreamTrack
+	const gainAdjustedAudioTrack = useMicrophoneGain(rawAudioTrack, micVolume)
+	
+	// Use gain-adjusted track when gain is applied, otherwise use raw track
+	const effectiveAudioTrack = micVolume !== 100 && gainAdjustedAudioTrack
+		? gainAdjustedAudioTrack
+		: rawAudioTrack
 
 	const publicAudioTrack$ = useMemo(
-		() =>
-			userMedia.publicAudioTrack$.pipe(
-				filter((track): track is MediaStreamTrack => track !== undefined)
-			),
-		[userMedia.publicAudioTrack$]
+		() => of(effectiveAudioTrack).pipe(
+			filter((track): track is MediaStreamTrack => track !== undefined)
+		),
+		[effectiveAudioTrack]
 	)
 
 	const pushedAudioTrack$ = useMemo(
@@ -422,6 +444,20 @@ function Room({ room, userMedia }: RoomProps) {
 		[partyTracks, publicAudioTrack$, audioMediumBitrate]
 	)
 	const pushedAudioTrack = useObservableAsValue(pushedAudioTrack$)
+	
+	// Speaker volume control
+	const [storedSpeakerVolume, setStoredSpeakerVolume] = useLocalStorage<number>(
+		'settings-speaker-volume',
+		100
+	)
+	const speakerVolume = storedSpeakerVolume ?? 100
+	const setSpeakerVolume: Dispatch<SetStateAction<number>> = (val) => {
+		setStoredSpeakerVolume((prev) => {
+			const prevVal = prev ?? 100
+			return typeof val === 'function' ? val(prevVal) : val
+		})
+	}
+	
 	const [highFpsScreenshare, setHighFpsScreenshare] = useState(false)
 
 	const screenShareVideoTrack$ = useMemo(
@@ -935,6 +971,10 @@ function Room({ room, userMedia }: RoomProps) {
 		setMoqEnabled,
 		highFpsScreenshare,
 		setHighFpsScreenshare,
+		micVolume,
+		setMicVolume,
+		speakerVolume,
+		setSpeakerVolume,
 		chatMessages,
 		setChatMessages,
 		traceLink,
