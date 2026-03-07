@@ -12,7 +12,7 @@
 		"clean": "del public/build && del build",
 		"ci-test": "CI=true run-p typecheck test",
 		"remove-sourcemaps": "del public/build/**/*.map",
-		"deploy": "npm run build:e2ee-worker && npm run ci-test && npm run build -- --sourcemap && test -f build/index.mjs && npm run remove-sourcemaps && wrangler deploy --define __RELEASE__:\"\\\"$(git rev-parse --short HEAD)\\\"\" --define __SENTRY_DSN__:\"\\\"$SENTRY_DSN\\\"\" ${WRANGLER_ARGS:--c wrangler.production.toml}",
+		"deploy": "npm run build:e2ee-worker && npm run ci-test && npm run build && test -f build/index.mjs && npm run remove-sourcemaps && wrangler deploy --define __RELEASE__:\"\\\"$(git rev-parse --short HEAD)\\\"\" --define __SENTRY_DSN__:\"\\\"$SENTRY_DSN\\\"\" ${WRANGLER_ARGS:--c wrangler.production.toml}",
 		"prettier": "prettier -w .",
 		"typecheck": "tsc --noEmit --skipLibCheck",
 		"typecheck:watch": "npm run typecheck -- --watch",
