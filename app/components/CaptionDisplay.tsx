@@ -52,7 +52,7 @@ function DraggableCaption({
 		<div
 			ref={setNodeRef}
 			className={cn(
-				'absolute bottom-10 left-0 right-0 z-[50] w-full flex justify-start',
+				'absolute bottom-20 md:bottom-10 left-0 right-0 z-[50] w-full flex justify-start',
 				isDragging ? 'cursor-grabbing' : 'cursor-grab',
 				'touch-none select-none',
 				'py-2 pl-4'

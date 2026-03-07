@@ -309,6 +309,9 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 										</button>
 									))}
 								</div>
+								<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+									Browser ASR may not be available on mobile devices. Workers AI or Assembly AI is recommended for mobile.
+								</p>
 
 								<Label className="md:text-right" htmlFor="aiTranslation">
 									AI Translation

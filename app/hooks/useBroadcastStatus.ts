@@ -59,6 +59,15 @@ export default function useBroadcastStatus({
 				},
 			}
 
+			// Debug: Log track status
+			if (videoEnabled && !video) {
+				console.warn('[Video] Video enabled but no video track string', {
+					videoEnabled,
+					video,
+					sessionId,
+				})
+			}
+
 			function sendUserUpdate() {
 				websocket.send(
 					JSON.stringify({

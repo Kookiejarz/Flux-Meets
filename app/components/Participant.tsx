@@ -457,7 +457,8 @@ export const Participant = forwardRef<
 							}
 						}}
 					/>
-					{shouldPullVideo && !pulledVideoTrack && (
+					{/* Only show spinner when user has video enabled but track hasn't arrived yet */}
+					{shouldPullVideo && user.tracks.videoEnabled && user.tracks.video && !pulledVideoTrack && (
 						<div className="absolute inset-0 grid w-full h-full place-items-center">
 							<Spinner className="h-8 w-8" />
 						</div>
@@ -475,9 +476,9 @@ export const Participant = forwardRef<
 					</HoverFade>
 					{!isScreenShare && (
 						<div className="absolute left-3 top-3 bg-black/40 backdrop-blur-md p-1.5 rounded-md">
+							{/* Show audio indicator when speaking, regardless of video state */}
 							{audioTrack &&
 								user.tracks.audioEnabled &&
-								user.tracks.videoEnabled &&
 								isSpeaking && <AudioIndicator audioTrack={audioTrack} />}
 
 							{!user.tracks.audioEnabled && !user.tracks.audioUnavailable && (

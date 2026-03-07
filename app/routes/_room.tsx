@@ -488,9 +488,14 @@ function Room({ room, userMedia }: RoomProps) {
 			navigator.userAgent
 		)
 	})
-	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai' | 'assembly-ai'>(
-		'browser'
-	)
+	// Auto-detect ASR support: use Workers AI on mobile or when browser SpeechRecognition is unavailable
+	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai' | 'assembly-ai'>(() => {
+		if (typeof window === 'undefined') return 'browser'
+		const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+		const hasSpeechRecognition = !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition
+		// Use Workers AI if on mobile or browser doesn't support SpeechRecognition
+		return (isMobileDevice || !hasSpeechRecognition) ? 'workers-ai' : 'browser'
+	})
 	const [storedLocalCcLanguage, setStoredLocalCcLanguage] = useLocalStorage<
 		'browser' | 'zh-CN' | 'en-US'
 	>('settings-local-cc-language', 'browser')
