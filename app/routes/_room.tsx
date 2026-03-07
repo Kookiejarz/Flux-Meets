@@ -82,6 +82,20 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 			API_EXTRA_PARAMS,
 			MAX_WEBCAM_FRAMERATE,
 			MAX_WEBCAM_BITRATE,
+			MAX_AUDIO_BITRATE,
+				AUDIO_ADAPT_CHECK_INTERVAL_MS,
+				AUDIO_ADAPT_STABLE_DURATION_MS,
+				AUDIO_ADAPT_STABLE_LOSS_THRESHOLD,
+				AUDIO_ADAPT_STABLE_RTT_MS,
+				AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD,
+				AUDIO_ADAPT_UNSTABLE_RTT_MS,
+				AUDIO_ADAPT_BAD_LOSS_THRESHOLD,
+				AUDIO_ADAPT_BAD_RTT_MS,
+				AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD,
+				AUDIO_ADAPT_VERY_BAD_RTT_MS,
+				CAPTION_FADE_START_MS,
+				CAPTION_REMOVE_MS,
+				CAPTION_CLEANUP_INTERVAL_MS,
 			MAX_WEBCAM_QUALITY_LEVEL,
 			MAX_API_HISTORY,
 			EXPERIMENTAL_SIMULCAST_ENABLED,
@@ -100,6 +114,26 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		),
 		maxWebcamFramerate: numberOrUndefined(MAX_WEBCAM_FRAMERATE),
 		maxWebcamBitrate: numberOrUndefined(MAX_WEBCAM_BITRATE),
+		maxAudioBitrate: numberOrUndefined(MAX_AUDIO_BITRATE),
+		audioAdaptCheckIntervalMs: numberOrUndefined(AUDIO_ADAPT_CHECK_INTERVAL_MS),
+		audioAdaptStableDurationMs: numberOrUndefined(AUDIO_ADAPT_STABLE_DURATION_MS),
+		audioAdaptStableLossThreshold: numberOrUndefined(
+			AUDIO_ADAPT_STABLE_LOSS_THRESHOLD
+		),
+		audioAdaptStableRttMs: numberOrUndefined(AUDIO_ADAPT_STABLE_RTT_MS),
+		audioAdaptUnstableLossThreshold: numberOrUndefined(
+			AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD
+		),
+		audioAdaptUnstableRttMs: numberOrUndefined(AUDIO_ADAPT_UNSTABLE_RTT_MS),
+		audioAdaptBadLossThreshold: numberOrUndefined(AUDIO_ADAPT_BAD_LOSS_THRESHOLD),
+		audioAdaptBadRttMs: numberOrUndefined(AUDIO_ADAPT_BAD_RTT_MS),
+		audioAdaptVeryBadLossThreshold: numberOrUndefined(
+			AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD
+		),
+		audioAdaptVeryBadRttMs: numberOrUndefined(AUDIO_ADAPT_VERY_BAD_RTT_MS),
+		captionFadeStartMs: numberOrUndefined(CAPTION_FADE_START_MS),
+		captionRemoveMs: numberOrUndefined(CAPTION_REMOVE_MS),
+		captionCleanupIntervalMs: numberOrUndefined(CAPTION_CLEANUP_INTERVAL_MS),
 		maxWebcamQualityLevel: numberOrUndefined(MAX_WEBCAM_QUALITY_LEVEL),
 		maxApiHistory: numberOrUndefined(MAX_API_HISTORY),
 		simulcastEnabled: EXPERIMENTAL_SIMULCAST_ENABLED === 'true',
@@ -224,6 +258,20 @@ function Room({ room, userMedia }: RoomProps) {
 		apiExtraParams,
 		iceServers,
 		maxWebcamBitrate = 2_500_000,
+		maxAudioBitrate = 256_000,
+		audioAdaptCheckIntervalMs = 2_000,
+		audioAdaptStableDurationMs = 10_000,
+		audioAdaptStableLossThreshold = 0.02,
+		audioAdaptStableRttMs = 150,
+		audioAdaptUnstableLossThreshold = 0.05,
+		audioAdaptUnstableRttMs = 300,
+		audioAdaptBadLossThreshold = 0.08,
+		audioAdaptBadRttMs = 400,
+		audioAdaptVeryBadLossThreshold = 0.12,
+		audioAdaptVeryBadRttMs = 600,
+		captionFadeStartMs = 2800,
+		captionRemoveMs = 3400,
+		captionCleanupIntervalMs = 500,
 		maxWebcamFramerate = 24,
 		maxWebcamQualityLevel = 1080,
 		maxApiHistory = 100,
@@ -302,19 +350,33 @@ function Room({ room, userMedia }: RoomProps) {
 	const effectiveWebcamBitrate = videoDenoise
 		? Math.min(maxWebcamBitrate, Math.max(webcamBitrate, 2_000_000))
 		: webcamBitrate
+	const audioMediumBitrate = Math.min(128_000, maxAudioBitrate)
+	const audioLowBitrate = Math.min(96_000, audioMediumBitrate)
+	const audioVeryLowBitrate = Math.min(64_000, audioLowBitrate)
+	const audioHighBitrate = maxAudioBitrate
 	const sendEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
 		simulcastEnabled
 			? [
 					{
 						rid: 'a',
-						maxBitrate: Math.min(1_800_000, effectiveWebcamBitrate),
-						maxFramerate: Math.min(30.0, webcamFramerate),
+						// 高质量层：使用用户配置的90%作为上限
+						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.9),
+						maxFramerate: webcamFramerate,
 						active: true,
 					},
 					{
 						rid: 'b',
+						scaleResolutionDownBy: videoDenoise ? 1.25 : 1.5,
+						// 中质量层：使用用户配置的55%作为上限
+						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.55),
+						maxFramerate: Math.min(30.0, webcamFramerate),
+						active: true,
+					},
+					{
+						rid: 'c',
 						scaleResolutionDownBy: videoDenoise ? 1.5 : 2.0,
-						maxBitrate: Math.min(700_000, effectiveWebcamBitrate),
+						// 低质量层：固定较低码率，适合弱网环境
+						maxBitrate: Math.min(1_200_000, Math.floor(effectiveWebcamBitrate * 0.35)),
 						maxFramerate: Math.min(24.0, webcamFramerate),
 						active: true,
 					},
@@ -353,11 +415,11 @@ function Room({ room, userMedia }: RoomProps) {
 				sendEncodings$: of([
 					{
 						networkPriority: 'high',
-						maxBitrate: 128_000, // 128kbps for high quality audio
+						maxBitrate: audioMediumBitrate,
 					},
 				]),
 			}),
-		[partyTracks, publicAudioTrack$]
+		[partyTracks, publicAudioTrack$, audioMediumBitrate]
 	)
 	const pushedAudioTrack = useObservableAsValue(pushedAudioTrack$)
 
@@ -369,9 +431,49 @@ function Room({ room, userMedia }: RoomProps) {
 		[userMedia.screenShareVideoTrack$]
 	)
 
+	// 屏幕共享使用和webcam相同的上限参数配置
+	const screenshareEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
+		simulcastEnabled
+			? [
+					{
+						rid: 'a',
+						// 屏幕共享高质量层：使用90%配置上限
+						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.9),
+						maxFramerate: webcamFramerate,
+						active: true,
+					},
+					{
+						rid: 'b',
+						scaleResolutionDownBy: 1.5,
+						// 屏幕共享中质量层：使用55%配置上限
+						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.55),
+						maxFramerate: Math.min(30.0, webcamFramerate),
+						active: true,
+					},
+					{
+						rid: 'c',
+						scaleResolutionDownBy: 2.0,
+						// 屏幕共享低质量层
+						maxBitrate: Math.min(1_200_000, Math.floor(effectiveWebcamBitrate * 0.35)),
+						maxFramerate: Math.min(24.0, webcamFramerate),
+						active: true,
+					},
+				]
+			: [
+					{
+						maxFramerate: Math.min(maxWebcamFramerate, webcamFramerate),
+						maxBitrate: Math.min(maxWebcamBitrate, effectiveWebcamBitrate),
+					},
+				]
+	)
+	const screenshareEncodings$ = useValueAsObservable(screenshareEncodings)
+
 	const pushedScreenSharingTrack$ = useMemo(
-		() => partyTracks.push(screenShareVideoTrack$),
-		[partyTracks, screenShareVideoTrack$]
+		() =>
+			partyTracks.push(screenShareVideoTrack$, {
+				sendEncodings$: screenshareEncodings$,
+			}),
+		[partyTracks, screenShareVideoTrack$, screenshareEncodings$]
 	)
 	const pushedScreenSharingTrack = useObservableAsValue(
 		pushedScreenSharingTrack$
@@ -386,7 +488,7 @@ function Room({ room, userMedia }: RoomProps) {
 			navigator.userAgent
 		)
 	})
-	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai'>(
+	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai' | 'assembly-ai'>(
 		'browser'
 	)
 	const [storedLocalCcLanguage, setStoredLocalCcLanguage] = useLocalStorage<
@@ -402,16 +504,16 @@ function Room({ room, userMedia }: RoomProps) {
 		})
 	}
 	const [storedDisplayCaptionLanguage, setStoredDisplayCaptionLanguage] =
-		useLocalStorage<'all' | 'en' | 'zh' | 'original'>(
+		useLocalStorage<'all' | 'en' | 'zh' | 'original' | 'auto'>(
 			'settings-display-caption-language',
-			'all'
+			'auto' // 默认为 AUTO
 		)
-	const displayCaptionLanguage = storedDisplayCaptionLanguage ?? 'all'
+	const displayCaptionLanguage = storedDisplayCaptionLanguage ?? 'auto'
 	const setDisplayCaptionLanguage: Dispatch<
-		SetStateAction<'all' | 'en' | 'zh' | 'original'>
+		SetStateAction<'all' | 'en' | 'zh' | 'original' | 'auto'>
 	> = (val) => {
 		setStoredDisplayCaptionLanguage((prev) => {
-			const prevVal = prev ?? 'all'
+			const prevVal = prev ?? 'auto'
 			return typeof val === 'function' ? val(prevVal) : val
 		})
 	}
@@ -549,7 +651,7 @@ function Room({ room, userMedia }: RoomProps) {
 			}
 
 			const target = tiers[tierRef.current]
-			if (lossRate > 0.05 || rtt > 0.3) {
+			if (lossRate > 0.08 || rtt > 0.33) {
 				tierRef.current = Math.max(0, tierRef.current - 1)
 			} else if (
 				lossRate < 0.02 &&
@@ -566,6 +668,179 @@ function Room({ room, userMedia }: RoomProps) {
 			window.clearInterval(interval)
 		}
 	}, [peerConnection, tiers, maxWebcamBitrate, maxWebcamFramerate])
+
+	useEffect(() => {
+		if (!peerConnection) return
+
+		let stopped = false
+		let stableSince = 0
+		let currentTier = 2
+		const audioBitrateTiers = [
+			audioVeryLowBitrate,
+			audioLowBitrate,
+			audioMediumBitrate,
+			audioHighBitrate,
+		]
+		const last = { recv: 0, lost: 0, initialized: false }
+
+		const pickAudioSender = (): RTCRtpSender | undefined => {
+			return peerConnection.getSenders().find((s) => s.track?.kind === 'audio')
+		}
+
+		const applyAudioTier = async (sender: RTCRtpSender, tier: number) => {
+			const targetBitrate = audioBitrateTiers[tier]
+			const params = sender.getParameters()
+			const encodings =
+				params.encodings && params.encodings.length > 0
+					? params.encodings
+					: [{} as RTCRtpEncodingParameters]
+			const nextEncodings = encodings.map((enc) => ({
+				...enc,
+				networkPriority: 'high' as RTCPriorityType,
+				maxBitrate: targetBitrate,
+			}))
+			const changed = nextEncodings.some(
+				(enc, index) => encodings[index]?.maxBitrate !== enc.maxBitrate
+			)
+			if (!changed) {
+				currentTier = tier
+				return true
+			}
+			params.encodings = nextEncodings
+			try {
+				await sender.setParameters(params)
+				currentTier = tier
+				return true
+			} catch (err) {
+				console.warn('setParameters failed for audio bitrate switch', err)
+				return false
+			}
+		}
+
+		const interval = window.setInterval(async () => {
+			if (stopped) return
+			const sender = pickAudioSender()
+			if (!sender) return
+
+			const isIceStable =
+				iceConnectionState === 'connected' ||
+				iceConnectionState === 'completed'
+			if (!isIceStable) {
+				stableSince = 0
+				if (currentTier !== 2) {
+					await applyAudioTier(sender, 2)
+				}
+				return
+			}
+
+			let remote: any
+			try {
+				const stats = await sender.getStats()
+				for (const report of stats.values()) {
+					if (report.type === 'remote-inbound-rtp' && report.kind === 'audio') {
+						remote = report
+					}
+				}
+			} catch {
+				return
+			}
+
+			if (!remote) return
+
+			if (!last.initialized) {
+				last.recv = remote.packetsReceived ?? 0
+				last.lost = remote.packetsLost ?? 0
+				last.initialized = true
+				stableSince = 0
+				return
+			}
+
+			const recvDelta = (remote.packetsReceived ?? 0) - last.recv
+			const lostDelta = (remote.packetsLost ?? 0) - last.lost
+			const total = recvDelta + lostDelta
+			const lossRate = total > 0 ? Math.max(0, lostDelta) / total : 0
+			const rtt = remote.roundTripTime ?? 0
+
+			last.recv = remote.packetsReceived ?? 0
+			last.lost = remote.packetsLost ?? 0
+
+			const veryBad =
+				lossRate > audioAdaptVeryBadLossThreshold ||
+				rtt > audioAdaptVeryBadRttMs / 1000
+			const bad =
+				lossRate > audioAdaptBadLossThreshold ||
+				rtt > audioAdaptBadRttMs / 1000
+			const unstable =
+				lossRate > audioAdaptUnstableLossThreshold ||
+				rtt > audioAdaptUnstableRttMs / 1000
+			const stable =
+				lossRate < audioAdaptStableLossThreshold &&
+				rtt < audioAdaptStableRttMs / 1000
+
+			if (veryBad) {
+				stableSince = 0
+				if (currentTier !== 0) {
+					await applyAudioTier(sender, 0)
+				}
+				return
+			}
+
+			if (bad) {
+				stableSince = 0
+				if (currentTier !== 1) {
+					await applyAudioTier(sender, 1)
+				}
+				return
+			}
+
+			if (unstable) {
+				stableSince = 0
+				if (currentTier !== 2) {
+					await applyAudioTier(sender, 2)
+				}
+				return
+			}
+
+			if (!stable) {
+				stableSince = 0
+				return
+			}
+
+			if (stableSince === 0) {
+				stableSince = performance.now()
+				return
+			}
+
+			if (performance.now() - stableSince >= audioAdaptStableDurationMs) {
+				stableSince = performance.now()
+				if (currentTier < audioBitrateTiers.length - 1) {
+					await applyAudioTier(sender, currentTier + 1)
+				}
+			}
+		}, audioAdaptCheckIntervalMs)
+
+		return () => {
+			stopped = true
+			window.clearInterval(interval)
+		}
+	}, [
+		peerConnection,
+		audioVeryLowBitrate,
+		audioLowBitrate,
+		audioMediumBitrate,
+		audioHighBitrate,
+		audioAdaptCheckIntervalMs,
+		audioAdaptStableDurationMs,
+		audioAdaptStableLossThreshold,
+		audioAdaptStableRttMs,
+		audioAdaptUnstableLossThreshold,
+		audioAdaptUnstableRttMs,
+		audioAdaptBadLossThreshold,
+		audioAdaptBadRttMs,
+		audioAdaptVeryBadLossThreshold,
+		audioAdaptVeryBadRttMs,
+		iceConnectionState,
+	])
 
 	useSpeechToText({
 		enabled: captionsEnabled && joined && asrSource === 'browser',
@@ -588,7 +863,7 @@ function Room({ room, userMedia }: RoomProps) {
 	})
 
 	useWorkersAiASR({
-		enabled: captionsEnabled && joined && asrSource === 'workers-ai',
+		enabled: captionsEnabled && joined && (asrSource === 'workers-ai' || asrSource === 'assembly-ai'),
 		audioStreamTrack: userMedia.audioStreamTrack ?? null,
 		websocket: room.websocket as any,
 	})
@@ -641,6 +916,9 @@ function Room({ room, userMedia }: RoomProps) {
 		setLocalCcLanguage,
 		displayCaptionLanguage,
 		setDisplayCaptionLanguage,
+		captionFadeStartMs,
+		captionRemoveMs,
+		captionCleanupIntervalMs,
 		aiEnabled,
 		aiTranslationEnabled,
 		setAiTranslationEnabled,

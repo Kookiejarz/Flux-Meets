@@ -31,9 +31,11 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 						navigateToFeedbackPage
 					)
 					// Stop all media devices before leaving
+					console.log('📴 Stopping all media devices...')
 					mic.stopBroadcasting()
 					camera.stopBroadcasting()
 					screenshare.stopBroadcasting()
+					console.log('📴 All media devices stopped')
 
 					const params = new URLSearchParams()
 					if (meetingId) {

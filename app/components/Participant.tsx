@@ -1,6 +1,13 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { useObservableAsValue } from 'partytracks/react'
-import React, { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
+import React, {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
 import { Flipped } from 'react-flip-toolkit'
 import { combineLatest, fromEvent, map, of, switchMap } from 'rxjs'
 import { useDeadPulledTrackMonitor } from '~/hooks/useDeadPulledTrackMonitor'
@@ -76,6 +83,11 @@ export const Participant = forwardRef<
 	const id = user.id
 	const isSelf = identity && id.startsWith(identity.id)
 	const isScreenShare = id.endsWith(screenshareSuffix)
+	const ownerUserId = isScreenShare
+		? id.slice(0, -screenshareSuffix.length)
+		: id
+	const shouldShowCaptionsOnThisTile =
+		!user.tracks.screenShareEnabled || isScreenShare
 	const isAi = user.id === 'ai'
 	const aiAudioTrack = usePulledAudioTrack(isAi ? user.tracks.audio : undefined)
 	const isSpeaking =
@@ -85,10 +97,16 @@ export const Participant = forwardRef<
 	)
 	const shouldPullVideo = isScreenShare || (!isSelf && !audioOnlyMode)
 	let preferredRid: string | undefined = undefined
-	if (!isScreenShare && simulcastEnabled) {
-		// If datasaver mode is off, we want server-side bandwidth estimation and switching
-		// so we will specify empty string to indicate we have no preferredRid
-		preferredRid = dataSaverMode ? 'b' : ''
+	if (simulcastEnabled) {
+		// 屏幕共享和摄像头都支持自适应分层
+		if (isScreenShare) {
+			// 屏幕共享默认优先高质量，省流模式降级
+			preferredRid = dataSaverMode ? 'b' : ''
+		} else {
+			// If datasaver mode is off, we want server-side bandwidth estimation and switching
+			// so we will specify empty string to indicate we have no preferredRid
+			preferredRid = dataSaverMode ? 'b' : ''
+		}
 	}
 	const pulledVideoTrack = usePulledVideoTrack(
 		shouldPullVideo ? user.tracks.video : undefined,
@@ -135,74 +153,227 @@ export const Participant = forwardRef<
 	const audioMid = useMid(audioTrack)
 	const videoMid = useMid(videoTrack)
 
-	const [caption, setCaption] = useState<{
-		text: string
-		isFinal: boolean
-	} | null>(null)
+	const [captions, setCaptions] = useState<
+		Array<{
+			id: string
+			text: string
+			isFinal: boolean
+			timestamp: number
+		}>
+	>([])
 
-	const { displayCaptionLanguage } = useRoomContext()
+	const {
+		displayCaptionLanguage,
+		captionFadeStartMs,
+		captionRemoveMs,
+		captionCleanupIntervalMs,
+	} = useRoomContext()
 
-	useEffect(() => {
-		// 判断是否显示该字幕
-		const shouldDisplayCaption = (text: string): boolean => {
+	// 预编译正则表达式和缓存函数（避免重复创建）
+	const langTagRegex = /^\[([A-Z]{2})\]\s/
+
+	// 检测浏览器语言：优先使用 navigator.languages 列表，并在可用时优先非英文语言
+	const getBrowserLanguage = useCallback((): string => {
+		const normalized =
+			navigator.languages
+				?.map((lang) => lang.toLowerCase().split('-')[0])
+				.filter(Boolean) ?? []
+
+		if (normalized.length === 0) {
+			const fallback = (navigator.language || 'en').toLowerCase().split('-')[0]
+			return fallback || 'en'
+		}
+
+		const preferredNonEnglish = normalized.find((lang) => lang !== 'en')
+		return preferredNonEnglish || normalized[0]
+	}, [])
+
+	const shouldDisplayCaption = useCallback(
+		(text: string): boolean => {
 			if (displayCaptionLanguage === 'all') return true
 
-			// 检测字幕是否有语言标记 [EN], [ZH] 等
-			const langMatch = text.match(/^\[([A-Z]{2})\]\s/)
+			const langMatch = text.match(langTagRegex)
+			const isOriginalCaption = !langMatch
 
 			if (displayCaptionLanguage === 'original') {
-				// 只显示原文（没有语言标记的）
-				return !langMatch
+				return isOriginalCaption
+			}
+
+			// 如果是 'auto' 模式，根据浏览器语言进行过滤
+			let effectiveLanguage: string = displayCaptionLanguage
+			if (effectiveLanguage === 'auto') {
+				// AUTO 下保留原文，避免无 [EN]/[ZH] 标签时字幕不显示
+				if (isOriginalCaption) return true
+				effectiveLanguage = getBrowserLanguage()
 			}
 
 			if (langMatch) {
-				// 如果有语言标记，检查是否匹配用户选择
 				const lang = langMatch[1].toLowerCase()
-				return lang === displayCaptionLanguage
+				return lang === effectiveLanguage
 			}
 
-			// 没有标记的原文，如果用户选了特定语言则不显示
 			return false
-		}
+		},
+		[displayCaptionLanguage, getBrowserLanguage]
+	)
 
+	const normalizeCaptionText = useCallback((text: string) => {
+		return text
+			.toLowerCase()
+			.replace(langTagRegex, '')
+			.replace(/[\s\p{P}\p{S}]/gu, '')
+			.trim()
+	}, [])
+
+	const isSimilarCaptionText = useCallback(
+		(a: string, b: string) => {
+			const na = normalizeCaptionText(a)
+			const nb = normalizeCaptionText(b)
+			if (!na || !nb) return false
+			if (na === nb) return true
+
+			const minLen = Math.min(na.length, nb.length)
+			if (minLen < 6) return false
+
+			return na.startsWith(nb) || nb.startsWith(na) || na.includes(nb) || nb.includes(na)
+		},
+		[normalizeCaptionText]
+	)
+
+	// 缓存的清理逻辑
+	const cleanupCaptions = useCallback((prev: typeof captions) => {
+		const now = Date.now()
+		// 只在有过期字幕时才执行清理（给淡出动画留足时间）
+		const needsCleanup = prev.some((c) => now - c.timestamp > captionRemoveMs)
+		if (!needsCleanup) return prev
+
+		return prev.filter((caption) => {
+			// 保留未完成和未超时的字幕
+			return now - caption.timestamp < captionRemoveMs
+		})
+	}, [captionRemoveMs])
+
+	useEffect(() => {
+		if (!shouldShowCaptionsOnThisTile && captions.length > 0) {
+			setCaptions([])
+		}
+	}, [shouldShowCaptionsOnThisTile, captions.length])
+
+	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
 			const data = JSON.parse(event.data)
 			if (data.type === 'caption') {
-				const isThisUser =
-					data.userId === id || (isSelf && data.userId === identity?.id)
-				console.log('Caption received:', {
-					dataUserId: data.userId,
-					participantId: id,
-					isSelf,
-					identityId: identity?.id,
-					isThisUser,
-					text: data.text,
-				})
-				if (isThisUser) {
-					// 根据用户选择过滤字幕语言
-					if (shouldDisplayCaption(data.text)) {
-						setCaption({ text: data.text, isFinal: data.isFinal })
-					}
+				// 只显示属于这个用户的字幕
+				const isThisUser = data.userId === ownerUserId
+
+				if (
+					isThisUser &&
+					shouldShowCaptionsOnThisTile &&
+					shouldDisplayCaption(data.text)
+				) {
+					setCaptions((prev) => {
+						const now = Date.now()
+						const incomingText = String(data.text ?? '').trim()
+						if (!incomingText) return prev
+
+						let lastUnfinishedIndex = -1
+						for (let i = prev.length - 1; i >= 0; i--) {
+							if (!prev[i].isFinal) {
+								lastUnfinishedIndex = i
+								break
+							}
+						}
+
+						// 有未完成字幕时：
+						// - partial 一定更新它
+						// - final 只有文本相似才收口，避免把下一句正在生成的字幕误改掉
+						if (lastUnfinishedIndex !== -1) {
+							const activeUnfinished = prev[lastUnfinishedIndex]
+
+							if (
+								!data.isFinal ||
+								isSimilarCaptionText(activeUnfinished.text, incomingText)
+							) {
+								const updated = [...prev]
+								updated[lastUnfinishedIndex] = {
+									...activeUnfinished,
+									text: incomingText,
+									isFinal: data.isFinal,
+									timestamp: now,
+								}
+
+								if (lastUnfinishedIndex !== updated.length - 1) {
+									const [unfinished] = updated.splice(lastUnfinishedIndex, 1)
+									updated.push(unfinished)
+								}
+
+								return updated.length > 2 ? updated.slice(-2) : updated
+							}
+
+							// final 与当前 unfinished 不相似：视为迟到包，忽略，保持当前生成字幕在底部
+							if (data.isFinal) {
+								const lastFinal = [...prev].reverse().find((c) => c.isFinal)
+								if (lastFinal && isSimilarCaptionText(lastFinal.text, incomingText)) {
+									return prev
+								}
+								return prev
+							}
+						}
+
+						const lastCaption = prev[prev.length - 1]
+						if (
+							data.isFinal &&
+							lastCaption?.isFinal &&
+							isSimilarCaptionText(lastCaption.text, incomingText)
+						) {
+							const updated = [...prev]
+							updated[updated.length - 1] = {
+								...lastCaption,
+								text:
+									incomingText.length >= lastCaption.text.length
+										? incomingText
+										: lastCaption.text,
+								timestamp: now,
+							}
+							return updated
+						}
+
+						// 完成字幕或第一条未完成字幕：添加新字幕
+						const newCaption = {
+							id: `${id}-${now}-${Math.random()}`,
+							text: incomingText,
+							isFinal: data.isFinal,
+							timestamp: now,
+						}
+
+						const updated = [...prev, newCaption]
+						return updated.length > 2 ? updated.slice(-2) : updated
+					})
 				}
 			}
 		}
 
-		partyTracks.peerConnection$.subscribe((_pc) => {
-			// This is not the right place for DO messages, but room.websocket is available
-		})
+		// 更平滑的清理节奏：让淡出动画有机会渲染
+		const cleanupTimer = setInterval(() => {
+			setCaptions((prev) => cleanupCaptions(prev))
+		}, captionCleanupIntervalMs)
 
 		const socket = room.websocket
 		socket.addEventListener('message', handleMessage)
 
 		return () => {
 			socket.removeEventListener('message', handleMessage)
+			clearInterval(cleanupTimer)
 		}
 	}, [
-		displayCaptionLanguage,
-		id,
+		ownerUserId,
 		isSelf,
 		identity?.id,
-		partyTracks,
+		shouldShowCaptionsOnThisTile,
+		shouldDisplayCaption,
+		isSimilarCaptionText,
+		cleanupCaptions,
+		captionCleanupIntervalMs,
 		room.websocket,
 	])
 
@@ -220,11 +391,11 @@ export const Participant = forwardRef<
 						'relative max-w-[--participant-max-width] rounded-xl bg-zinc-800/50 ring-1 ring-white/10'
 					)}
 				>
-					{caption && (
+					{shouldShowCaptionsOnThisTile && captions.length > 0 && (
 						<CaptionDisplay
-							text={caption.text}
-							isFinal={caption.isFinal}
+							captions={captions}
 							userId={user.id}
+							fadeStartMs={captionFadeStartMs}
 						/>
 					)}
 					{!isScreenShare && !user.tracks.videoEnabled && (

@@ -22,6 +22,12 @@ import {
 	requestOpenAIService,
 	type SessionDescription,
 } from '~/utils/openai.server'
+import {
+	transcribeWithWorkersAi,
+	createAssemblyAiStreamingSession,
+	type AssemblyAiStreamingSession,
+} from '~/utils/asr.server'
+import { translate } from '~/utils/translation.server'
 
 const alarmInterval = 15_000
 const defaultOpenAIModelID = 'gpt-4o-realtime-preview-2024-10-01'
@@ -39,6 +45,22 @@ const defaultWorkersAiTargetLangs = ['en', 'zh']
 export class ChatRoom extends Server<Env> {
 	env: Env
 	db: DrizzleD1Database<Record<string, never>> | null
+	// 动态语言池：追踪房间内用户需要的语言
+	roomLanguages: Set<string> = new Set()
+	userLanguageMap: Map<string, Set<string>> = new Map()
+	// Assembly AI 流式会话管理
+	assemblyAiSessions: Map<string, AssemblyAiStreamingSession> = new Map()
+
+	private parseAcceptLanguageHeader(acceptLanguage: string | null): string[] {
+		if (!acceptLanguage) return ['en']
+
+		const langs = acceptLanguage
+			.split(',')
+			.map((item) => item.split(';')[0]?.trim().toLowerCase())
+			.filter(Boolean)
+
+		return langs.length > 0 ? langs : ['en']
+	}
 
 	// static options = { hibernate: true }
 
@@ -100,6 +122,9 @@ export class ChatRoom extends Server<Env> {
 
 		const username =
 			(await getUsername(ctx.request)) || 'Guest-' + connection.id.slice(0, 4)
+		const browserLanguages = this.parseAcceptLanguageHeader(
+			ctx.request.headers.get('accept-language')
+		)
 
 		try {
 			// Prevent duplicate sessions for the same user
@@ -157,6 +182,8 @@ export class ChatRoom extends Server<Env> {
 				}
 			}
 			await this.trackPeakUserCount()
+			// 只在加入时更新语言池
+			this.addUserLanguages(connection.id, browserLanguages)
 			await this.broadcastRoomState()
 			const meetingId = await this.getMeetingId()
 			log({
@@ -365,9 +392,105 @@ export class ChatRoom extends Server<Env> {
 		await this.ctx.storage.delete(`session-${connection.id}`)
 		await this.ctx.storage.delete(`heartbeat-${connection.id}`)
 
+		// 清理用户语言
+		this.removeUserLanguage(connection.id)
+
+		// 清理 Assembly AI 流式会话
+		const assemblySession = this.assemblyAiSessions.get(connection.id)
+		if (assemblySession) {
+			assemblySession.disconnect()
+			this.assemblyAiSessions.delete(connection.id)
+		}
+
 		// Notify others
 		this.userLeftNotification(connection.id)
 		await this.broadcastRoomState()
+	}
+
+	// 添加用户语言到动态语言池
+	addUserLanguages(userId: string, languages: string[]) {
+		console.log('[Language Pool] Adding user languages:', { userId, languages })
+		
+		// 规范化语言代码（取前2位，例如 zh-CN -> zh）
+		const langCodes = new Set(
+			languages.map(lang => lang.toLowerCase().split('-')[0])
+		)
+		
+		const oldLangs = this.userLanguageMap.get(userId)
+		
+		// 更新用户的语言集合
+		this.userLanguageMap.set(userId, langCodes)
+		
+		// 将所有语言添加到房间语言池
+		for (const langCode of langCodes) {
+			this.roomLanguages.add(langCode)
+		}
+		
+		log({
+			eventName: 'userLanguagesAdded',
+			userId,
+			languages: Array.from(langCodes),
+			roomLanguages: Array.from(this.roomLanguages),
+		})
+		
+		console.log('[Language Pool] Updated:', {
+			userId,
+			langCodes: Array.from(langCodes),
+			roomLanguages: Array.from(this.roomLanguages),
+			userCount: this.userLanguageMap.size
+		})
+	}
+
+	setUserLanguagePreference(userId: string, languages: string[]) {
+		const langCodes = new Set(
+			languages.map((lang) => lang.toLowerCase().split('-')[0]).filter(Boolean)
+		)
+		this.userLanguageMap.set(userId, langCodes)
+		console.log('[Language Pool] User preference updated (pool unchanged until rejoin):', {
+			userId,
+			langCodes: Array.from(langCodes),
+			roomLanguages: Array.from(this.roomLanguages),
+		})
+	}
+
+	// 移除用户语言（用户离开时）
+	removeUserLanguage(userId: string) {
+		const userLangs = this.userLanguageMap.get(userId)
+		if (userLangs) {
+			this.userLanguageMap.delete(userId)
+			
+			// 重新计算房间语言池：仅保留其他用户需要的语言
+			this.roomLanguages.clear()
+			for (const langs of this.userLanguageMap.values()) {
+				for (const lang of langs) {
+					this.roomLanguages.add(lang)
+				}
+			}
+			
+			log({
+				eventName: 'userLanguagesRemoved',
+				userId,
+				roomLanguages: Array.from(this.roomLanguages),
+			})
+		}
+	}
+
+	// 获取当前房间需要翻译的语言列表
+	getTargetLanguages(): string[] {
+		// 如果房间内有用户，使用动态语言池
+		if (this.roomLanguages.size > 0) {
+			const langs = Array.from(this.roomLanguages)
+			console.log('[Translation] Using dynamic language pool:', langs)
+			return langs
+		}
+		// 否则使用配置的默认语言
+		const defaultLangs = (
+			this.env.WORKERS_AI_TRANSLATION_TARGET_LANGS?.split(',')
+				.map((lang) => lang.trim())
+				.filter(Boolean) ?? defaultWorkersAiTargetLangs
+		)
+		console.log('[Translation] Using default languages:', defaultLangs)
+		return defaultLangs
 	}
 
 	async handleAudioChunk(
@@ -379,44 +502,103 @@ export class ChatRoom extends Server<Env> {
 			this.env.ENABLE_WORKERS_AI_ASR === 'true' ||
 			(this.env.ENABLE_WORKERS_AI_ASR === undefined &&
 				this.env.ENABLE_WORKERS_AI === 'true')
-		if (this.env.AI && asrEnabled) {
-			try {
-				const asrModel =
-					this.env.WORKERS_AI_ASR_MODEL || defaultWorkersAiAsrModel
-				// Base64 to ArrayBuffer
-				const audioBuffer = Uint8Array.from(atob(data.data), (c) =>
-					c.charCodeAt(0)
-				)
+		
+		if (!asrEnabled) return
 
-				const response: any = await this.env.AI.run(asrModel, {
-					audio: {
-						body: audioBuffer,
-						contentType: 'audio/webm',
-					},
-					smart_format: true,
-					detect_language: true,
+		const asrProvider = this.env.ASR_PROVIDER || 'workers-ai'
+		
+		if (asrProvider === 'assembly-ai') {
+			await this.handleAssemblyAiAudioChunk(connection, data)
+		} else {
+			await this.handleWorkersAiAudioChunk(connection, data)
+		}
+	}
+
+	private async handleWorkersAiAudioChunk(
+		connection: Connection<User>,
+		data: { type: 'audioChunk'; data: string }
+	) {
+		try {
+			const result = await transcribeWithWorkersAi(this.env, data.data)
+
+			if (result && result.text.trim()) {
+				const captionMessage = {
+					type: 'caption',
+					userId: connection.id,
+					text: result.text,
+					isFinal: result.isFinal,
+					translate: true, // Auto-translate for Workers AI ASR
+				} as const
+
+				this.broadcastMessage(captionMessage)
+
+				// Trigger persistence and translation
+				this.handleCaption(connection, captionMessage).catch((err) => {
+					console.error('Secondary caption handler error:', err)
 				})
-
-				if (response?.results?.channels[0]?.alternatives[0]?.transcript) {
-					const text = response.results.channels[0].alternatives[0].transcript
-					const captionMessage = {
-						type: 'caption',
-						userId: connection.id,
-						text: text,
-						isFinal: true,
-						translate: true, // Auto-translate for Workers AI ASR
-					} as const
-
-					this.broadcastMessage(captionMessage)
-
-					// Trigger persistence and translation
-					this.handleCaption(connection, captionMessage).catch((err) => {
-						console.error('Secondary caption handler error:', err)
-					})
-				}
-			} catch (e) {
-				console.error('Workers AI ASR Error:', e)
 			}
+		} catch (e) {
+			console.error('Workers AI ASR Error:', e)
+		}
+	}
+
+	private async handleAssemblyAiAudioChunk(
+		connection: Connection<User>,
+		data: { type: 'audioChunk'; data: string }
+	) {
+		const apiKey = this.env.ASSEMBLY_AI_API_KEY
+		if (!apiKey) {
+			console.error('Assembly AI API Key not configured')
+			return
+		}
+
+		try {
+			// 获取或创建该用户的 Assembly AI 流式会话
+			let session = this.assemblyAiSessions.get(connection.id)
+			
+			if (!session) {
+				const model = this.env.ASSEMBLY_AI_ASR_MODEL || 'universal-streaming-multilingual'
+				
+				// 创建新会话
+				session = createAssemblyAiStreamingSession(
+					apiKey,
+					model,
+					(result) => {
+						// 收到转录结果的回调
+						console.log('[Assembly AI] Transcription result:', { 
+							text: result.text, 
+							isFinal: result.isFinal 
+						})
+						
+						const captionMessage = {
+							type: 'caption',
+							userId: connection.id,
+							text: result.text,
+							isFinal: result.isFinal,
+							translate: true, // Auto-translate for Assembly AI ASR
+						} as const
+
+						this.broadcastMessage(captionMessage)
+
+						// 如果是最终结果，触发持久化和翻译
+						if (result.isFinal) {
+							console.log('[Assembly AI] Final result, triggering translation')
+							this.handleCaption(connection, captionMessage).catch((err) => {
+								console.error('Assembly AI caption handler error:', err)
+							})
+						}
+					}
+				)
+				
+				// 连接到 Assembly AI
+				await session.connect()
+				this.assemblyAiSessions.set(connection.id, session)
+			}
+			
+			// 发送音频数据到 Assembly AI
+			session.sendAudio(data.data)
+		} catch (e) {
+			console.error('Assembly AI Streaming Error:', e)
 		}
 	}
 
@@ -424,8 +606,17 @@ export class ChatRoom extends Server<Env> {
 		connection: Connection<User>,
 		data: { text: string; isFinal: boolean; translate?: boolean }
 	) {
-		try {
-			if (data.isFinal && this.db) {
+		console.log('[Caption] Handling caption:', { 
+			text: data.text, 
+			isFinal: data.isFinal, 
+			translate: data.translate 
+		})
+		
+		if (!data.isFinal) return
+
+		// 1) 持久化字幕（失败不影响后续翻译）
+		if (this.db) {
+			try {
 				const meetingId = await this.getMeetingId()
 				if (meetingId) {
 					const user = await this.ctx.storage.get<User>(
@@ -440,102 +631,43 @@ export class ChatRoom extends Server<Env> {
 							text: data.text,
 						})
 						.run()
-
-					// Automatic Translation
-					if (data.translate) {
-						try {
-							const targetLangs =
-								this.env.WORKERS_AI_TRANSLATION_TARGET_LANGS?.split(',')
-									.map((lang) => lang.trim())
-									.filter(Boolean) ?? defaultWorkersAiTargetLangs
-
-							// Check if using OpenAI for translation (空值则跳过)
-							const useOpenAI =
-								this.env.USE_OPENAI_TRANSLATION === 'true' &&
-								this.env.OPENAI_API_TOKEN &&
-								this.env.OPENAI_TRANSLATION_MODEL &&
-								this.env.OPENAI_TRANSLATION_MODEL.trim() !== ''
-
-							if (useOpenAI) {
-								// OpenAI Translation
-								const model = this.env.OPENAI_TRANSLATION_MODEL!
-								for (const lang of targetLangs) {
-									const langName =
-										lang === 'en' ? 'English' : lang === 'zh' ? 'Chinese' : lang
-									const response = await fetch(
-										'https://api.openai.com/v1/chat/completions',
-										{
-											method: 'POST',
-											headers: {
-												'Content-Type': 'application/json',
-												Authorization: `Bearer ${this.env.OPENAI_API_TOKEN}`,
-											},
-											body: JSON.stringify({
-												model,
-												messages: [
-													{
-														role: 'system',
-														content: `Translate the following text to ${langName}. Only output the translation, no explanations.`,
-													},
-													{
-														role: 'user',
-														content: data.text,
-													},
-												],
-												temperature: 0.3,
-											}),
-										}
-									)
-
-									if (response.ok) {
-										const result: any = await response.json()
-										const translatedText =
-											result.choices?.[0]?.message?.content?.trim()
-										if (translatedText && translatedText !== data.text) {
-											this.broadcastMessage({
-												type: 'caption',
-												userId: connection.id,
-												text: `[${lang.toUpperCase()}] ${translatedText}`,
-												isFinal: true,
-											})
-										}
-									}
-								}
-							} else if (this.env.AI && this.env.ENABLE_WORKERS_AI === 'true') {
-								// Workers AI Translation (空值则跳过)
-								const translationModel = this.env.WORKERS_AI_TRANSLATION_MODEL
-								if (translationModel && translationModel.trim() !== '') {
-									for (const lang of targetLangs) {
-										const translation = await this.env.AI.run(
-											translationModel,
-											{
-												text: data.text,
-												target_lang: lang,
-											}
-										)
-
-										if (
-											translation?.translated_text &&
-											translation.translated_text !== data.text
-										) {
-											this.broadcastMessage({
-												type: 'caption',
-												userId: connection.id,
-												text: `[${lang.toUpperCase()}] ${translation.translated_text}`,
-												isFinal: true,
-											})
-										}
-									}
-								}
-							}
-						} catch (e) {
-							console.error('Translation error:', e)
-						}
-					}
 				}
+			} catch (dbErr) {
+				console.error('D1 Transcript Persistence Error:', dbErr)
 			}
-		} catch (dbErr) {
-			console.error('D1 Transcript Persistence Error:', dbErr)
+		}
+
+		// 2) 自动翻译（不依赖 DB）
+		if (data.translate) {
+			try {
+				console.log('[Translation] Starting translation for text:', data.text)
+				const targetLangs = this.getTargetLanguages()
+				console.log('[Translation] Target languages:', targetLangs)
+
+				if (targetLangs.length === 0) {
+					console.warn('[Translation] No target languages configured, skipping translation')
+					return
+				}
+
+				const translations = await translate(
+					this.env,
+					data.text,
+					targetLangs
+				)
+				console.log('[Translation] Received translations:', translations.length)
+
+				for (const translation of translations) {
+					console.log(`[Translation] Broadcasting: [${translation.language}] ${translation.text}`)
+					this.broadcastMessage({
+						type: 'caption',
+						userId: connection.id,
+						text: `[${translation.language.toUpperCase()}] ${translation.text}`,
+						isFinal: true,
+					})
+				}
+			} catch (e) {
+				console.error('[Translation] Error:', e)
+			}
 		}
 	}
 
@@ -556,6 +688,8 @@ export class ChatRoom extends Server<Env> {
 				case 'userLeft': {
 					connection.close(1000, 'User left')
 					this.userLeftNotification(connection.id)
+					// 清理用户语言
+					this.removeUserLanguage(connection.id)
 					await this.ctx.storage
 						.delete(`session-${connection.id}`)
 						.catch(() => {
@@ -695,6 +829,11 @@ export class ChatRoom extends Server<Env> {
 				}
 				case 'heartbeat': {
 					await this.ctx.storage.put(`heartbeat-${connection.id}`, Date.now())
+					break
+				}
+				case 'setLanguage': {
+					// 只记录偏好，不即时更新语言池（语言池仅在加入/离开时更新）
+					this.setUserLanguagePreference(connection.id, data.languages)
 					break
 				}
 				case 'disableAi': {

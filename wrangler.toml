@@ -6,6 +6,9 @@ main = "build/index.mjs"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[site]
+  bucket = "./public"
+
 [vars]
 CALLS_APP_ID = "f3324a25c97d9902cff9018a0efcf3b1"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
@@ -17,25 +20,52 @@ BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd5
 MAX_WEBCAM_BITRATE = 8500000
 MAX_WEBCAM_FRAMERATE = 60
 MAX_WEBCAM_QUALITY_LEVEL = 1080
+MAX_AUDIO_BITRATE = 256000
+AUDIO_ADAPT_CHECK_INTERVAL_MS = 2000
+AUDIO_ADAPT_STABLE_DURATION_MS = 10000
+AUDIO_ADAPT_STABLE_LOSS_THRESHOLD = 0.02
+AUDIO_ADAPT_STABLE_RTT_MS = 150
+AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD = 0.05
+AUDIO_ADAPT_UNSTABLE_RTT_MS = 300
+AUDIO_ADAPT_BAD_LOSS_THRESHOLD = 0.08
+AUDIO_ADAPT_BAD_RTT_MS = 400
+AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD = 0.12
+AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
+CAPTION_FADE_START_MS = 2800
+CAPTION_REMOVE_MS = 3400
+CAPTION_CLEANUP_INTERVAL_MS = 500
 
 # ====== 云端CC（语音识别） ======
-ENABLE_WORKERS_AI_ASR = "false"  # 默认禁用
-WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"
+# 选择 ASR 提供商: workers-ai 或 assembly-ai
+ASR_PROVIDER = "workers-ai"  # 本地开发默认使用 Workers AI
+ENABLE_WORKERS_AI_ASR = "true"  # 启用云端CC（向后兼容）
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"  # Deepgram 语音识别模型
 
-# ====== 翻译功能（二选一） ======
+# Assembly AI 配置（如需启用，改 ASR_PROVIDER = "assembly-ai"）
+# ASSEMBLY_AI_API_KEY = "your_assembly_ai_api_key"  # 从 https://www.assemblyai.com/dashboard 获取
+# ASSEMBLY_AI_ASR_MODEL = "u3-rt-pro"  # Universal-3 Pro 流式模型
+
+# ====== 翻译功能（三选一） ======
+# 翻译提供商: openai, gemini, workers-ai
+TRANSLATION_PROVIDER = "gemini"  # 本地开发推荐 gemini（免费额度大）
+
 # OpenAI 翻译
-USE_OPENAI_TRANSLATION = "false"
-OPENAI_TRANSLATION_MODEL = "gpt-4o-mini"  # 留空则不用
+OPENAI_TRANSLATION_MODEL = "gpt-4.1-nano-2025-04-14"
+
+# Gemini 翻译（推荐本地开发使用，免费额度大）
+# GEMINI_API_KEY = "your_gemini_api_key"  # 从 https://aistudio.google.com/apikey 获取
+# GEMINI_TRANSLATION_MODEL = "gemini-2.0-flash-exp"
 
 # Workers AI 翻译
 ENABLE_WORKERS_AI = "false"
-WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"  # 留空则不用
+WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"
 
-# 翻译目标语言
+# 翻译目标语言（逗号分隔，默认 en,zh 覆盖大部分用户）
+# 服务端翻译这些语言，客户端根据用户浏览器语言过滤显示
 WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
 
 # AI 助手
-OPENAI_MODEL_ID = "gpt-4o-realtime-preview-2024-10-01"
+OPENAI_MODEL_ID = ""  # 留空不启用 AI 助手（避免消耗较多 token）
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB
@@ -44,6 +74,7 @@ database_id = "722818b7-63af-4395-bad1-c68ce86d2bd4"
 
 [ai]
 binding = "AI"
+remote = true
 
 [[durable_objects.bindings]]
 name = "rooms"

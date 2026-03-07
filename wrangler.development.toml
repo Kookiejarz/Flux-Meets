@@ -6,6 +6,9 @@ main = "build/index.mjs"
 compatibility_date = "2024-10-07"
 compatibility_flags = ["nodejs_compat"]
 
+[site]
+  bucket = "./public"
+
 [[durable_objects.bindings]]
 name = "rooms"
 class_name = "ChatRoom"
@@ -15,17 +18,40 @@ CALLS_APP_ID = "f0ea263009299383d09d44b9fad5316c"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
 TURN_SERVICE_ID = "124bb066f462e966159bc4eef4b42048"
 EXPERIMENTAL_SIMULCAST_ENABLED = "true"
+MAX_AUDIO_BITRATE = 256000
+AUDIO_ADAPT_CHECK_INTERVAL_MS = 2000
+AUDIO_ADAPT_STABLE_DURATION_MS = 10000
+AUDIO_ADAPT_STABLE_LOSS_THRESHOLD = 0.02
+AUDIO_ADAPT_STABLE_RTT_MS = 150
+AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD = 0.05
+AUDIO_ADAPT_UNSTABLE_RTT_MS = 300
+AUDIO_ADAPT_BAD_LOSS_THRESHOLD = 0.08
+AUDIO_ADAPT_BAD_RTT_MS = 400
+AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD = 0.12
+AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
+CAPTION_FADE_START_MS = 2800
+CAPTION_REMOVE_MS = 3400
+CAPTION_CLEANUP_INTERVAL_MS = 500
 DISABLE_LOBBY_ENFORCEMENT = "true"
 BACKGROUND_IMAGE_URL = ""
 
-# 开发环境：使用 Workers AI 节省成本
+# 开发环境：推荐使用 Gemini（免费额度大）或 Workers AI
+ASR_PROVIDER = "workers-ai"  # workers-ai 或 assembly-ai
 ENABLE_WORKERS_AI_ASR = "true"  # 云端CC
-ENABLE_WORKERS_AI = "true"  # Workers AI 翻译
-USE_OPENAI_TRANSLATION = "false"  # 开发不用 OpenAI
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"
+
+# 翻译提供商（推荐 gemini，免费额度大）
+TRANSLATION_PROVIDER = "gemini"  # gemini, openai, 或 workers-ai
 OPENAI_TRANSLATION_MODEL = ""  # 留空
+ENABLE_WORKERS_AI = "false"
+WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
+# GEMINI_API_KEY = ""  # 从 https://aistudio.google.com/apikey 获取
+# GEMINI_TRANSLATION_MODEL = "gemini-2.0-flash-exp"
+# ASSEMBLY_AI_API_KEY = ""  # 若要测试 Assembly AI，请在此配置
 
 [ai]
 binding = "AI"
+remote = true
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB

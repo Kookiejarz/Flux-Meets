@@ -80,6 +80,22 @@ export type LogEvent =
 			connectionId: string
 			sessionId?: string
 	  }
+	| {
+			eventName: 'userLanguagesAdded'
+			userId: string
+			languages: string[]
+			roomLanguages: string[]
+	  }
+	| {
+			eventName: 'userLanguagesRemoved'
+			userId: string
+			roomLanguages: string[]
+	  }
+	| {
+			eventName: 'languageRemovedFromRoom'
+			language: string
+			roomLanguages: string[]
+	  }
 
 export function log(event: LogEvent) {
 	console.log(event)

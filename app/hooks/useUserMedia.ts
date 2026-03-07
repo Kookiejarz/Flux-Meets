@@ -72,6 +72,7 @@ class NativeMediaDevice {
 	private transforms = new Set<TransformFn>()
 	private transformSubscriptions: Subscription[] = []
 	private currentTrack: MediaStreamTrack | null = null
+	private originalTrack: MediaStreamTrack | null = null
 	private currentFacingMode: 'user' | 'environment' = 'user'
 
 	readonly isBroadcasting$ = createBehaviorSubject<boolean>(false)
@@ -133,8 +134,14 @@ class NativeMediaDevice {
 		this.transformSubscriptions.forEach((s) => s.unsubscribe())
 		this.transformSubscriptions = []
 		if (this.currentTrack) {
+			console.log(`🛑 Stopping ${this.kind} track (processed)`)
 			this.currentTrack.stop()
 			this.currentTrack = null
+		}
+		if (this.originalTrack) {
+			console.log(`🛑 Stopping ${this.kind} track (original)`)
+			this.originalTrack.stop()
+			this.originalTrack = null
 		}
 		this.broadcastTrack$.next(undefined)
 		this.localMonitorTrack$.next(undefined)
@@ -180,6 +187,9 @@ class NativeMediaDevice {
 			const settingsId = track.getSettings().deviceId
 			const device = this.devices$.value.find((d) => d.deviceId === settingsId)
 			if (device) this.activeDevice$.next(device)
+
+			// Save original track reference
+			this.originalTrack = track
 
 			let processedTrack: MediaStreamTrack = track
 

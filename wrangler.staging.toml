@@ -6,6 +6,9 @@ main = "build/index.mjs"
 compatibility_date = "2024-10-07"
 compatibility_flags = ["nodejs_compat"]
 
+[site]
+  bucket = "./public"
+
 [[durable_objects.bindings]]
 name = "rooms"
 class_name = "ChatRoom"
@@ -15,7 +18,35 @@ CALLS_APP_ID = "9effffd0c077c1115c7d285e55593a9a"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
 TURN_SERVICE_ID = "11cebcf8429b947a48c6894650daa021"
 EXPERIMENTAL_SIMULCAST_ENABLED = "true"
+MAX_AUDIO_BITRATE = 256000
+AUDIO_ADAPT_CHECK_INTERVAL_MS = 2000
+AUDIO_ADAPT_STABLE_DURATION_MS = 10000
+AUDIO_ADAPT_STABLE_LOSS_THRESHOLD = 0.02
+AUDIO_ADAPT_STABLE_RTT_MS = 150
+AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD = 0.05
+AUDIO_ADAPT_UNSTABLE_RTT_MS = 300
+AUDIO_ADAPT_BAD_LOSS_THRESHOLD = 0.08
+AUDIO_ADAPT_BAD_RTT_MS = 400
+AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD = 0.12
+AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
+CAPTION_FADE_START_MS = 2800
+CAPTION_REMOVE_MS = 3400
+CAPTION_CLEANUP_INTERVAL_MS = 500
 BACKGROUND_IMAGE_URL = ""
+
+# ====== 云端CC（语音识别） ======
+ASR_PROVIDER = "workers-ai"  # 选择 workers-ai 或 assembly-ai
+ENABLE_WORKERS_AI_ASR = "true"  # 启用云端CC（向后兼容）
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"  # Deepgram语音识别模型
+# ASSEMBLY_AI_API_KEY = ""  # Staging 时可选配置
+# ASSEMBLY_AI_ASR_MODEL = "u3-rt-pro"
+
+# ====== 翻译功能（三选一） ======
+TRANSLATION_PROVIDER = "gemini"  # openai, gemini, 或 workers-ai
+ENABLE_WORKERS_AI = "false"
+WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
+# GEMINI_API_KEY = ""  # Staging 时配置
+# GEMINI_TRANSLATION_MODEL = "gemini-2.0-flash-exp"
 
 [[queues.producers]]
  queue = "orange-meets-feedback-queue-staging"

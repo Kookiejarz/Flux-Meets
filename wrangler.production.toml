@@ -6,6 +6,9 @@ main = "build/index.mjs"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[site]
+  bucket = "./public"
+
 [[durable_objects.bindings]]
 name = "rooms"
 class_name = "ChatRoom"
@@ -18,30 +21,60 @@ TURN_SERVICE_ID = "3dba939d4fa9d8bf17639482bc2c2c61"
 EXPERIMENTAL_SIMULCAST_ENABLED = "true"
 BACKGROUND_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
 
+# 视频流
 MAX_WEBCAM_BITRATE = 8500000
 MAX_WEBCAM_FRAMERATE = 60
 MAX_WEBCAM_QUALITY_LEVEL = 1080
 
+# 音频流
+MAX_AUDIO_BITRATE = 256000
+AUDIO_ADAPT_CHECK_INTERVAL_MS = 2000
+AUDIO_ADAPT_STABLE_DURATION_MS = 10000
+AUDIO_ADAPT_STABLE_LOSS_THRESHOLD = 0.02
+AUDIO_ADAPT_STABLE_RTT_MS = 170
+AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD = 0.05
+AUDIO_ADAPT_UNSTABLE_RTT_MS = 300
+AUDIO_ADAPT_BAD_LOSS_THRESHOLD = 0.08
+AUDIO_ADAPT_BAD_RTT_MS = 450
+AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD = 0.512
+AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
+CAPTION_FADE_START_MS = 2900
+CAPTION_REMOVE_MS = 3500
+CAPTION_CLEANUP_INTERVAL_MS = 300
+
 # ====== 云端CC（语音识别） ======
-# 发送音频到服务端识别，比浏览器本地识别更准确
-ENABLE_WORKERS_AI_ASR = "true"  # 启用云端CC
-WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"  # Deepgram语音识别模型
+# 选择 ASR 提供商: workers-ai 或 assembly-ai (推荐)
+ASR_PROVIDER = "assembly-ai"
+ENABLE_WORKERS_AI_ASR = "false"  # 启用云端CC（向后兼容）
+WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"  # Deepgram 语音识别模型
 
-# ====== 翻译功能（二选一） ======
-# 作用：将字幕实时翻译成其他语言
-# 目标语言：下面 WORKERS_AI_TRANSLATION_TARGET_LANGS 配置
+# Assembly AI 配置（可选）
+# 如需启用 Assembly AI，配置如下:
+ASR_PROVIDER = "assembly-ai"
+# ASSEMBLY_AI_API_KEY = "your_api_key"  # 从https://www.assemblyai.com/dashboard获取
+ASSEMBLY_AI_ASR_MODEL = "universal-streaming-multilingual"  # universal-streaming-multilingual 流式模型（推荐）
 
-# 方式1: OpenAI 翻译（推荐，质量更好）
-USE_OPENAI_TRANSLATION = "true"
-OPENAI_TRANSLATION_MODEL = "gpt-4.1-nano-2025-04-14"  # 或 gpt-4o, gpt-3.5-turbo
+# ====== 翻译功能（三选一） ======
+# 作用：将字幕实时翻译成目标语言，客户端根据用户浏览器语言过滤显示
 
-# 方式2: Workers AI 翻译（Cloudflare原生，免费但质量一般）
-ENABLE_WORKERS_AI = "false"  # 翻译开关
-WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"  # 留空则不翻译
+# 翻译提供商选择: openai, gemini, workers-ai
+TRANSLATION_PROVIDER = "gemini"  # 推荐 openai 或 gemini
+
+# 选项1: OpenAI 翻译（质量好，成本较高）
+OPENAI_TRANSLATION_MODEL = "gpt-5-nano-2025-08-07"  # 或 gpt-4o, gpt-3.5-turbo
+
+# 选项2: Gemini 翻译（推荐，质量好+免费额度大）
+# GEMINI_API_KEY = "your_gemini_api_key"  # 从 https://aistudio.google.com/apikey 获取
+GEMINI_TRANSLATION_MODEL = "gemini-3.1-flash-lite-preview"  # 或 gemini-1.5-flash, gemini-1.5-pro
+
+# 选项3: Workers AI 翻译（Cloudflare原生，免费但质量一般）
+ENABLE_WORKERS_AI = "false"
+WORKERS_AI_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b"
 
 # 翻译目标语言（逗号分隔）
-# 示例："en,zh" 会将字幕翻译成英文和中文两个版本
-WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"  # 可选：ja,ko,es,fr,de等
+# 服务端翻译成这些语言，客户端根据 displayCaptionLanguage 设置过滤
+# 默认 "en,zh" 覆盖大部分用户，可添加 ja,ko,es,fr,de 等
+WORKERS_AI_TRANSLATION_TARGET_LANGS = "en,zh"
 
 # ====== AI 助手（可选） ======
 OPENAI_MODEL_ID = ""
@@ -53,6 +86,7 @@ database_id = "722818b7-63af-4395-bad1-c68ce86d2bd4"
 
 [ai]
 binding = "AI"
+remote = true
 
 # Durable Object migrations
 [[migrations]]
@@ -65,6 +99,8 @@ enabled = true
 # The necessary secrets are:
 # - CALLS_APP_SECRET
 # - OPENAI_API_TOKEN (if using OpenAI realtime AI or OpenAI Translation)
+# - GEMINI_API_KEY (if using Gemini Translation)
+# - ASSEMBLY_AI_API_KEY (if using Assembly AI for ASR)
 # Run `echo <VALUE> | wrangler secret put <NAME>` for each of these
 
 # Optional vars/secrets for OpenAI realtime AI:

@@ -132,3 +132,7 @@ export type ClientMessage =
 			type: 'e2eeMlsMessage'
 			payload: string
 	  }
+	| {
+			type: 'setLanguage'
+			languages: string[]
+	  }

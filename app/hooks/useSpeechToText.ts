@@ -35,10 +35,30 @@ export function useSpeechToText({
 	const enabledRef = useRef(enabled)
 	const onCaptionRef = useRef(onCaption)
 	const isActiveRef = useRef(false)
+	const shouldAutoRestartRef = useRef(true)
+	const restartDelayMsRef = useRef(200)
+	const restartTimerRef = useRef<number | null>(null)
+	const unmountedRef = useRef(false)
 	const [isSupported, setIsSupported] = useState(false)
 
 	useEffect(() => {
+		unmountedRef.current = false
+		return () => {
+			unmountedRef.current = true
+		}
+	}, [])
+
+	useEffect(() => {
 		enabledRef.current = enabled
+		if (enabled) {
+			shouldAutoRestartRef.current = true
+			restartDelayMsRef.current = 200
+		} else {
+			if (restartTimerRef.current !== null) {
+				window.clearTimeout(restartTimerRef.current)
+				restartTimerRef.current = null
+			}
+		}
 	}, [enabled])
 
 	useEffect(() => {
@@ -102,22 +122,47 @@ export function useSpeechToText({
 		recognition.onerror = (event: any) => {
 			if (event.error === 'aborted') return // Expected when stopping or browser pre-empting
 			console.error('[SpeechToText] Recognition error:', event.error)
+
+			// Fatal errors should not trigger infinite auto-restart loops
+			if (
+				event.error === 'not-allowed' ||
+				event.error === 'service-not-allowed' ||
+				event.error === 'audio-capture'
+			) {
+				shouldAutoRestartRef.current = false
+			}
 		}
 
 		recognition.onend = () => {
 			isActiveRef.current = false
 			console.log('[SpeechToText] Recognition ended, will restart if enabled')
 			// Restart if still enabled
-			if (enabledRef.current) {
-				setTimeout(() => {
-					if (enabledRef.current && !isActiveRef.current) {
+			if (
+				enabledRef.current &&
+				shouldAutoRestartRef.current &&
+				!unmountedRef.current
+			) {
+				const delay = restartDelayMsRef.current
+				restartTimerRef.current = window.setTimeout(() => {
+					restartTimerRef.current = null
+					if (
+						enabledRef.current &&
+						!isActiveRef.current &&
+						shouldAutoRestartRef.current &&
+						!unmountedRef.current
+					) {
 						try {
 							recognition.start()
+							restartDelayMsRef.current = 200
 						} catch (e) {
 							console.warn('[SpeechToText] Failed to restart recognition:', e)
+							restartDelayMsRef.current = Math.min(
+								restartDelayMsRef.current * 2,
+								2000
+							)
 						}
 					}
-				}, 200)
+				}, delay)
 			}
 		}
 
@@ -137,14 +182,22 @@ export function useSpeechToText({
 
 		return () => {
 			console.log('[SpeechToText] Cleaning up recognition')
-			const wasEnabled = enabledRef.current
+			shouldAutoRestartRef.current = false
+			enabledRef.current = false
+			if (restartTimerRef.current !== null) {
+				window.clearTimeout(restartTimerRef.current)
+				restartTimerRef.current = null
+			}
+			recognition.onstart = null
+			recognition.onresult = null
+			recognition.onerror = null
+			recognition.onend = null
 			try {
 				recognition.stop()
 			} catch (e) {
 				// Ignore
 			}
-			// Restore enabled state so the new recognition can start if needed
-			enabledRef.current = wasEnabled
+			recognitionRef.current = null
 		}
 	}, [language])
 
@@ -180,6 +233,7 @@ export function useSpeechToText({
 		if (!recognition) return
 
 		if (enabled) {
+			shouldAutoRestartRef.current = true
 			if (!isActiveRef.current) {
 				console.log(
 					'[SpeechToText] Enabled changed to true, starting recognition'
@@ -194,6 +248,7 @@ export function useSpeechToText({
 				}
 			}
 		} else {
+			shouldAutoRestartRef.current = false
 			console.log(
 				'[SpeechToText] Enabled changed to false, stopping recognition'
 			)

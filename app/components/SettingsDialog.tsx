@@ -252,6 +252,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 						</Label>
 						<div className="flex flex-wrap gap-2" id="displayCaptionLanguage">
 							{[
+								{ label: 'Auto', val: 'auto' },
 								{ label: 'All', val: 'all' },
 								{ label: 'Original Only', val: 'original' },
 								{ label: 'English Only', val: 'en' },
@@ -261,7 +262,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 									key={option.val}
 									onClick={() =>
 										setDisplayCaptionLanguage(
-											option.val as 'all' | 'en' | 'zh' | 'original'
+											option.val as 'all' | 'en' | 'zh' | 'original' | 'auto'
 										)
 									}
 									className={cn(
@@ -290,11 +291,12 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 									{[
 										{ label: 'Browser', val: 'browser' },
 										{ label: 'Workers AI', val: 'workers-ai' },
+										{ label: 'Assembly AI', val: 'assembly-ai' },
 									].map((source) => (
 										<button
 											key={source.val}
 											onClick={() =>
-												setAsrSource(source.val as 'browser' | 'workers-ai')
+												setAsrSource(source.val as 'browser' | 'workers-ai' | 'assembly-ai')
 											}
 											className={cn(
 												'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',

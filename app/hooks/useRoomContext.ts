@@ -40,14 +40,17 @@ export type RoomContextType = {
 	maxWebcamQualityLevel: number
 	captionsEnabled: boolean
 	setCaptionsEnabled: Dispatch<SetStateAction<boolean>>
-	asrSource: 'browser' | 'workers-ai'
-	setAsrSource: Dispatch<SetStateAction<'browser' | 'workers-ai'>>
+	asrSource: 'browser' | 'workers-ai' | 'assembly-ai'
+	setAsrSource: Dispatch<SetStateAction<'browser' | 'workers-ai' | 'assembly-ai'>>
 	localCcLanguage: 'browser' | 'zh-CN' | 'en-US'
 	setLocalCcLanguage: Dispatch<SetStateAction<'browser' | 'zh-CN' | 'en-US'>>
-	displayCaptionLanguage: 'all' | 'en' | 'zh' | 'original'
+	displayCaptionLanguage: 'all' | 'en' | 'zh' | 'original' | 'auto'
 	setDisplayCaptionLanguage: Dispatch<
-		SetStateAction<'all' | 'en' | 'zh' | 'original'>
+		SetStateAction<'all' | 'en' | 'zh' | 'original' | 'auto'>
 	>
+	captionFadeStartMs: number
+	captionRemoveMs: number
+	captionCleanupIntervalMs: number
 	aiEnabled: boolean
 	aiTranslationEnabled: boolean
 	setAiTranslationEnabled: Dispatch<SetStateAction<boolean>>
