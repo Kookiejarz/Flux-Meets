@@ -158,31 +158,66 @@ class NativeMediaDevice {
 		if (!navigator.mediaDevices?.getUserMedia) return
 		this.stopCurrentTrack()
 		try {
-			const baseConstraints: MediaStreamConstraints = {
-				audio: this.kind === 'audio' ? { ...getAudioConstraints() } : false,
-				video: this.kind === 'video' ? { ...getVideoConstraints() } : false,
+			const buildConstraints = (
+				usePreferredDevice: boolean
+			): MediaStreamConstraints => {
+				const baseConstraints: MediaStreamConstraints = {
+					audio: this.kind === 'audio' ? { ...getAudioConstraints() } : false,
+					video: this.kind === 'video' ? { ...getVideoConstraints() } : false,
+				}
+
+				if (
+					usePreferredDevice &&
+					this.kind === 'audio' &&
+					baseConstraints.audio &&
+					this.preferredDeviceId
+				) {
+					;(baseConstraints.audio as MediaTrackConstraints).deviceId = {
+						exact: this.preferredDeviceId,
+					}
+				}
+				if (
+					usePreferredDevice &&
+					this.kind === 'video' &&
+					baseConstraints.video &&
+					this.preferredDeviceId
+				) {
+					;(baseConstraints.video as MediaTrackConstraints).deviceId = {
+						exact: this.preferredDeviceId,
+					}
+				}
+
+				return baseConstraints
 			}
 
-			if (
-				this.kind === 'audio' &&
-				baseConstraints.audio &&
-				this.preferredDeviceId
-			) {
-				;(baseConstraints.audio as MediaTrackConstraints).deviceId = {
-					exact: this.preferredDeviceId,
-				}
-			}
-			if (
-				this.kind === 'video' &&
-				baseConstraints.video &&
-				this.preferredDeviceId
-			) {
-				;(baseConstraints.video as MediaTrackConstraints).deviceId = {
-					exact: this.preferredDeviceId,
-				}
+			const shouldFallbackFromPreferredDevice = (err: any) => {
+				const name = err?.name
+				return (
+					Boolean(this.preferredDeviceId) &&
+					(name === 'OverconstrainedError' || name === 'NotFoundError')
+				)
 			}
 
-			const stream = await navigator.mediaDevices.getUserMedia(baseConstraints)
+			let stream: MediaStream
+			try {
+				stream = await navigator.mediaDevices.getUserMedia(
+					buildConstraints(true)
+				)
+			} catch (err: any) {
+				if (!shouldFallbackFromPreferredDevice(err)) throw err
+
+				console.warn(
+					`⚠️ ${this.kind} preferred device unavailable, retrying with default device`,
+					{ preferredDeviceId: this.preferredDeviceId, name: err?.name }
+				)
+
+				this.preferredDeviceId = undefined
+				await this.enumerateDevices().catch(() => {})
+				stream = await navigator.mediaDevices.getUserMedia(
+					buildConstraints(false)
+				)
+			}
+
 			const track =
 				this.kind === 'audio'
 					? stream.getAudioTracks()[0]
