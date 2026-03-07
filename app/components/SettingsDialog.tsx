@@ -204,20 +204,17 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 						/>
 
 						<Label className="md:text-right" htmlFor="suppressNoise">
-							Noise
-						</Label>
-						<Toggle
-							id="suppressNoise"
-							checked={suppressNoise}
-							onCheckedChange={setSuppressNoise}
-						/>
-						<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
-							Use only in noisy rooms or on speakers. Headphones usually sound
-							better with this off.
-						</p>
-
-						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
-
+						Background Noise Suppression
+					</Label>
+					<Toggle
+						id="suppressNoise"
+						checked={suppressNoise}
+						onCheckedChange={setSuppressNoise}
+					/>
+					<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
+						Use RNNoise AI to remove background noise. May add slight latency.
+						Best for noisy environments or speaker mode.
+					</p>
 						<Label className="md:text-right" htmlFor="localCcLanguage">
 							Local CC Language
 						</Label>

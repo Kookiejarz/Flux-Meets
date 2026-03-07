@@ -120,6 +120,10 @@ class NativeMediaDevice {
 		this.transforms.delete(fn)
 	}
 
+	hasTransform(fn: TransformFn): boolean {
+		return this.transforms.has(fn)
+	}
+
 	async enumerateDevices() {
 		if (!navigator.mediaDevices?.enumerateDevices) return
 		const all = await navigator.mediaDevices.enumerateDevices()
@@ -193,6 +197,30 @@ class NativeMediaDevice {
 				settings: track.getSettings(),
 				isMobile: isMobileDevice(),
 			})
+			
+			// Extra validation for mobile: check if track is actually capturing
+			if (this.kind === 'audio' && isMobileDevice()) {
+				const testContext = new AudioContext()
+				const testStream = new MediaStream([track])
+				try {
+					const testSource = testContext.createMediaStreamSource(testStream)
+					const testAnalyser = testContext.createAnalyser()
+					testSource.connect(testAnalyser)
+					const testData = new Float32Array(testAnalyser.fftSize)
+					testAnalyser.getFloatTimeDomainData(testData)
+					const hasSignal = testData.some(v => Math.abs(v) > 0.001)
+					console.log('📊 Mobile audio test:', { 
+						hasSignal, 
+						sampleData: Array.from(testData.slice(0, 10)).map(v => v.toFixed(4))
+					})
+					testSource.disconnect()
+					testAnalyser.disconnect()
+				} catch (err) {
+					console.warn('⚠️ Audio validation test failed:', err)
+				} finally {
+					testContext.close()
+				}
+			}
 
 			// Update active device from settings if available
 			const settingsId = track.getSettings().deviceId
@@ -204,13 +232,27 @@ class NativeMediaDevice {
 
 			// Monitor track state changes (especially important on mobile)
 			track.addEventListener('mute', () => {
-				console.warn(`🔇 ${this.kind} track muted by system`)
+				console.warn(`🔇 ${this.kind} track muted by system - this means NO audio is being captured!`)
+				// On mobile, system mute often means permission was revoked or device is busy
+				// We should try to recover by restarting
+				if (isMobileDevice() && this.isBroadcasting$.value) {
+					console.log(`📱 Mobile device detected mute - will attempt recovery in 2s`)
+					setTimeout(() => {
+						if (this.currentTrack?.muted || this.originalTrack?.muted) {
+							console.log('♻️ Attempting to recover from system mute...')
+							this.stopBroadcasting()
+							this.startBroadcasting().catch((err) => {
+								console.error('Failed to recover from mute:', err)
+							})
+						}
+					}, 2000)
+				}
 			})
 			track.addEventListener('unmute', () => {
-				console.log(`🔊 ${this.kind} track unmuted by system`)
+				console.log(`🔊 ${this.kind} track unmuted by system - audio capture resumed`)
 			})
 			track.addEventListener('ended', () => {
-				console.warn(`⚠️ ${this.kind} track ended`)
+				console.warn(`⚠️ ${this.kind} track ended - device disconnected or permission lost`)
 			})
 
 			let processedTrack: MediaStreamTrack = track
@@ -361,7 +403,21 @@ function useNoiseSuppression() {
 		false
 	)
 	useEffect(() => {
-		if (suppressNoise) mic.addTransform(noiseSuppression)
+		const wasEnabled = mic.hasTransform(noiseSuppression)
+		if (suppressNoise) {
+			mic.addTransform(noiseSuppression)
+		} else {
+			mic.removeTransform(noiseSuppression)
+		}
+		
+		// If transform state changed and mic is already broadcasting, restart to apply the change
+		const needsRestart = wasEnabled !== suppressNoise && mic.isBroadcasting$.value
+		if (needsRestart) {
+			console.log('🔄 Restarting mic to apply noise suppression change:', suppressNoise)
+			mic.stopBroadcasting()
+			mic.startBroadcasting().catch(() => {})
+		}
+		
 		return () => {
 			mic.removeTransform(noiseSuppression)
 		}
@@ -373,7 +429,21 @@ function useNoiseSuppression() {
 function useBlurVideo() {
 	const [blurVideo, setBlurVideo] = useLocalStorage('blur-video', false)
 	useEffect(() => {
-		if (blurVideo) camera.addTransform(blurVideoTrack)
+		const wasEnabled = camera.hasTransform(blurVideoTrack)
+		if (blurVideo) {
+			camera.addTransform(blurVideoTrack)
+		} else {
+			camera.removeTransform(blurVideoTrack)
+		}
+		
+		// If transform state changed and camera is already broadcasting, restart to apply the change
+		const needsRestart = wasEnabled !== blurVideo && camera.isBroadcasting$.value
+		if (needsRestart) {
+			console.log('🔄 Restarting camera to apply blur change:', blurVideo)
+			camera.stopBroadcasting()
+			camera.startBroadcasting().catch(() => {})
+		}
+		
 		return () => {
 			camera.removeTransform(blurVideoTrack)
 		}
@@ -528,8 +598,11 @@ export default function useUserMedia(options: {
 	}, [])
 
 	const turnMicOn = useCallback(() => {
+		console.log('🎤 User manually turning mic on...')
 		setAudioUnavailableReason(undefined)
-		mic.unmute().catch(() => {})
+		mic.unmute().catch((err) => {
+			console.error('❌ Failed to turn mic on:', err)
+		})
 	}, [])
 
 	const turnCameraOn = useCallback(() => {
