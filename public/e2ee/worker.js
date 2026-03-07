@@ -1,7 +1,17 @@
 // The worker has its own scope and no direct access to functions/objects of the global scope. We
 // import the generated JS file to make `wasm_bindgen` available which we need to initialize our
 // Wasm code.
-importScripts('/e2ee/wasm-pkg/orange_mls_worker.js')
+const versionQuery = (() => {
+	try {
+		const url = new URL(self.location.href)
+		const version = url.searchParams.get('v')
+		return version ? `?v=${encodeURIComponent(version)}` : ''
+	} catch {
+		return ''
+	}
+})()
+
+importScripts(`/e2ee/wasm-pkg/orange_mls_worker.js${versionQuery}`)
 
 // Use the `processEvent` top-level function defined in Rust
 const { initLogging, processEvent } = wasm_bindgen
@@ -9,7 +19,7 @@ const { initLogging, processEvent } = wasm_bindgen
 // Load the Wasm file by awaiting the Promise returned by `wasm_bindgen`.
 async function initWasmInWorker() {
 	await wasm_bindgen({
-		module_or_path: '/e2ee/wasm-pkg/orange_mls_worker_bg.wasm',
+		module_or_path: `/e2ee/wasm-pkg/orange_mls_worker_bg.wasm${versionQuery}`,
 	})
 	initLogging()
 }

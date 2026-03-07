@@ -2,7 +2,13 @@ import type { PartyTracks } from 'partytracks/client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import invariant from 'tiny-invariant'
 import type useRoom from '~/hooks/useRoom'
+import { RELEASE } from '~/utils/constants'
 import type { ServerMessage } from '~/types/Messages'
+
+function getE2eeWorkerUrl() {
+	const query = RELEASE ? `?v=${encodeURIComponent(RELEASE)}` : ''
+	return `/e2ee/worker.js${query}`
+}
 
 type TransformCoverage = {
 	required: number
@@ -54,7 +60,7 @@ export async function loadWorker(
 	handleEvents: (message: MessagesFromE2eeWorker) => void
 ) {
 	// Create a new worker
-	const worker = new Worker('/e2ee/worker.js')
+	const worker = new Worker(getE2eeWorkerUrl())
 
 	const ready = new Promise<void>((res) => {
 		const handler = (event: MessageEvent) => {
@@ -126,7 +132,7 @@ export class EncryptionWorker {
 
 	constructor(config: { id: string }) {
 		this.id = config.id
-		this._worker = new Worker('/e2ee/worker.js')
+		this._worker = new Worker(getE2eeWorkerUrl())
 	}
 
 	dispose() {
@@ -612,10 +618,10 @@ export function useE2EE({
 
 		const setupWorker = (worker: EncryptionWorker, type: 'audio' | 'video') => {
 			worker.onNewSafetyNumber((buffer) => {
-				if (type === 'video') {
-					// Video safety number as primary
-					setSafetyNumber(arrayBufferToDecimal(buffer as unknown as ArrayBuffer))
-				}
+				setSafetyNumber((prev) => {
+					if (prev) return prev
+					return arrayBufferToDecimal(buffer as unknown as ArrayBuffer)
+				})
 			})
 			worker.handleOutgoingEvents((data) => {
 				room.websocket.send(
@@ -634,8 +640,7 @@ export function useE2EE({
 		const handler = (event: MessageEvent) => {
 			const message = JSON.parse(event.data)
 			if (message.type === 'e2eeMlsMessage') {
-				const targetWorker =
-					message.mediaType === 'audio' ? audioWorker : videoWorker
+				const mediaType = message.mediaType as 'audio' | 'video' | undefined
 				setPeerExchangeCompleted(true)
 				try {
 					const payload = JSON.parse(message.payload) as { senderId?: string }
@@ -653,7 +658,16 @@ export function useE2EE({
 						setPeerExchangeParticipants(1)
 					}
 				}
-				targetWorker.handleIncomingEvent(message.payload)
+				if (mediaType === 'audio') {
+					audioWorker.handleIncomingEvent(message.payload)
+				} else if (mediaType === 'video') {
+					videoWorker.handleIncomingEvent(message.payload)
+				} else {
+					// Backward compatibility: old relays/clients may omit mediaType.
+					// Feed both workers so MLS handshakes can still converge.
+					audioWorker.handleIncomingEvent(message.payload)
+					videoWorker.handleIncomingEvent(message.payload)
+				}
 			}
 			if (message.type === 'userLeftNotification') {
 				audioWorker.userLeft(message.id)

@@ -58,6 +58,7 @@ export type ServerMessage =
 	  }
 	| {
 			type: 'e2eeMlsMessage'
+			mediaType?: 'audio' | 'video'
 			payload: string
 	  }
 	| {
@@ -130,6 +131,7 @@ export type ClientMessage =
 	  }
 	| {
 			type: 'e2eeMlsMessage'
+			mediaType?: 'audio' | 'video'
 			payload: string
 	  }
 	| {
