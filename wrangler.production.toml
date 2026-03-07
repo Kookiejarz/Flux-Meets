@@ -14,6 +14,9 @@ name = "rooms"
 class_name = "ChatRoom"
 
 [vars]
+
+E2EE_ENABLED = "true"
+
 CALLS_APP_ID = "f3324a25c97d9902cff9018a0efcf3b1"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
 TURN_SERVICE_ID = "3dba939d4fa9d8bf17639482bc2c2c61"
