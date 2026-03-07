@@ -89,20 +89,20 @@ export const links: LinksFunction = () => [
 	{ rel: 'stylesheet', href: tailwind },
 	{
 		rel: 'apple-touch-icon',
-		sizes: '180x180',
-		href: '/apple-touch-icon.png?v=orange-emoji',
+		sizes: '256x256',
+		href: '/clapper-256.ico?v=orange-emoji',
 	},
 	{
 		rel: 'icon',
-		type: 'image/png',
+		type: 'image/x-icon',
 		sizes: '32x32',
-		href: '/favicon-32x32.png?v=orange-emoji',
+		href: '/clapper-32.ico?v=orange-emoji',
 	},
 	{
 		rel: 'icon',
-		type: 'image/png',
+		type: 'image/x-icon',
 		sizes: '16x16',
-		href: '/favicon-16x16.png?v=orange-emoji',
+		href: '/clapper-16.ico?v=orange-emoji',
 	},
 	{
 		rel: 'manifest',
@@ -110,13 +110,8 @@ export const links: LinksFunction = () => [
 		crossOrigin: 'use-credentials',
 	},
 	{
-		rel: 'mask-icon',
-		href: '/safari-pinned-tab.svg?v=orange-emoji',
-		color: '#faa339',
-	},
-	{
 		rel: 'shortcut icon',
-		href: '/favicon.ico?v=orange',
+		href: '/favicon-64.ico?v=orange',
 	},
 ]
 

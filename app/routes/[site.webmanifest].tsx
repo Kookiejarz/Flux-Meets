@@ -6,14 +6,19 @@ export const loader = async () => {
 		short_name: 'Orange Meets',
 		icons: [
 			{
-				src: '/android-chrome-192x192.png',
-				sizes: '192x192',
-				type: 'image/png',
+				src: '/clapper-48.ico',
+				sizes: '48x48',
+				type: 'image/x-icon',
 			},
 			{
-				src: '/android-chrome-512x512.png',
-				sizes: '512x512',
-				type: 'image/png',
+				src: '/clapper-128.ico',
+				sizes: '64x64',
+				type: 'image/x-icon',
+			},
+			{
+				src: '/clapper-256.ico',
+				sizes: '256x256',
+				type: 'image/x-icon',
 			},
 		],
 		theme_color: '#ffffff',

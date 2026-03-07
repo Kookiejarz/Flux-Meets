@@ -50,8 +50,8 @@ export function useWorkersAiASR({
 				}
 			}
 
-			// Slice every 2 seconds for a balance between latency and accuracy
-			recorder.start(2000)
+			// Slice every 1.5 seconds for a balance between latency and accuracy
+			recorder.start(1500)
 			recorderRef.current = recorder
 		} catch (e) {
 			console.error('Error starting Workers AI ASR Recorder:', e)
