@@ -9,10 +9,12 @@ export function ParticipantLayout({
 	users,
 	gap,
 	aspectRatio,
+	onParticipantClick,
 }: {
 	users: User[]
 	gap: number
 	aspectRatio: string
+	onParticipantClick?: (user: User) => void
 }) {
 	const $el = useRef<HTMLDivElement>(null)
 
@@ -60,6 +62,7 @@ export function ParticipantLayout({
 							}}
 							key={user.id}
 							user={user}
+							onParticipantClick={onParticipantClick}
 						/>
 					)
 				})}

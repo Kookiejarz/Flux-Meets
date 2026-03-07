@@ -242,6 +242,16 @@ class NativeMediaDevice {
 
 	unmute = async () => {
 		if (this.currentTrack) {
+			// On mobile browsers tracks can end when app is backgrounded/paused.
+			// If we only toggle `enabled`, an ended track stays silent forever.
+			if (
+				this.currentTrack.readyState === 'ended' ||
+				this.originalTrack?.readyState === 'ended'
+			) {
+				this.stopCurrentTrack()
+				return this.startBroadcasting()
+			}
+
 			// Re-enable the track to resume capturing audio
 			this.currentTrack.enabled = true
 			if (this.originalTrack) {

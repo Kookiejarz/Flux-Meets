@@ -60,12 +60,13 @@ function useMid(track?: MediaStreamTrack) {
 
 interface Props {
 	user: User
+	onParticipantClick?: (user: User) => void
 }
 
 export const Participant = forwardRef<
 	HTMLDivElement,
 	React.JSX.IntrinsicElements['div'] & Props
->(({ user, style }, ref) => {
+>(({ user, style, onParticipantClick }, ref) => {
 	const { data } = useUserMetadata(user.name)
 	const {
 		traceLink,
@@ -133,6 +134,7 @@ export const Participant = forwardRef<
 	)
 
 	const pinned = pinnedTileIds.includes(id)
+	const isScreenshareClickable = isScreenShare && Boolean(onParticipantClick)
 
 	const packetLoss$ = useMemo(
 		() =>
@@ -389,8 +391,26 @@ export const Participant = forwardRef<
 				<div
 					className={cn(
 						'h-full mx-auto overflow-hidden text-white opacity-0 animate-fadeIn',
-						'relative max-w-[--participant-max-width] rounded-xl bg-zinc-800/50 ring-1 ring-white/10'
+						'relative max-w-[--participant-max-width] rounded-xl bg-zinc-800/50 ring-1 ring-white/10',
+						isScreenshareClickable && 'cursor-pointer active:scale-[0.995]'
 					)}
+					onClick={
+						isScreenshareClickable
+							? () => onParticipantClick?.(user)
+							: undefined
+					}
+					onKeyDown={
+						isScreenshareClickable
+							? (event) => {
+								if (event.key === 'Enter' || event.key === ' ') {
+									event.preventDefault()
+									onParticipantClick?.(user)
+								}
+							}
+							: undefined
+					}
+					role={isScreenshareClickable ? 'button' : undefined}
+					tabIndex={isScreenshareClickable ? 0 : undefined}
 				>
 					{shouldShowCaptionsOnThisTile && captions.length > 0 && (
 						<CaptionDisplay

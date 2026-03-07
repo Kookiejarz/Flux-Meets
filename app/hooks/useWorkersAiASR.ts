@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ClientMessage } from '~/types/Messages'
 
 interface WorkersAiASROptions {
@@ -13,13 +13,29 @@ export function useWorkersAiASR({
 	websocket,
 }: WorkersAiASROptions) {
 	const recorderRef = useRef<MediaRecorder | null>(null)
+	const [isSocketOpen, setIsSocketOpen] = useState(
+		websocket.readyState === WebSocket.OPEN
+	)
 
 	useEffect(() => {
-		if (
-			!enabled ||
-			!audioStreamTrack ||
-			websocket.readyState !== WebSocket.OPEN
-		) {
+		const updateState = () => {
+			setIsSocketOpen(websocket.readyState === WebSocket.OPEN)
+		}
+
+		updateState()
+		websocket.addEventListener('open', updateState)
+		websocket.addEventListener('close', updateState)
+		websocket.addEventListener('error', updateState)
+
+		return () => {
+			websocket.removeEventListener('open', updateState)
+			websocket.removeEventListener('close', updateState)
+			websocket.removeEventListener('error', updateState)
+		}
+	}, [websocket])
+
+	useEffect(() => {
+		if (!enabled || !audioStreamTrack || !isSocketOpen) {
 			if (recorderRef.current) {
 				recorderRef.current.stop()
 				recorderRef.current = null
@@ -28,11 +44,26 @@ export function useWorkersAiASR({
 		}
 
 		try {
+			if (typeof MediaRecorder === 'undefined') {
+				console.warn('MediaRecorder is not available in this browser')
+				return
+			}
+
+			const candidateMimeTypes = [
+				'audio/webm;codecs=opus',
+				'audio/webm',
+				'audio/mp4',
+			]
+			const mimeType = candidateMimeTypes.find((type) =>
+				typeof MediaRecorder.isTypeSupported === 'function'
+					? MediaRecorder.isTypeSupported(type)
+					: type === 'audio/webm;codecs=opus'
+			)
+
 			const stream = new MediaStream([audioStreamTrack])
-			// Nova-3 prefers WAV/WebM formats.
-			const recorder = new MediaRecorder(stream, {
-				mimeType: 'audio/webm;codecs=opus',
-			})
+			const recorder = mimeType
+				? new MediaRecorder(stream, { mimeType })
+				: new MediaRecorder(stream)
 
 			recorder.ondataavailable = async (event) => {
 				if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
@@ -63,5 +94,5 @@ export function useWorkersAiASR({
 				recorderRef.current = null
 			}
 		}
-	}, [enabled, audioStreamTrack, websocket])
+	}, [enabled, audioStreamTrack, websocket, isSocketOpen])
 }

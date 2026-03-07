@@ -32,12 +32,13 @@ import { useMoQ } from '~/hooks/useMoQ'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { useRoomUrl } from '~/hooks/useRoomUrl'
 import useSounds from '~/hooks/useSounds'
-import useStageManager from '~/hooks/useStageManager'
+import useStageManager, { screenshareSuffix } from '~/hooks/useStageManager'
 import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import { isMobile } from '~/utils/isMobile'
 import isNonNullable from '~/utils/isNonNullable'
+import type { User } from '~/types/Messages'
 
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -112,6 +113,9 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 
 	const [unreadCount, setUnreadCount] = useState(0)
 	const [chatOpen, setChatOpen] = useState(false)
+	const [focusedScreenshareId, setFocusedScreenshareId] = useState<string | null>(
+		null
+	)
 
 	const [raisedHand, setRaisedHand] = useState(false)
 	// Only monitor speaking when mic is enabled, otherwise always false
@@ -178,7 +182,8 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	useSounds(otherUsers)
 	useUserJoinLeaveToasts(otherUsers)
 
-	const { width } = useWindowSize()
+	const { width, height } = useWindowSize()
+	const mobile = isMobile()
 
 	const someScreenshare =
 		otherUsers.some((u) => u.tracks.screenShareEnabled) ||
@@ -201,6 +206,26 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	const unpinnedActors = actorsOnStage.filter(
 		(u) => !pinnedTileIds.includes(u.id)
 	)
+
+	const focusedScreenshareUser =
+		focusedScreenshareId === null
+			? null
+			: actorsOnStage.find((u) => u.id === focusedScreenshareId) ?? null
+	const mobileLandscape = mobile && width > height
+
+	useEffect(() => {
+		if (!focusedScreenshareId) return
+		const stillExists = actorsOnStage.some((u) => u.id === focusedScreenshareId)
+		if (!stillExists) {
+			setFocusedScreenshareId(null)
+		}
+	}, [actorsOnStage, focusedScreenshareId])
+
+	const handleParticipantClick = (participant: User) => {
+		if (!mobile) return
+		if (!participant.id.endsWith(screenshareSuffix)) return
+		setFocusedScreenshareId(participant.id)
+	}
 
 	const gridGap = 12
 	const dispatchToast = useDispatchToast()
@@ -240,6 +265,33 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 			audioTracks={otherUsers.map((u) => u.tracks.audio).filter(isNonNullable)}
 		>
 			<div className="flex h-full bg-zinc-950 text-zinc-100 overflow-hidden">
+				{focusedScreenshareUser && (
+					<div className="fixed inset-0 z-50 bg-black">
+						<div className="absolute top-4 right-4 z-10">
+							<Button
+								displayType="secondary"
+								onClick={() => setFocusedScreenshareId(null)}
+								className="bg-black/60 backdrop-blur-md"
+							>
+								<Icon type="xMark" />
+								退出全屏
+							</Button>
+						</div>
+						{!mobileLandscape && (
+							<div className="absolute top-4 left-4 z-10 rounded-full bg-black/60 px-3 py-1 text-xs text-zinc-300 backdrop-blur-md">
+								横屏观看会更大
+							</div>
+						)}
+						<div className="absolute inset-0">
+							<ParticipantLayout
+								users={[focusedScreenshareUser]}
+								gap={0}
+								aspectRatio="16:9"
+								onParticipantClick={() => {}}
+							/>
+						</div>
+					</div>
+				)}
 				<div className="flex flex-col flex-1 min-w-0">
 					<div className="relative flex-grow bg-zinc-900 isolate sm:m-4 sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-white/10 overflow-hidden">
 						<div className="absolute top-4 left-4 z-20 pointer-events-none flex flex-col gap-2">
@@ -270,6 +322,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 										users={pinnedActors.filter(isNonNullable)}
 										gap={gridGap}
 										aspectRatio="16:9"
+										onParticipantClick={handleParticipantClick}
 									/>
 								</div>
 							)}
@@ -278,6 +331,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 									users={unpinnedActors.filter(isNonNullable)}
 									gap={gridGap}
 									aspectRatio="4:3"
+									onParticipantClick={handleParticipantClick}
 								/>
 							</div>
 						</div>

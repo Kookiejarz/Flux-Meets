@@ -18,11 +18,37 @@ export const AudioStream: FC<AudioStreamProps> = ({
 	const mediaStreamRef = useRef(new MediaStream())
 	const ref = useRef<HTMLAudioElement>(null)
 
+	const tryPlay = () => {
+		const audio = ref.current
+		if (!audio) return
+		audio.play().catch(() => {
+			// Mobile browsers may block autoplay until user gesture.
+			// We retry on next gesture in the effect below.
+		})
+	}
+
 	useEffect(() => {
 		const audio = ref.current
 		if (!audio) return
 		const mediaStream = mediaStreamRef.current
 		audio.srcObject = mediaStream
+		tryPlay()
+	}, [])
+
+	useEffect(() => {
+		const unlock = () => {
+			tryPlay()
+		}
+
+		document.addEventListener('touchstart', unlock, { passive: true })
+		document.addEventListener('pointerdown', unlock, { passive: true })
+		document.addEventListener('click', unlock, { passive: true })
+
+		return () => {
+			document.removeEventListener('touchstart', unlock)
+			document.removeEventListener('pointerdown', unlock)
+			document.removeEventListener('click', unlock)
+		}
 	}, [])
 
 	const resetSrcObject = () => {
@@ -32,8 +58,9 @@ export const AudioStream: FC<AudioStreamProps> = ({
 		// need to set srcObject again in Chrome and call play() again for Safari
 		// https://www.youtube.com/live/Tkx3OGrwVk8?si=K--P_AzNnAGrjraV&t=2533
 		// calling play() this way to make Chrome happy otherwise it throws an error
-		audio.addEventListener('canplay', () => audio.play(), { once: true })
+		audio.addEventListener('canplay', tryPlay, { once: true })
 		audio.srcObject = mediaStream
+		tryPlay()
 	}
 
 	return (
