@@ -50,7 +50,7 @@ WORKERS_AI_ASR_MODEL = "@cf/deepgram/nova-3"  # Deepgram 语音识别模型
 
 # Assembly AI 配置（可选）
 # 如需启用 Assembly AI，配置如下:
-ASR_PROVIDER = "assembly-ai"
+# ASR_PROVIDER = "assembly-ai"
 # ASSEMBLY_AI_API_KEY = "your_api_key"  # 从https://www.assemblyai.com/dashboard获取
 ASSEMBLY_AI_ASR_MODEL = "universal-streaming-multilingual"  # universal-streaming-multilingual 流式模型（推荐）
 
