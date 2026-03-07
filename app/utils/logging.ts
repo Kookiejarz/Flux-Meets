@@ -96,6 +96,11 @@ export type LogEvent =
 			language: string
 			roomLanguages: string[]
 	  }
+	| {
+			eventName: 'cleanupEndedMeetings'
+			expiredMeetingCount: number
+			retentionMinutes: number
+	  }
 
 export function log(event: LogEvent) {
 	console.log(event)

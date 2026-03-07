@@ -422,6 +422,7 @@ function Room({ room, userMedia }: RoomProps) {
 		[partyTracks, publicAudioTrack$, audioMediumBitrate]
 	)
 	const pushedAudioTrack = useObservableAsValue(pushedAudioTrack$)
+	const [highFpsScreenshare, setHighFpsScreenshare] = useState(false)
 
 	const screenShareVideoTrack$ = useMemo(
 		() =>
@@ -527,7 +528,6 @@ function Room({ room, userMedia }: RoomProps) {
 	}
 	const [aiTranslationEnabled, setAiTranslationEnabled] = useState(true)
 	const [moqEnabled, setMoqEnabled] = useState(false)
-	const [highFpsScreenshare, setHighFpsScreenshare] = useState(false)
 	const [chatMessages, setChatMessages] = useState<
 		{ id: string; sender: string; text: string; time: Date; isSelf: boolean }[]
 	>([])

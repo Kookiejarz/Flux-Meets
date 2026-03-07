@@ -4,7 +4,7 @@ import { assertError } from '~/utils/assertError'
 import assertNever from '~/utils/assertNever'
 import getUsername from '~/utils/getUsername.server'
 
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import type { DrizzleD1Database } from 'drizzle-orm/d1'
 import {
 	Server,
@@ -12,7 +12,12 @@ import {
 	type ConnectionContext,
 	type WSMessage,
 } from 'partyserver'
-import { getDb, Meetings, Transcripts } from 'schema'
+import {
+	AnalyticsSimpleCallFeedback,
+	getDb,
+	Meetings,
+	Transcripts,
+} from 'schema'
 import invariant from 'tiny-invariant'
 import { log } from '~/utils/logging'
 import {
@@ -30,9 +35,11 @@ import {
 import { translate } from '~/utils/translation.server'
 
 const alarmInterval = 15_000
+const endedMeetingCleanupInterval = 10 * 60 * 1000
 const defaultOpenAIModelID = 'gpt-4o-realtime-preview-2024-10-01'
 const defaultWorkersAiAsrModel = '@cf/deepgram/nova-3'
 const defaultWorkersAiTargetLangs = ['en', 'zh']
+const defaultMeetingRetentionMinutes = 24 * 60
 
 /**
  * The ChatRoom Durable Object Class
@@ -1039,6 +1046,64 @@ export class ChatRoom extends Server<Env> {
 		})
 	}
 
+	private getMeetingRetentionMinutes(): number {
+		const parsed = Number(this.env.MEETING_RETENTION_MINUTES)
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			return defaultMeetingRetentionMinutes
+		}
+		return Math.floor(parsed)
+	}
+
+	private async cleanupEndedMeetingsIfNeeded() {
+		if (!this.db) return
+
+		const now = Date.now()
+		const lastCleanupAt =
+			(await this.ctx.storage.get<number>('meetingCleanupLastRunAt')) ?? 0
+		if (now - lastCleanupAt < endedMeetingCleanupInterval) return
+
+		await this.ctx.storage.put('meetingCleanupLastRunAt', now)
+
+		const retentionMinutes = this.getMeetingRetentionMinutes()
+		const expiredMeetings = await this.db
+			.select({ id: Meetings.id })
+			.from(Meetings)
+			.where(
+				sql`(
+					${Meetings.ended} IS NOT NULL
+					AND ${Meetings.ended} <= datetime('now', '-' || ${retentionMinutes} || ' minutes')
+				) OR (
+					${Meetings.ended} IS NULL
+					AND ${Meetings.modified} <= datetime('now', '-' || ${retentionMinutes} || ' minutes')
+				)`
+			)
+
+		if (expiredMeetings.length === 0) return
+
+		const expiredMeetingIds = expiredMeetings.map((m) => m.id)
+
+		await this.db
+			.delete(AnalyticsSimpleCallFeedback)
+			.where(inArray(AnalyticsSimpleCallFeedback.meetingId, expiredMeetingIds))
+			.run()
+
+		await this.db
+			.delete(Transcripts)
+			.where(inArray(Transcripts.meetingId, expiredMeetingIds))
+			.run()
+
+		await this.db
+			.delete(Meetings)
+			.where(inArray(Meetings.id, expiredMeetingIds))
+			.run()
+
+		log({
+			eventName: 'cleanupEndedMeetings',
+			expiredMeetingCount: expiredMeetingIds.length,
+			retentionMinutes,
+		})
+	}
+
 	async endMeeting(meetingId: string) {
 		log({ eventName: 'endingMeeting', meetingId })
 		if (this.db) {
@@ -1050,6 +1115,8 @@ export class ChatRoom extends Server<Env> {
 				})
 				.where(eq(Meetings.id, meetingId))
 				.run()
+
+			await this.cleanupEndedMeetingsIfNeeded()
 		}
 	}
 
@@ -1105,6 +1172,7 @@ export class ChatRoom extends Server<Env> {
 		const meetingId = await this.getMeetingId()
 		log({ eventName: 'alarm', meetingId })
 		const activeUserCount = await this.cleanupOldConnections()
+		await this.cleanupEndedMeetingsIfNeeded()
 		await this.broadcastRoomState()
 		if (activeUserCount !== 0) {
 			this.ctx.storage.setAlarm(Date.now() + alarmInterval)
