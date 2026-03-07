@@ -118,7 +118,7 @@ export default function Index() {
 				{/* Header Section */}
 				<div className="text-center space-y-4 animate-float">
 					<h1 className="text-6xl sm:text-7xl font-black orange-glow-text tracking-tighter">
-						🎬 Flux Meet
+						Flux Meets
 					</h1>
 					<div className="flex flex-col items-center gap-2">
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">

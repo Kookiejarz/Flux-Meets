@@ -6,7 +6,6 @@ import {
 } from '@remix-run/cloudflare'
 import {
 	Links,
-	LiveReload,
 	Meta,
 	Outlet,
 	Scripts,
@@ -188,7 +187,6 @@ const Document: FC<{ children?: ReactNode; backgroundImageUrl?: string }> = ({
 					__CLIENT_ENV__
 				</div>
 				<Scripts />
-				<LiveReload />
 			</body>
 		</html>
 	)

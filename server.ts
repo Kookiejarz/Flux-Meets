@@ -21,23 +21,19 @@ export { queue } from './app/queue'
 
 const baseRemixHandler = createRequestHandler(build, mode)
 
-export const remixHandler = (request: Request, env: AppLoadContext) => {
-	const result = baseRemixHandler(request, { ...env, mode })
-	
-	// Ensure HTML is never cached, always fresh
-	if (result instanceof Response && request.method === 'GET') {
-		const url = new URL(request.url)
-		// Only apply cache control to HTML documents
-		if (!url.pathname.startsWith('/build/') && 
-		    !url.pathname.startsWith('/e2ee/') &&
-		    !url.pathname.includes('.') ) {
-			const newResponse = new Response(result.body, result)
-			newResponse.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
-			return newResponse
+export const remixHandler = async (request: Request, env: AppLoadContext) => {
+	const response = await baseRemixHandler(request, { ...env, mode })
+
+	if (mode === 'development') {
+		const contentType = response.headers.get('Content-Type')
+		if (contentType?.includes('text/html')) {
+			const updated = new Response(response.body, response)
+			updated.headers.set('Cache-Control', 'no-store')
+			return updated
 		}
 	}
-	
-	return result
+
+	return response
 }
 
 const notImplemented = () => {
@@ -119,6 +115,17 @@ const kvAssetHandler = createKvAssetHandler(JSON.parse(manifestJSON))
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+		const { pathname } = new URL(request.url)
+		if (pathname.startsWith('/.well-known/')) {
+			return new Response('Not Found', {
+				status: 404,
+				headers: {
+					'Content-Type': 'text/plain; charset=utf-8',
+					'Cache-Control': 'no-store',
+				},
+			})
+		}
+
 		const assetResponse = await kvAssetHandler(request, env, ctx, build)
 		if (assetResponse) return assetResponse
 		return remixHandler(request, { env, mode })
