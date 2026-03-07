@@ -6,7 +6,10 @@ import { RELEASE } from '~/utils/constants'
 import type { ServerMessage } from '~/types/Messages'
 
 function getE2eeWorkerUrl() {
-	const query = RELEASE ? `?v=${encodeURIComponent(RELEASE)}` : ''
+	const runtimeRelease =
+		typeof window !== 'undefined' ? window.ENV?.RELEASE : undefined
+	const release = RELEASE ?? runtimeRelease
+	const query = release ? `?v=${encodeURIComponent(release)}` : ''
 	return `/e2ee/worker.js${query}`
 }
 
