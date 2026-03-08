@@ -10,3 +10,7 @@ OUTDIR="../public/e2ee/wasm-pkg"
 # This example requires to *not* create ES modules, therefore we pass the flag
 # `--target no-modules`
 RUSTFLAGS="-C target-feature=+simd128 --cfg=web_sys_unstable_apis" wasm-pack build --target no-modules --out-dir "$OUTDIR"
+
+# Emit versioned aliases so path-based CDN caches can be busted by changing the worker entry path.
+cp "$OUTDIR/orange_mls_worker.js" "$OUTDIR/orange_mls_worker.v2.js"
+cp "$OUTDIR/orange_mls_worker_bg.wasm" "$OUTDIR/orange_mls_worker_bg.v2.wasm"

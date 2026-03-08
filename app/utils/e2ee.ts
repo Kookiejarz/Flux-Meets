@@ -10,7 +10,7 @@ function getE2eeWorkerUrl() {
 		typeof window !== 'undefined' ? window.ENV?.RELEASE : undefined
 	const release = RELEASE ?? runtimeRelease
 	const query = release ? `?v=${encodeURIComponent(release)}` : ''
-	return `/e2ee/worker.js${query}`
+	return `/e2ee/worker.v2.js${query}`
 }
 
 type TransformCoverage = {
