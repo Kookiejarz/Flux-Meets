@@ -13,6 +13,9 @@ compatibility_flags = ["nodejs_compat"]
 name = "rooms"
 class_name = "ChatRoom"
 
+[triggers]
+crons = ["0 * * * *"]
+
 [vars]
 CALLS_APP_ID = "9effffd0c077c1115c7d285e55593a9a"
 CALLS_API_URL = "https://rtc.live.cloudflare.com/v1"
@@ -32,7 +35,7 @@ AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
 CAPTION_FADE_START_MS = 2800
 CAPTION_REMOVE_MS = 3400
 CAPTION_CLEANUP_INTERVAL_MS = 500
-MEETING_RETENTION_MINUTES = 1440
+MEETING_RETENTION_MINUTES = 720
 BACKGROUND_IMAGE_URL = ""
 
 # ====== 云端CC（语音识别） ======

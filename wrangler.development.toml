@@ -13,6 +13,9 @@ compatibility_flags = ["nodejs_compat"]
 name = "rooms"
 class_name = "ChatRoom"
 
+[triggers]
+crons = ["0 * * * *"]
+
 [vars]
 E2EE_ENABLED = "true"
 CALLS_APP_ID = "f0ea263009299383d09d44b9fad5316c"
@@ -33,7 +36,7 @@ AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
 CAPTION_FADE_START_MS = 2800
 CAPTION_REMOVE_MS = 3400
 CAPTION_CLEANUP_INTERVAL_MS = 500
-MEETING_RETENTION_MINUTES = 180
+MEETING_RETENTION_MINUTES = 720
 DISABLE_LOBBY_ENFORCEMENT = "true"
 BACKGROUND_IMAGE_URL = ""
 

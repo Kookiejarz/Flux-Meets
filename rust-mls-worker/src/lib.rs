@@ -94,10 +94,15 @@ pub async fn processEvent(event: Object) -> JsValue {
             let reader = ReadableStreamDefaultReader::new(&read_stream).unwrap();
             let writer = write_stream.get_writer().unwrap();
 
+            let kind = obj_get(&event, &"kind".into())
+                .ok()
+                .and_then(|k| k.as_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
             if ty == "encryptStream" {
-                process_stream(reader, writer, encrypt_msg).await;
+                process_stream(reader, writer, encrypt_msg, kind).await;
             } else {
-                process_stream(reader, writer, decrypt_msg).await;
+                process_stream(reader, writer, decrypt_msg, kind).await;
             }
 
             // No response necessary if we're just writing between two streams
@@ -251,6 +256,7 @@ async fn process_stream<F>(
     reader: ReadableStreamDefaultReader,
     writer: WritableStreamDefaultWriter,
     f: F,
+    kind: String,
 ) where
     F: Fn(&[u8]) -> Vec<u8>,
 {
@@ -282,7 +288,44 @@ async fn process_stream<F>(
             info!("Skipping non-encoded frame chunk in stream transform");
             continue;
         };
-        let new_frame_data = f(&frame_data);
+        
+        let mut unencrypted_bytes = 0;
+        if kind == "audio" {
+            unencrypted_bytes = 1;
+        } else if kind == "video" {
+            if frame_data.len() > 4 && frame_data[0] == 0 && frame_data[1] == 0 && frame_data[2] == 0 && frame_data[3] == 1 {
+                unencrypted_bytes = 5;
+            } else if frame_data.len() > 3 && frame_data[0] == 0 && frame_data[1] == 0 && frame_data[2] == 1 {
+                unencrypted_bytes = 4;
+            } else {
+                let frame_type = obj_get(&frame, &"type".into()).unwrap_or(JsValue::UNDEFINED);
+                if let Some(t) = frame_type.as_string() {
+                    if t == "key" {
+                        unencrypted_bytes = 10;
+                    } else if t == "delta" {
+                        unencrypted_bytes = 3;
+                    }
+                }
+            }
+        }
+        
+        if unencrypted_bytes > frame_data.len() {
+            unencrypted_bytes = frame_data.len();
+        }
+
+        let new_frame_data = if unencrypted_bytes > 0 {
+            let mut payload = f(&frame_data[unencrypted_bytes..]);
+            if payload.is_empty() {
+                Vec::new() // If encryption/decryption failed or returned empty
+            } else {
+                let mut assembled = Vec::with_capacity(unencrypted_bytes + payload.len());
+                assembled.extend_from_slice(&frame_data[..unencrypted_bytes]);
+                assembled.append(&mut payload);
+                assembled
+            }
+        } else {
+            f(&frame_data)
+        };
 
         // Set the new frame data value
         if !set_frame_data(&frame, &new_frame_data) {

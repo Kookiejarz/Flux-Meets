@@ -43,8 +43,8 @@ type MessagesToE2eeWorker =
 			id: string
 	  }
 	| { type: 'recvMlsMessage'; msg: Uint8Array }
-	| { type: 'encryptStream'; in: ReadableStream; out: WritableStream }
-	| { type: 'decryptStream'; in: ReadableStream; out: WritableStream }
+	| { type: 'encryptStream'; kind: string; in: ReadableStream; out: WritableStream }
+	| { type: 'decryptStream'; kind: string; in: ReadableStream; out: WritableStream }
 	| { type: 'initializeAndCreateGroup'; id: string }
 
 type MessagesFromE2eeWorker =
@@ -178,13 +178,14 @@ export class EncryptionWorker {
 		this.worker.postMessage(message)
 	}
 
-	async setupSenderTransform(sender: RTCRtpSender) {
+	async setupSenderTransform(sender: RTCRtpSender, kind: string) {
 		console.log('Setting up sender transform')
 
 		// If this is Firefox, we will have to use RTCRtpScriptTransform
 		if (window.RTCRtpScriptTransform) {
 			sender.transform = new RTCRtpScriptTransform(this.worker, {
 				operation: 'encryptStream',
+				kind,
 			})
 			return
 		}
@@ -199,6 +200,7 @@ export class EncryptionWorker {
 			this.worker.postMessage(
 				{
 					type: 'encryptStream',
+					kind,
 					in: readable,
 					out: writable,
 				},
@@ -213,13 +215,14 @@ export class EncryptionWorker {
 		)
 	}
 
-	async setupReceiverTransform(receiver: RTCRtpReceiver) {
+	async setupReceiverTransform(receiver: RTCRtpReceiver, kind: string) {
 		console.log('Setting up receiver transform')
 
 		// If this is Firefox, we will have to use RTCRtpScriptTransform
 		if (window.RTCRtpScriptTransform) {
 			receiver.transform = new RTCRtpScriptTransform(this.worker, {
 				operation: 'decryptStream',
+				kind,
 			})
 
 			return
@@ -235,6 +238,7 @@ export class EncryptionWorker {
 			this.worker.postMessage(
 				{
 					type: 'decryptStream',
+					kind,
 					in: readable,
 					out: writable,
 				},
@@ -541,7 +545,7 @@ export function useE2EE({
 			if (senderKey && boundSenderKeys.has(senderKey)) return
 
 			worker
-				.setupSenderTransform(transceiver.sender)
+				.setupSenderTransform(transceiver.sender, kind ?? 'unknown')
 				.then(() => {
 					registerBoundKey('sender', senderKey)
 				})
@@ -584,7 +588,7 @@ export function useE2EE({
 			if (receiverKey && boundReceiverKeys.has(receiverKey)) return
 
 			worker
-				.setupReceiverTransform(transceiver.receiver)
+				.setupReceiverTransform(transceiver.receiver, kind ?? 'unknown')
 				.then(() => {
 					registerBoundKey('receiver', receiverKey)
 				})
@@ -679,8 +683,8 @@ export function useE2EE({
 				}
 			}
 			if (message.type === 'userLeftNotification') {
-				audioWorker.userLeft(message.id)
-				videoWorker.userLeft(message.id)
+				audioWorker.userLeft(`${message.id}-audio`)
+				videoWorker.userLeft(`${message.id}-video`)
 			}
 		}
 

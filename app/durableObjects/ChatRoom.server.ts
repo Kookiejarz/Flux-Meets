@@ -39,7 +39,7 @@ const endedMeetingCleanupInterval = 10 * 60 * 1000
 const defaultOpenAIModelID = 'gpt-4o-realtime-preview-2024-10-01'
 const defaultWorkersAiAsrModel = '@cf/deepgram/nova-3'
 const defaultWorkersAiTargetLangs = ['en', 'zh']
-const defaultMeetingRetentionMinutes = 24 * 60
+const defaultMeetingRetentionMinutes = 12 * 60
 
 /**
  * The ChatRoom Durable Object Class
@@ -411,6 +411,10 @@ export class ChatRoom extends Server<Env> {
 
 		// Notify others
 		this.userLeftNotification(connection.id)
+		const activeUserCount = (await this.getUsers()).size
+		if (meetingId && activeUserCount === 0) {
+			await this.endMeeting(meetingId)
+		}
 		await this.broadcastRoomState()
 	}
 
@@ -712,6 +716,11 @@ export class ChatRoom extends Server<Env> {
 							)
 						})
 					log({ eventName: 'userLeft', meetingId, connectionId: connection.id })
+
+					const activeUserCount = (await this.getUsers()).size
+					if (meetingId && activeUserCount === 0) {
+						await this.endMeeting(meetingId)
+					}
 
 					await this.broadcastRoomState()
 					break
@@ -1161,7 +1170,7 @@ export class ChatRoom extends Server<Env> {
 		const activeUserCount = (await this.getUsers()).size
 
 		if (meetingId && activeUserCount === 0) {
-			this.endMeeting(meetingId)
+			await this.endMeeting(meetingId)
 		} else if (removedUsers > 0) {
 			this.broadcastRoomState()
 		}

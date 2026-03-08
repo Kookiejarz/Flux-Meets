@@ -34,7 +34,7 @@ AUDIO_ADAPT_VERY_BAD_RTT_MS = 600
 CAPTION_FADE_START_MS = 2800
 CAPTION_REMOVE_MS = 3400
 CAPTION_CLEANUP_INTERVAL_MS = 500
-MEETING_RETENTION_MINUTES = 1440
+MEETING_RETENTION_MINUTES = 720
 
 # ====== 云端CC（语音识别） ======
 # 选择 ASR 提供商: workers-ai 或 assembly-ai
@@ -80,6 +80,9 @@ remote = true
 [[durable_objects.bindings]]
 name = "rooms"
 class_name = "ChatRoom"
+
+[triggers]
+crons = ["0 * * * *"]
 
 # Durable Object migrations
 [[migrations]]
