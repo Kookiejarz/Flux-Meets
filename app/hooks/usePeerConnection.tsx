@@ -9,11 +9,14 @@ import { useStablePojo } from './useStablePojo'
 
 setLogLevel('debug')
 
-export const usePeerConnection = (config: PartyTracksConfig) => {
-	const stableConfig = useStablePojo(config)
+export const usePeerConnection = (
+	config: PartyTracksConfig & { generation?: number }
+) => {
+	const { generation, ...baseConfig } = config
+	const stableConfig = useStablePojo(baseConfig)
 	const partyTracks = useMemo(
 		() => new PartyTracks(stableConfig),
-		[stableConfig]
+		[stableConfig, generation]
 	)
 	const peerConnection = useObservableAsValue(partyTracks.peerConnection$)
 
@@ -32,7 +35,7 @@ export const usePeerConnection = (config: PartyTracksConfig) => {
 		)
 		return () => {
 			peerConnection.removeEventListener(
-				'connectionstatechange',
+				'iceconnectionstatechange',
 				iceConnectionStateChangeHandler
 			)
 		}

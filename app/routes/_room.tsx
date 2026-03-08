@@ -3,8 +3,10 @@ import { json, redirect } from '@remix-run/cloudflare'
 import { Outlet, useLoaderData, useParams } from '@remix-run/react'
 import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
 import {
+	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type Dispatch,
 	type SetStateAction,
@@ -310,19 +312,67 @@ function Room({ room, userMedia }: RoomProps) {
 
 	invariant(room.roomState.meetingId, 'Meeting ID cannot be missing')
 	params.set('correlationId', room.roomState.meetingId)
+	const [partyTracksGeneration, setPartyTracksGeneration] = useState(0)
+	const partyTracksResetRef = useRef<{ windowStart: number; resets: number }>({
+		windowStart: 0,
+		resets: 0,
+	})
+	const lastSessionErrorRef = useRef<string | undefined>(undefined)
+	const resetPartyTracksSession = useCallback(
+		(reason: string) => {
+			const now = Date.now()
+			const windowMs = 15_000
+			const maxResetsPerWindow = 3
+			const state = partyTracksResetRef.current
+			if (now - state.windowStart > windowMs) {
+				state.windowStart = now
+				state.resets = 0
+			}
+			if (state.resets >= maxResetsPerWindow) {
+				console.error(
+					'[PartyTracks] session reset suppressed after repeated failures',
+					reason
+				)
+				return
+			}
+			state.resets += 1
+			console.warn('[PartyTracks] resetting session', { reason, attempt: state.resets })
+			setPartyTracksGeneration((prev) => prev + 1)
+			lastSessionErrorRef.current = undefined
+		},
+		[setPartyTracksGeneration]
+	)
+	const hasResetOnJoinRef = useRef(false)
 
 	const { partyTracks, iceConnectionState } = usePeerConnection({
 		maxApiHistory,
 		apiExtraParams: params.toString(),
 		iceServers,
+		generation: partyTracksGeneration,
 	})
 	const peerConnection = useObservableAsValue(partyTracks.peerConnection$)
+	const sessionError = useObservableAsValue(partyTracks.sessionError$)
+	useEffect(() => {
+		if (!sessionError || sessionError === lastSessionErrorRef.current) return
+		lastSessionErrorRef.current = sessionError
+		resetPartyTracksSession(`session:${sessionError}`)
+	}, [sessionError, resetPartyTracksSession])
 	const roomHistory = useRoomHistory(partyTracks, room)
 	const { e2eeSafetyNumber, e2eeStatus, onJoin } = useE2EE({
 		enabled: e2eeEnabled,
 		room,
 		partyTracks,
 	})
+	useEffect(() => {
+		if (!joined || hasResetOnJoinRef.current) return
+		hasResetOnJoinRef.current = true
+		resetPartyTracksSession('joined')
+	}, [joined, resetPartyTracksSession])
+	useEffect(() => {
+		if (!joined) {
+			hasResetOnJoinRef.current = false
+		}
+	}, [joined])
 	const e2eeMediaGateOpen = !e2eeEnabled || e2eeStatus.coreReady
 
 	const setWebcamBitrate: Dispatch<SetStateAction<number>> = (val) => {
@@ -407,6 +457,16 @@ function Room({ room, userMedia }: RoomProps) {
 	)
 
 	const pushedVideoTrack = useObservableAsValue(pushedVideoTrack$)
+	useEffect(() => {
+		const subscription = pushedVideoTrack$.subscribe({
+			error: (error) => {
+				const message =
+					error instanceof Error ? `video:${error.message}` : 'video:unknown'
+				resetPartyTracksSession(message)
+			},
+		})
+		return () => subscription.unsubscribe()
+	}, [pushedVideoTrack$, resetPartyTracksSession])
 	
 	// Microphone volume control
 	const [storedMicVolume, setStoredMicVolume] = useLocalStorage<number>(
@@ -448,11 +508,21 @@ function Room({ room, userMedia }: RoomProps) {
 						networkPriority: 'high',
 						maxBitrate: audioMediumBitrate,
 					},
-				]),
-			}),
+			]),
+		}),
 		[partyTracks, publicAudioTrack$, audioMediumBitrate]
 	)
 	const pushedAudioTrack = useObservableAsValue(pushedAudioTrack$)
+	useEffect(() => {
+		const subscription = pushedAudioTrack$.subscribe({
+			error: (error) => {
+				const message =
+					error instanceof Error ? `audio:${error.message}` : 'audio:unknown'
+				resetPartyTracksSession(message)
+			},
+		})
+		return () => subscription.unsubscribe()
+	}, [pushedAudioTrack$, resetPartyTracksSession])
 	
 	// Speaker volume control
 	const [storedSpeakerVolume, setStoredSpeakerVolume] = useLocalStorage<number>(
@@ -531,6 +601,18 @@ function Room({ room, userMedia }: RoomProps) {
 	const pushedScreenSharingTrack = useObservableAsValue(
 		pushedScreenSharingTrack$
 	)
+	useEffect(() => {
+		const subscription = pushedScreenSharingTrack$.subscribe({
+			error: (error) => {
+				const message =
+					error instanceof Error
+						? `screenshare:${error.message}`
+						: 'screenshare:unknown'
+				resetPartyTracksSession(message)
+			},
+		})
+		return () => subscription.unsubscribe()
+	}, [pushedScreenSharingTrack$, resetPartyTracksSession])
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 
