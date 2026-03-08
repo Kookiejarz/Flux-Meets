@@ -230,7 +230,7 @@ impl WorkerState {
                     .expect("error joining group"),
             );
         } else {
-            panic!("expected Welcome message in join_group")
+            return WorkerResponse::default();
         }
 
         // Collect all the users in the group who will be the DC before me. This is simply all the
@@ -451,7 +451,8 @@ impl WorkerState {
                 return WorkerResponse::default();
             }
             Err(e) => {
-                panic!("could not process message: {e}")
+                info!("ignore commit that failed validation/processing: {e}");
+                return WorkerResponse::default();
             }
         };
         if let ProcessedMessageContent::StagedCommitMessage(staged_com) = processed_message {
@@ -471,9 +472,13 @@ impl WorkerState {
                 .collect();
 
             // Merge the Commit into the group state
-            group
+            if group
                 .merge_staged_commit(&self.mls_provider, *staged_com)
-                .expect("couldn't merge commit");
+                .is_err()
+            {
+                info!("ignore commit that could not be merged");
+                return WorkerResponse::default();
+            }
 
             // After successful add, remove the UIDs from the pending list. In other words, retain
             // the UIDs that aren't in the pending list
@@ -489,7 +494,7 @@ impl WorkerState {
                 ..Default::default()
             }
         } else {
-            panic!("expected Commit message")
+            WorkerResponse::default()
         }
     }
 
@@ -592,20 +597,20 @@ pub fn new_state(uid: &str) -> WorkerResponse {
     let uid_bytes = uid.as_bytes().to_vec();
     STATE
         .try_with(|state_cell| {
-            // Create a new state and start a new group
-            let mut state = state_cell.borrow_mut();
-            let (new_state, key_pkg) = WorkerState::new(uid_bytes);
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                info!("skip new_state due to busy state borrow");
+                return WorkerResponse::default();
+            };
 
-            // Update the state
+            let (new_state, key_pkg) = WorkerState::new(uid_bytes);
             *state = new_state;
 
-            // Respond with the key package
             WorkerResponse {
                 key_pkg: Some(key_pkg.key_package().clone()),
                 ..Default::default()
             }
         })
-        .expect("couldn't acquire thread-local storage")
+        .unwrap_or_default()
 }
 
 /// Acquires the global state, clears it, generates a new identity, and starts a new MLS group
@@ -613,47 +618,65 @@ pub fn new_state_and_start_group(uid: &str) -> WorkerResponse {
     let uid_bytes = uid.as_bytes().to_vec();
     STATE
         .try_with(|state_cell| {
-            // Create a new state and start a new group
-            let mut state = state_cell.borrow_mut();
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                info!("skip new_state_and_start_group due to busy state borrow");
+                return WorkerResponse::default();
+            };
+
             let (mut new_state, _) = WorkerState::new(uid_bytes);
             let safety_number = new_state.start_group();
-
-            // Update the state
             *state = new_state;
 
-            // Respond with the safety number. Key package isn't necessary because there's nobody to
-            // give it to yet
             WorkerResponse {
                 new_safety_number: Some(safety_number),
                 ..Default::default()
             }
         })
-        .expect("couldn't acquire thread-local storage")
+        .unwrap_or_default()
 }
 
 /// Acquires the global state and encrypts the message if the MLS group exists. If not, returns all
 /// 0s with the length of `msg`
 pub fn encrypt_msg(msg: &[u8]) -> Vec<u8> {
     STATE
-        .try_with(|state_cell| state_cell.borrow_mut().encrypt_app_msg_nofail(msg))
-        .expect("couldn't acquire thread-local storage")
+        .try_with(|state_cell| {
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                return Vec::new();
+            };
+            state.encrypt_app_msg_nofail(msg)
+        })
+        .unwrap_or_default()
 }
 
 /// Acquires the global state and attempts to decrypt the given MLS application message. On failure,
 /// returns the empty vector.
 pub fn decrypt_msg(msg: &[u8]) -> Vec<u8> {
     STATE
-        .try_with(|state_cell| state_cell.borrow_mut().decrypt_app_msg_nofail(msg))
-        .expect("couldn't acquire thread-local storage")
+        .try_with(|state_cell| {
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                return Vec::new();
+            };
+            state.decrypt_app_msg_nofail(msg)
+        })
+        .unwrap_or_default()
 }
 
 /// Acquires the global state and adds the given user by key package
 pub fn add_user(serialized_kp: &[u8]) -> WorkerResponse {
-    let key_pkg = KeyPackageIn::tls_deserialize_exact_bytes(serialized_kp).unwrap();
+    let Ok(key_pkg) = KeyPackageIn::tls_deserialize_exact_bytes(serialized_kp) else {
+        info!("ignore malformed key package in add_user");
+        return WorkerResponse::default();
+    };
 
     STATE
-        .try_with(|state_cell| state_cell.borrow_mut().user_joined(key_pkg))
-        .expect("couldn't acquire thread-local storage")
+        .try_with(|state_cell| {
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                info!("skip add_user due to busy state borrow");
+                return WorkerResponse::default();
+            };
+            state.user_joined(key_pkg)
+        })
+        .unwrap_or_default()
 }
 
 /// Acquires the global state and removes the given user by their UID
@@ -661,33 +684,55 @@ pub fn remove_user(uid_to_remove: &str) -> WorkerResponse {
     let uid_bytes = uid_to_remove.as_bytes();
 
     STATE
-        .try_with(|state_cell| state_cell.borrow_mut().user_left(uid_bytes))
-        .expect("couldn't acquire thread-local storage")
+        .try_with(|state_cell| {
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                info!("skip remove_user due to busy state borrow");
+                return WorkerResponse::default();
+            };
+            state.user_left(uid_bytes)
+        })
+        .unwrap_or_default()
 }
 
 /// Acquires the global state and joins the group given by the welcome package and ratchet tree
 pub fn join_group(serialized_welcome: &[u8], serialized_rtree: &[u8]) -> WorkerResponse {
-    let welcome = MlsMessageIn::tls_deserialize_exact_bytes(serialized_welcome).unwrap();
-    let ratchet_tree = RatchetTreeIn::tls_deserialize_exact_bytes(serialized_rtree).unwrap();
+    let Ok(welcome) = MlsMessageIn::tls_deserialize_exact_bytes(serialized_welcome) else {
+        info!("ignore malformed welcome message");
+        return WorkerResponse::default();
+    };
+    let Ok(ratchet_tree) = RatchetTreeIn::tls_deserialize_exact_bytes(serialized_rtree) else {
+        info!("ignore malformed ratchet tree");
+        return WorkerResponse::default();
+    };
 
     STATE
         .try_with(|state_cell| {
-            state_cell.borrow_mut().join_group(WelcomePackageIn {
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                info!("skip join_group due to busy state borrow");
+                return WorkerResponse::default();
+            };
+            state.join_group(WelcomePackageIn {
                 welcome,
                 ratchet_tree,
             })
         })
-        .expect("couldn't acquire thread-local storage")
+        .unwrap_or_default()
 }
 
 /// Acquires the global state and processes the given Commit message from the given sender
 pub fn handle_commit(serialized_commit: &[u8], sender_uid: &str) -> WorkerResponse {
     let uid_bytes = sender_uid.as_bytes().to_vec();
-    let commit = MlsMessageIn::tls_deserialize_exact_bytes(serialized_commit).unwrap();
+    let Ok(commit) = MlsMessageIn::tls_deserialize_exact_bytes(serialized_commit) else {
+        info!("ignore malformed commit message");
+        return WorkerResponse::default();
+    };
 
     STATE
         .try_with(|state_cell| {
-            let mut state = state_cell.borrow_mut();
+            let Ok(mut state) = state_cell.try_borrow_mut() else {
+                info!("skip handle_commit due to busy state borrow");
+                return WorkerResponse::default();
+            };
             // A user cannot process a commit created by themselves. Ignore
             if state.uid() == uid_bytes {
                 WorkerResponse::default()
@@ -695,7 +740,7 @@ pub fn handle_commit(serialized_commit: &[u8], sender_uid: &str) -> WorkerRespon
                 state.handle_commit(commit)
             }
         })
-        .expect("couldn't acquire thread-local storage")
+        .unwrap_or_default()
 }
 
 /// Splits the given frame ("uncompressed data chunk") into a part to leave plain and a part to
