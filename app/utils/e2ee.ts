@@ -29,6 +29,7 @@ export type E2EEVerificationStatus = {
 	senderTransforms: TransformCoverage
 	receiverTransforms: TransformCoverage
 	strictReady: boolean
+	coreReady: boolean
 	lastError?: string
 }
 
@@ -362,13 +363,17 @@ export function useE2EE({
 	const transformsReady =
 		senderTransforms.required === senderTransforms.bound &&
 		receiverTransforms.required === receiverTransforms.bound
-	const strictReady = enabled
+
+	const coreReady = enabled
 		? joined &&
 			workerInitialized &&
-			transformsReady &&
 			safetyNumberReady &&
 			(!peerExchangeRequired || peerExchangeCompleted) &&
 			!lastError
+		: true
+
+	const strictReady = enabled
+		? coreReady && transformsReady
 		: true
 
 	const e2eeStatus: E2EEVerificationStatus = {
@@ -382,6 +387,7 @@ export function useE2EE({
 		senderTransforms,
 		receiverTransforms,
 		strictReady,
+		coreReady,
 		lastError,
 	}
 

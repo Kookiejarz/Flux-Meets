@@ -323,7 +323,7 @@ function Room({ room, userMedia }: RoomProps) {
 		room,
 		partyTracks,
 	})
-	const e2eeMediaGateOpen = !e2eeEnabled || e2eeStatus.strictReady
+	const e2eeMediaGateOpen = !e2eeEnabled || e2eeStatus.coreReady
 
 	const setWebcamBitrate: Dispatch<SetStateAction<number>> = (val) => {
 		setStoredWebcamBitrate((prev) => {
