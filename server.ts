@@ -89,7 +89,7 @@ const cleanupExpiredMeetings = async (env: Env): Promise<number> => {
 		.where(inArray(Meetings.id, expiredMeetingIds))
 		.run()
 
-	await db.delete(Meetings).where(inArray(Meetings.id, expiredMeetingIds)).run()
+	// await db.delete(Meetings).where(inArray(Meetings.id, expiredMeetingIds)).run()
 
 	return expiredMeetingIds.length
 }
