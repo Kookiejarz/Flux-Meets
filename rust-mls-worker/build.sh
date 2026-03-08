@@ -11,6 +11,12 @@ OUTDIR="../public/e2ee/wasm-pkg"
 # `--target no-modules`
 RUSTFLAGS="-C target-feature=+simd128 --cfg=web_sys_unstable_apis" wasm-pack build --target no-modules --out-dir "$OUTDIR"
 
+# Copy flux_mls_worker to orange_mls_worker (legacy naming)
+cp "$OUTDIR/flux_mls_worker.js" "$OUTDIR/orange_mls_worker.js"
+cp "$OUTDIR/flux_mls_worker_bg.wasm" "$OUTDIR/orange_mls_worker_bg.wasm"
+cp "$OUTDIR/flux_mls_worker.d.ts" "$OUTDIR/orange_mls_worker.d.ts"
+cp "$OUTDIR/flux_mls_worker_bg.wasm.d.ts" "$OUTDIR/orange_mls_worker_bg.wasm.d.ts"
+
 # Emit versioned aliases so path-based CDN caches can be busted by changing the worker entry path.
-cp "$OUTDIR/orange_mls_worker.js" "$OUTDIR/orange_mls_worker.v2.js"
-cp "$OUTDIR/orange_mls_worker_bg.wasm" "$OUTDIR/orange_mls_worker_bg.v2.wasm"
+cp "$OUTDIR/flux_mls_worker.js" "$OUTDIR/orange_mls_worker.v2.js"
+cp "$OUTDIR/flux_mls_worker_bg.wasm" "$OUTDIR/orange_mls_worker_bg.v2.wasm"
