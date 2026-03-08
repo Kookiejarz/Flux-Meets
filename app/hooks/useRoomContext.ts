@@ -43,7 +43,9 @@ export type RoomContextType = {
 	captionsEnabled: boolean
 	setCaptionsEnabled: Dispatch<SetStateAction<boolean>>
 	asrSource: 'browser' | 'workers-ai' | 'assembly-ai'
-	setAsrSource: Dispatch<SetStateAction<'browser' | 'workers-ai' | 'assembly-ai'>>
+	setAsrSource: Dispatch<
+		SetStateAction<'browser' | 'workers-ai' | 'assembly-ai'>
+	>
 	localCcLanguage: 'browser' | 'zh-CN' | 'en-US'
 	setLocalCcLanguage: Dispatch<SetStateAction<'browser' | 'zh-CN' | 'en-US'>>
 	displayCaptionLanguage: 'all' | 'en' | 'zh' | 'original' | 'auto'
@@ -86,6 +88,22 @@ export type RoomContextType = {
 		video?: string
 		audio?: string
 		screenshare?: string
+	}
+	adaptiveNetwork: {
+		videoTier: number
+		videoTierCount: number
+		videoTargetBitrate: number
+		videoMeasuredBitrate: number
+		videoLossRate: number
+		videoRttMs: number
+		audioTier: number
+		audioTierCount: number
+		audioTargetBitrate: number
+		audioLossRate: number
+		audioRttMs: number
+		uplinkBitrate: number
+		downlinkBitrate: number
+		lastUpdatedAt: number
 	}
 }
 

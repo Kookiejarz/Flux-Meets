@@ -21,6 +21,7 @@ import { Icon } from '~/components/Icon/Icon'
 import { Spinner } from '~/components/Spinner'
 import type { ClientMessage } from '~/types/Messages'
 
+import { useMicrophoneGain } from '~/hooks/useMicrophoneGain'
 import { usePeerConnection } from '~/hooks/usePeerConnection'
 import useRoom from '~/hooks/useRoom'
 import { type RoomContextType } from '~/hooks/useRoomContext'
@@ -29,7 +30,6 @@ import { useSpeechToText } from '~/hooks/useSpeechToText'
 import { useStablePojo } from '~/hooks/useStablePojo'
 import useUserMedia from '~/hooks/useUserMedia'
 import { useWorkersAiASR } from '~/hooks/useWorkersAiASR'
-import { useMicrophoneGain } from '~/hooks/useMicrophoneGain'
 import type { TrackObject } from '~/utils/callsTypes'
 import { useE2EE } from '~/utils/e2ee'
 import { getIceServers } from '~/utils/getIceServers.server'
@@ -86,19 +86,19 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 			MAX_WEBCAM_FRAMERATE,
 			MAX_WEBCAM_BITRATE,
 			MAX_AUDIO_BITRATE,
-				AUDIO_ADAPT_CHECK_INTERVAL_MS,
-				AUDIO_ADAPT_STABLE_DURATION_MS,
-				AUDIO_ADAPT_STABLE_LOSS_THRESHOLD,
-				AUDIO_ADAPT_STABLE_RTT_MS,
-				AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD,
-				AUDIO_ADAPT_UNSTABLE_RTT_MS,
-				AUDIO_ADAPT_BAD_LOSS_THRESHOLD,
-				AUDIO_ADAPT_BAD_RTT_MS,
-				AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD,
-				AUDIO_ADAPT_VERY_BAD_RTT_MS,
-				CAPTION_FADE_START_MS,
-				CAPTION_REMOVE_MS,
-				CAPTION_CLEANUP_INTERVAL_MS,
+			AUDIO_ADAPT_CHECK_INTERVAL_MS,
+			AUDIO_ADAPT_STABLE_DURATION_MS,
+			AUDIO_ADAPT_STABLE_LOSS_THRESHOLD,
+			AUDIO_ADAPT_STABLE_RTT_MS,
+			AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD,
+			AUDIO_ADAPT_UNSTABLE_RTT_MS,
+			AUDIO_ADAPT_BAD_LOSS_THRESHOLD,
+			AUDIO_ADAPT_BAD_RTT_MS,
+			AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD,
+			AUDIO_ADAPT_VERY_BAD_RTT_MS,
+			CAPTION_FADE_START_MS,
+			CAPTION_REMOVE_MS,
+			CAPTION_CLEANUP_INTERVAL_MS,
 			MAX_WEBCAM_QUALITY_LEVEL,
 			MAX_API_HISTORY,
 			EXPERIMENTAL_SIMULCAST_ENABLED,
@@ -112,14 +112,16 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		iceServers: await getIceServers(context.env),
 		feedbackEnabled: Boolean(
 			context.env.FEEDBACK_URL &&
-				context.env.FEEDBACK_QUEUE &&
-				context.env.FEEDBACK_STORAGE
+			context.env.FEEDBACK_QUEUE &&
+			context.env.FEEDBACK_STORAGE
 		),
 		maxWebcamFramerate: numberOrUndefined(MAX_WEBCAM_FRAMERATE),
 		maxWebcamBitrate: numberOrUndefined(MAX_WEBCAM_BITRATE),
 		maxAudioBitrate: numberOrUndefined(MAX_AUDIO_BITRATE),
 		audioAdaptCheckIntervalMs: numberOrUndefined(AUDIO_ADAPT_CHECK_INTERVAL_MS),
-		audioAdaptStableDurationMs: numberOrUndefined(AUDIO_ADAPT_STABLE_DURATION_MS),
+		audioAdaptStableDurationMs: numberOrUndefined(
+			AUDIO_ADAPT_STABLE_DURATION_MS
+		),
 		audioAdaptStableLossThreshold: numberOrUndefined(
 			AUDIO_ADAPT_STABLE_LOSS_THRESHOLD
 		),
@@ -128,7 +130,9 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 			AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD
 		),
 		audioAdaptUnstableRttMs: numberOrUndefined(AUDIO_ADAPT_UNSTABLE_RTT_MS),
-		audioAdaptBadLossThreshold: numberOrUndefined(AUDIO_ADAPT_BAD_LOSS_THRESHOLD),
+		audioAdaptBadLossThreshold: numberOrUndefined(
+			AUDIO_ADAPT_BAD_LOSS_THRESHOLD
+		),
 		audioAdaptBadRttMs: numberOrUndefined(AUDIO_ADAPT_BAD_RTT_MS),
 		audioAdaptVeryBadLossThreshold: numberOrUndefined(
 			AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD
@@ -336,7 +340,10 @@ function Room({ room, userMedia }: RoomProps) {
 				return
 			}
 			state.resets += 1
-			console.warn('[PartyTracks] resetting session', { reason, attempt: state.resets })
+			console.warn('[PartyTracks] resetting session', {
+				reason,
+				attempt: state.resets,
+			})
 			setPartyTracksGeneration((prev) => prev + 1)
 			lastSessionErrorRef.current = undefined
 		},
@@ -433,7 +440,10 @@ function Room({ room, userMedia }: RoomProps) {
 						rid: 'c',
 						scaleResolutionDownBy: videoDenoise ? 1.5 : 2.0,
 						// 低质量层：固定较低码率，适合弱网环境
-						maxBitrate: Math.min(1_200_000, Math.floor(effectiveWebcamBitrate * 0.35)),
+						maxBitrate: Math.min(
+							1_200_000,
+							Math.floor(effectiveWebcamBitrate * 0.35)
+						),
 						maxFramerate: Math.min(24.0, webcamFramerate),
 						active: true,
 					},
@@ -467,7 +477,7 @@ function Room({ room, userMedia }: RoomProps) {
 		})
 		return () => subscription.unsubscribe()
 	}, [pushedVideoTrack$, resetPartyTracksSession])
-	
+
 	// Microphone volume control
 	const [storedMicVolume, setStoredMicVolume] = useLocalStorage<number>(
 		'settings-mic-volume',
@@ -484,18 +494,19 @@ function Room({ room, userMedia }: RoomProps) {
 	// Apply microphone gain if volume is not 100%
 	const rawAudioTrack = userMedia.audioStreamTrack
 	const gainAdjustedAudioTrack = useMicrophoneGain(rawAudioTrack, micVolume)
-	
+
 	// Use gain-adjusted track when gain is applied, otherwise use raw track
-	const effectiveAudioTrack = micVolume !== 100 && gainAdjustedAudioTrack
-		? gainAdjustedAudioTrack
-		: rawAudioTrack
+	const effectiveAudioTrack =
+		micVolume !== 100 && gainAdjustedAudioTrack
+			? gainAdjustedAudioTrack
+			: rawAudioTrack
 
 	const publicAudioTrack$ = useMemo(
 		() =>
 			e2eeMediaGateOpen
 				? of(effectiveAudioTrack).pipe(
 						filter((track): track is MediaStreamTrack => track !== undefined)
-				  )
+					)
 				: EMPTY,
 		[effectiveAudioTrack, e2eeMediaGateOpen]
 	)
@@ -508,8 +519,8 @@ function Room({ room, userMedia }: RoomProps) {
 						networkPriority: 'high',
 						maxBitrate: audioMediumBitrate,
 					},
-			]),
-		}),
+				]),
+			}),
 		[partyTracks, publicAudioTrack$, audioMediumBitrate]
 	)
 	const pushedAudioTrack = useObservableAsValue(pushedAudioTrack$)
@@ -523,7 +534,7 @@ function Room({ room, userMedia }: RoomProps) {
 		})
 		return () => subscription.unsubscribe()
 	}, [pushedAudioTrack$, resetPartyTracksSession])
-	
+
 	// Speaker volume control
 	const [storedSpeakerVolume, setStoredSpeakerVolume] = useLocalStorage<number>(
 		'settings-speaker-volume',
@@ -536,18 +547,15 @@ function Room({ room, userMedia }: RoomProps) {
 			return typeof val === 'function' ? val(prevVal) : val
 		})
 	}
-	
+
 	const [highFpsScreenshare, setHighFpsScreenshare] = useState(false)
 
 	const screenShareVideoTrack$ = useMemo(
 		() =>
-			(
-				e2eeMediaGateOpen
-					? userMedia.screenShareVideoTrack$
-					: of(undefined as MediaStreamTrack | undefined)
-			).pipe(
-				filter((track): track is MediaStreamTrack => track !== undefined)
-			),
+			(e2eeMediaGateOpen
+				? userMedia.screenShareVideoTrack$
+				: of(undefined as MediaStreamTrack | undefined)
+			).pipe(filter((track): track is MediaStreamTrack => track !== undefined)),
 		[userMedia.screenShareVideoTrack$, e2eeMediaGateOpen]
 	)
 
@@ -576,7 +584,10 @@ function Room({ room, userMedia }: RoomProps) {
 						rid: 'c',
 						scaleResolutionDownBy: 2.0,
 						// 屏幕共享低质量层
-						maxBitrate: Math.min(1_200_000, Math.floor(effectiveWebcamBitrate * 0.35)),
+						maxBitrate: Math.min(
+							1_200_000,
+							Math.floor(effectiveWebcamBitrate * 0.35)
+						),
 						maxFramerate: Math.floor(screenshareFps * 0.6),
 						active: true,
 					},
@@ -624,12 +635,19 @@ function Room({ room, userMedia }: RoomProps) {
 		)
 	})
 	// Auto-detect ASR support: use Workers AI on mobile or when browser SpeechRecognition is unavailable
-	const [asrSource, setAsrSource] = useState<'browser' | 'workers-ai' | 'assembly-ai'>(() => {
+	const [asrSource, setAsrSource] = useState<
+		'browser' | 'workers-ai' | 'assembly-ai'
+	>(() => {
 		if (typeof window === 'undefined') return 'browser'
-		const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-		const hasSpeechRecognition = !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition
+		const isMobileDevice =
+			/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+				navigator.userAgent
+			)
+		const hasSpeechRecognition =
+			!!(window as any).SpeechRecognition ||
+			!!(window as any).webkitSpeechRecognition
 		// Use Workers AI if on mobile or browser doesn't support SpeechRecognition
-		return (isMobileDevice || !hasSpeechRecognition) ? 'workers-ai' : 'browser'
+		return isMobileDevice || !hasSpeechRecognition ? 'workers-ai' : 'browser'
 	})
 	const [storedLocalCcLanguage, setStoredLocalCcLanguage] = useLocalStorage<
 		'browser' | 'zh-CN' | 'en-US'
@@ -662,6 +680,86 @@ function Room({ room, userMedia }: RoomProps) {
 	const [chatMessages, setChatMessages] = useState<
 		{ id: string; sender: string; text: string; time: Date; isSelf: boolean }[]
 	>([])
+	const [adaptiveNetwork, setAdaptiveNetwork] = useState({
+		videoTier: 2,
+		videoTierCount: 5,
+		videoTargetBitrate: Math.min(3_000_000, maxWebcamBitrate),
+		videoMeasuredBitrate: 0,
+		videoLossRate: 0,
+		videoRttMs: 0,
+		audioTier: 2,
+		audioTierCount: 4,
+		audioTargetBitrate: audioMediumBitrate,
+		audioLossRate: 0,
+		audioRttMs: 0,
+		uplinkBitrate: 0,
+		downlinkBitrate: 0,
+		lastUpdatedAt: 0,
+	})
+	const publishAdaptiveMetrics = useCallback(
+		(patch: Partial<typeof adaptiveNetwork>) => {
+			setAdaptiveNetwork((prev) => ({
+				...prev,
+				...patch,
+				lastUpdatedAt: Date.now(),
+			}))
+		},
+		[]
+	)
+	const getTransportBitratePatch = useCallback(
+		(transportStats: { uplinkBitrate?: number; downlinkBitrate?: number }) => ({
+			...(typeof transportStats.uplinkBitrate === 'number'
+				? { uplinkBitrate: transportStats.uplinkBitrate }
+				: {}),
+			...(typeof transportStats.downlinkBitrate === 'number'
+				? { downlinkBitrate: transportStats.downlinkBitrate }
+				: {}),
+		}),
+		[]
+	)
+	const readSelectedTransportStats = useCallback(async () => {
+		if (!peerConnection) return {}
+		try {
+			const stats = await peerConnection.getStats()
+			let selectedPair: any
+			for (const report of stats.values()) {
+				if (
+					report.type === 'transport' &&
+					typeof report.selectedCandidatePairId === 'string'
+				) {
+					selectedPair = stats.get(report.selectedCandidatePairId)
+					if (selectedPair) break
+				}
+			}
+			if (!selectedPair) {
+				for (const report of stats.values()) {
+					if (
+						report.type === 'candidate-pair' &&
+						(report.selected === true ||
+							(report.nominated === true && report.state === 'succeeded'))
+					) {
+						selectedPair = report
+						break
+					}
+				}
+			}
+			const rttMs =
+				typeof selectedPair?.currentRoundTripTime === 'number'
+					? Math.round(selectedPair.currentRoundTripTime * 1000)
+					: undefined
+			const uplinkBitrate =
+				typeof selectedPair?.availableOutgoingBitrate === 'number'
+					? selectedPair.availableOutgoingBitrate
+					: undefined
+			const downlinkBitrate =
+				typeof selectedPair?.availableIncomingBitrate === 'number'
+					? selectedPair.availableIncomingBitrate
+					: undefined
+			return { rttMs, uplinkBitrate, downlinkBitrate }
+		} catch {
+			return {}
+		}
+	}, [peerConnection])
 
 	const tiers = useMemo(
 		() => [
@@ -698,6 +796,11 @@ function Room({ room, userMedia }: RoomProps) {
 		if (!peerConnection) return
 		let stopped = false
 		const tierRef = { current: 2 }
+		publishAdaptiveMetrics({
+			videoTier: tierRef.current,
+			videoTierCount: tiers.length,
+			videoTargetBitrate: tiers[tierRef.current]?.bitrate ?? 0,
+		})
 		const last = {
 			t: performance.now(),
 			bytes: 0,
@@ -768,10 +871,16 @@ function Room({ room, userMedia }: RoomProps) {
 					if (report.type === 'remote-inbound-rtp' && report.kind === 'video')
 						remote = report
 				}
-			} catch (err) {
+			} catch {
 				return
 			}
-			if (!outbound) return
+			const transportStats = await readSelectedTransportStats()
+			if (!outbound) {
+				publishAdaptiveMetrics({
+					...getTransportBitratePatch(transportStats),
+				})
+				return
+			}
 			const now = performance.now()
 			const dt = now - last.t
 			if (dt <= 0) return
@@ -788,6 +897,8 @@ function Room({ room, userMedia }: RoomProps) {
 				rtt = remote.roundTripTime ?? 0
 				last.recv = remote.packetsReceived ?? 0
 				last.lost = remote.packetsLost ?? 0
+			} else if (typeof transportStats.rttMs === 'number') {
+				rtt = transportStats.rttMs / 1000
 			}
 
 			const target = tiers[tierRef.current]
@@ -801,13 +912,31 @@ function Room({ room, userMedia }: RoomProps) {
 				tierRef.current = Math.min(tiers.length - 1, tierRef.current + 1)
 			}
 			await applyTier(sender, tiers[tierRef.current])
+			publishAdaptiveMetrics({
+				videoTier: tierRef.current,
+				videoTierCount: tiers.length,
+				videoTargetBitrate: tiers[tierRef.current]?.bitrate ?? target.bitrate,
+				videoMeasuredBitrate: bitrate,
+				videoLossRate: lossRate,
+				videoRttMs: rtt > 0 ? Math.round(rtt * 1000) : 0,
+				uplinkBitrate: transportStats.uplinkBitrate ?? bitrate,
+				...getTransportBitratePatch(transportStats),
+			})
 		}, 4000)
 
 		return () => {
 			stopped = true
 			window.clearInterval(interval)
 		}
-	}, [peerConnection, tiers, maxWebcamBitrate, maxWebcamFramerate])
+	}, [
+		peerConnection,
+		tiers,
+		maxWebcamBitrate,
+		maxWebcamFramerate,
+		publishAdaptiveMetrics,
+		getTransportBitratePatch,
+		readSelectedTransportStats,
+	])
 
 	useEffect(() => {
 		if (!peerConnection) return
@@ -821,6 +950,11 @@ function Room({ room, userMedia }: RoomProps) {
 			audioMediumBitrate,
 			audioHighBitrate,
 		]
+		publishAdaptiveMetrics({
+			audioTier: currentTier,
+			audioTierCount: audioBitrateTiers.length,
+			audioTargetBitrate: audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+		})
 		const last = { recv: 0, lost: 0, initialized: false }
 
 		const pickAudioSender = (): RTCRtpSender | undefined => {
@@ -861,15 +995,24 @@ function Room({ room, userMedia }: RoomProps) {
 			if (stopped) return
 			const sender = pickAudioSender()
 			if (!sender) return
+			const transportStats = await readSelectedTransportStats()
 
 			const isIceStable =
-				iceConnectionState === 'connected' ||
-				iceConnectionState === 'completed'
+				iceConnectionState === 'connected' || iceConnectionState === 'completed'
 			if (!isIceStable) {
 				stableSince = 0
 				if (currentTier !== 2) {
 					await applyAudioTier(sender, 2)
 				}
+				publishAdaptiveMetrics({
+					audioTier: currentTier,
+					audioTierCount: audioBitrateTiers.length,
+					audioTargetBitrate:
+						audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+					audioLossRate: 0,
+					audioRttMs: 0,
+					...getTransportBitratePatch(transportStats),
+				})
 				return
 			}
 
@@ -884,32 +1027,47 @@ function Room({ room, userMedia }: RoomProps) {
 			} catch {
 				return
 			}
+			let lossRate = 0
+			let rtt = 0
 
-			if (!remote) return
-
-			if (!last.initialized) {
-				last.recv = remote.packetsReceived ?? 0
-				last.lost = remote.packetsLost ?? 0
-				last.initialized = true
-				stableSince = 0
-				return
+			if (remote) {
+				if (!last.initialized) {
+					last.recv = remote.packetsReceived ?? 0
+					last.lost = remote.packetsLost ?? 0
+					last.initialized = true
+				} else {
+					const recvDelta = (remote.packetsReceived ?? 0) - last.recv
+					const lostDelta = (remote.packetsLost ?? 0) - last.lost
+					const total = recvDelta + lostDelta
+					lossRate = total > 0 ? Math.max(0, lostDelta) / total : 0
+					last.recv = remote.packetsReceived ?? 0
+					last.lost = remote.packetsLost ?? 0
+				}
+				rtt = remote.roundTripTime ?? 0
+			} else if (typeof transportStats.rttMs === 'number') {
+				rtt = transportStats.rttMs / 1000
 			}
 
-			const recvDelta = (remote.packetsReceived ?? 0) - last.recv
-			const lostDelta = (remote.packetsLost ?? 0) - last.lost
-			const total = recvDelta + lostDelta
-			const lossRate = total > 0 ? Math.max(0, lostDelta) / total : 0
-			const rtt = remote.roundTripTime ?? 0
-
-			last.recv = remote.packetsReceived ?? 0
-			last.lost = remote.packetsLost ?? 0
+			const hasNetworkSignal = remote || rtt > 0
+			if (!hasNetworkSignal) {
+				stableSince = 0
+				publishAdaptiveMetrics({
+					audioTier: currentTier,
+					audioTierCount: audioBitrateTiers.length,
+					audioTargetBitrate:
+						audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+					audioLossRate: lossRate,
+					audioRttMs: 0,
+					...getTransportBitratePatch(transportStats),
+				})
+				return
+			}
 
 			const veryBad =
 				lossRate > audioAdaptVeryBadLossThreshold ||
 				rtt > audioAdaptVeryBadRttMs / 1000
 			const bad =
-				lossRate > audioAdaptBadLossThreshold ||
-				rtt > audioAdaptBadRttMs / 1000
+				lossRate > audioAdaptBadLossThreshold || rtt > audioAdaptBadRttMs / 1000
 			const unstable =
 				lossRate > audioAdaptUnstableLossThreshold ||
 				rtt > audioAdaptUnstableRttMs / 1000
@@ -922,6 +1080,15 @@ function Room({ room, userMedia }: RoomProps) {
 				if (currentTier !== 0) {
 					await applyAudioTier(sender, 0)
 				}
+				publishAdaptiveMetrics({
+					audioTier: currentTier,
+					audioTierCount: audioBitrateTiers.length,
+					audioTargetBitrate:
+						audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+					audioLossRate: lossRate,
+					audioRttMs: Math.round(rtt * 1000),
+					...getTransportBitratePatch(transportStats),
+				})
 				return
 			}
 
@@ -930,6 +1097,15 @@ function Room({ room, userMedia }: RoomProps) {
 				if (currentTier !== 1) {
 					await applyAudioTier(sender, 1)
 				}
+				publishAdaptiveMetrics({
+					audioTier: currentTier,
+					audioTierCount: audioBitrateTiers.length,
+					audioTargetBitrate:
+						audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+					audioLossRate: lossRate,
+					audioRttMs: Math.round(rtt * 1000),
+					...getTransportBitratePatch(transportStats),
+				})
 				return
 			}
 
@@ -938,11 +1114,29 @@ function Room({ room, userMedia }: RoomProps) {
 				if (currentTier !== 2) {
 					await applyAudioTier(sender, 2)
 				}
+				publishAdaptiveMetrics({
+					audioTier: currentTier,
+					audioTierCount: audioBitrateTiers.length,
+					audioTargetBitrate:
+						audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+					audioLossRate: lossRate,
+					audioRttMs: Math.round(rtt * 1000),
+					...getTransportBitratePatch(transportStats),
+				})
 				return
 			}
 
 			if (!stable) {
 				stableSince = 0
+				publishAdaptiveMetrics({
+					audioTier: currentTier,
+					audioTierCount: audioBitrateTiers.length,
+					audioTargetBitrate:
+						audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+					audioLossRate: lossRate,
+					audioRttMs: Math.round(rtt * 1000),
+					...getTransportBitratePatch(transportStats),
+				})
 				return
 			}
 
@@ -957,6 +1151,15 @@ function Room({ room, userMedia }: RoomProps) {
 					await applyAudioTier(sender, currentTier + 1)
 				}
 			}
+			publishAdaptiveMetrics({
+				audioTier: currentTier,
+				audioTierCount: audioBitrateTiers.length,
+				audioTargetBitrate:
+					audioBitrateTiers[currentTier] ?? audioMediumBitrate,
+				audioLossRate: lossRate,
+				audioRttMs: Math.round(rtt * 1000),
+				...getTransportBitratePatch(transportStats),
+			})
 		}, audioAdaptCheckIntervalMs)
 
 		return () => {
@@ -980,10 +1183,18 @@ function Room({ room, userMedia }: RoomProps) {
 		audioAdaptVeryBadLossThreshold,
 		audioAdaptVeryBadRttMs,
 		iceConnectionState,
+		publishAdaptiveMetrics,
+		getTransportBitratePatch,
+		readSelectedTransportStats,
+		audioMediumBitrate,
 	])
 
 	useSpeechToText({
-		enabled: captionsEnabled && joined && userMedia.audioEnabled && asrSource === 'browser',
+		enabled:
+			captionsEnabled &&
+			joined &&
+			userMedia.audioEnabled &&
+			asrSource === 'browser',
 		language:
 			localCcLanguage === 'browser'
 				? typeof navigator !== 'undefined' && navigator.language
@@ -1003,7 +1214,11 @@ function Room({ room, userMedia }: RoomProps) {
 	})
 
 	useWorkersAiASR({
-		enabled: captionsEnabled && joined && userMedia.audioEnabled && (asrSource === 'workers-ai' || asrSource === 'assembly-ai'),
+		enabled:
+			captionsEnabled &&
+			joined &&
+			userMedia.audioEnabled &&
+			(asrSource === 'workers-ai' || asrSource === 'assembly-ai'),
 		audioStreamTrack: userMedia.audioStreamTrack ?? null,
 		websocket: room.websocket as any,
 	})
@@ -1078,6 +1293,7 @@ function Room({ room, userMedia }: RoomProps) {
 		iceConnectionState,
 		room,
 		simulcastEnabled,
+		adaptiveNetwork,
 		pushedTracks: {
 			video: trackObjectToString(pushedVideoTrack),
 			audio: trackObjectToString(pushedAudioTrack),

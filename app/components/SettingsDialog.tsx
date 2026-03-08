@@ -25,6 +25,17 @@ interface SettingsDialogProps {
 	children?: ReactNode
 }
 
+function formatBitrate(value: number): string {
+	if (!Number.isFinite(value) || value <= 0) return '--'
+	if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} Mbps`
+	return `${Math.round(value / 1000)} kbps`
+}
+
+function formatPercent(value: number): string {
+	if (!Number.isFinite(value) || value < 0) return '--'
+	return `${(value * 100).toFixed(1)}%`
+}
+
 export const SettingsButton = () => {
 	return (
 		<SettingsDialog>
@@ -74,6 +85,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		setMicVolume,
 		speakerVolume,
 		setSpeakerVolume,
+		adaptiveNetwork,
 	} = useRoomContext()
 
 	return (
@@ -98,7 +110,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							Mic
 						</Label>
 						<AudioInputSelector id="mic" />
-						
+
 						<Label className="md:text-right" htmlFor="micVolume">
 							Mic Volume
 						</Label>
@@ -117,9 +129,10 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							</span>
 						</div>
 						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
-							Adjust microphone input gain (100% = normal, 200% = boost for quiet mics)
+							Adjust microphone input gain (100% = normal, 200% = boost for
+							quiet mics)
 						</p>
-						
+
 						<Label className="md:text-right" htmlFor="speakerVolume">
 							Speaker Volume
 						</Label>
@@ -237,6 +250,59 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								details. Uses more bandwidth.
 							</span>
 						</div>
+						<Label className="md:text-right" htmlFor="adaptiveNetwork">
+							Adaptive
+						</Label>
+						<div
+							id="adaptiveNetwork"
+							className="rounded-lg border border-zinc-200/70 dark:border-zinc-700/70 p-3 bg-zinc-50/60 dark:bg-zinc-900/30"
+						>
+							<div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+								Network Adaptation Runtime
+							</div>
+							<div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+								<div>
+									Video tier: {adaptiveNetwork.videoTier + 1}/
+									{adaptiveNetwork.videoTierCount}
+								</div>
+								<div>
+									Audio tier: {adaptiveNetwork.audioTier + 1}/
+									{adaptiveNetwork.audioTierCount}
+								</div>
+								<div>
+									Video target:{' '}
+									{formatBitrate(adaptiveNetwork.videoTargetBitrate)}
+								</div>
+								<div>
+									Video measured:{' '}
+									{formatBitrate(adaptiveNetwork.videoMeasuredBitrate)}
+								</div>
+								<div>
+									Uplink: {formatBitrate(adaptiveNetwork.uplinkBitrate)}
+								</div>
+								<div>
+									Downlink: {formatBitrate(adaptiveNetwork.downlinkBitrate)}
+								</div>
+								<div>
+									Video RTT: {Math.round(adaptiveNetwork.videoRttMs)} ms
+								</div>
+								<div>
+									Audio RTT: {Math.round(adaptiveNetwork.audioRttMs)} ms
+								</div>
+								<div>
+									Video loss: {formatPercent(adaptiveNetwork.videoLossRate)}
+								</div>
+								<div>
+									Audio loss: {formatPercent(adaptiveNetwork.audioLossRate)}
+								</div>
+							</div>
+							<div className="mt-2 text-[11px] text-zinc-500">
+								Updated:{' '}
+								{adaptiveNetwork.lastUpdatedAt
+									? new Date(adaptiveNetwork.lastUpdatedAt).toLocaleTimeString()
+									: '--'}
+							</div>
+						</div>
 
 						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
 
@@ -250,17 +316,17 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 						/>
 
 						<Label className="md:text-right" htmlFor="suppressNoise">
-						Background Noise Suppression
-					</Label>
-					<Toggle
-						id="suppressNoise"
-						checked={suppressNoise}
-						onCheckedChange={setSuppressNoise}
-					/>
-					<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
-						Use RNNoise AI to remove background noise. May add slight latency.
-						Best for noisy environments or speaker mode.
-					</p>
+							Background Noise Suppression
+						</Label>
+						<Toggle
+							id="suppressNoise"
+							checked={suppressNoise}
+							onCheckedChange={setSuppressNoise}
+						/>
+						<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
+							Use RNNoise AI to remove background noise. May add slight latency.
+							Best for noisy environments or speaker mode.
+						</p>
 						<Label className="md:text-right" htmlFor="localCcLanguage">
 							Local CC Language
 						</Label>
@@ -341,7 +407,9 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 										<button
 											key={source.val}
 											onClick={() =>
-												setAsrSource(source.val as 'browser' | 'workers-ai' | 'assembly-ai')
+												setAsrSource(
+													source.val as 'browser' | 'workers-ai' | 'assembly-ai'
+												)
 											}
 											className={cn(
 												'px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all',
@@ -355,7 +423,8 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 									))}
 								</div>
 								<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
-									Browser ASR may not be available on mobile devices. Workers AI or Assembly AI is recommended for mobile.
+									Browser ASR may not be available on mobile devices. Workers AI
+									or Assembly AI is recommended for mobile.
 								</p>
 
 								<Label className="md:text-right" htmlFor="aiTranslation">
@@ -375,30 +444,30 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								</div>
 							</>
 						)}
-							<Label className="md:text-right" htmlFor="highFpsScreenshare">
-								<div className="flex flex-col md:items-end">
-									<span>High FPS Screenshare</span>
-									<span className="text-[10px] text-zinc-500 font-medium">
-										30fps (higher latency)
-									</span>
-								</div>
-							</Label>
-							<div className="flex items-center gap-4">
-								<Toggle
-									id="highFpsScreenshare"
-									checked={highFpsScreenshare}
-									onCheckedChange={setHighFpsScreenshare}
-								/>
-								{highFpsScreenshare ? (
-									<span className="text-xs text-orange-500">
-										30fps - Smooth but ~2s delay
-									</span>
-								) : (
-									<span className="text-xs text-green-500">
-										15fps - Low latency
-									</span>
-								)}
+						<Label className="md:text-right" htmlFor="highFpsScreenshare">
+							<div className="flex flex-col md:items-end">
+								<span>High FPS Screenshare</span>
+								<span className="text-[10px] text-zinc-500 font-medium">
+									30fps (higher latency)
+								</span>
 							</div>
+						</Label>
+						<div className="flex items-center gap-4">
+							<Toggle
+								id="highFpsScreenshare"
+								checked={highFpsScreenshare}
+								onCheckedChange={setHighFpsScreenshare}
+							/>
+							{highFpsScreenshare ? (
+								<span className="text-xs text-orange-500">
+									30fps - Smooth but ~2s delay
+								</span>
+							) : (
+								<span className="text-xs text-green-500">
+									15fps - Low latency
+								</span>
+							)}
+						</div>
 						<Label className="md:text-right" htmlFor="moq">
 							<div className="flex flex-col md:items-end">
 								<span>Media over QUIC</span>
