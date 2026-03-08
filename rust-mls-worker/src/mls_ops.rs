@@ -279,26 +279,37 @@ impl WorkerState {
         let adds = self
             .pending_adds
             .drain(0..)
-            .map(|kp| {
-                let (add, welcome, _) = group
-                    .add_members(
-                        &self.mls_provider,
-                        self.my_signing_keys.as_ref().unwrap(),
-                        &[kp],
-                    )
-                    .expect("couldn't add user to group");
+            .filter_map(|kp| {
+                let uid = kp_to_uid(&kp);
+                let already_member = group
+                    .members()
+                    .any(|m| m.credential.serialized_content() == uid);
+                if already_member {
+                    info!("skip adding existing member uid={:?}", uid);
+                    return None;
+                }
 
-                // Merge the pending proposal we just made so we can export the new ratchet tree and
-                // give it to the new user(s)
-                group.merge_pending_commit(&self.mls_provider).unwrap();
+                let Ok((add, welcome, _)) = group.add_members(
+                    &self.mls_provider,
+                    self.my_signing_keys.as_ref().unwrap(),
+                    &[kp],
+                ) else {
+                    info!("skip add_members due to invalid/duplicate key package");
+                    return None;
+                };
+
+                if group.merge_pending_commit(&self.mls_provider).is_err() {
+                    info!("skip add_members due to merge_pending_commit error");
+                    return None;
+                }
+
                 let ratchet_tree = group.export_ratchet_tree();
-
                 let wp = WelcomePackageOut {
                     welcome,
                     ratchet_tree,
                 };
 
-                (wp, add)
+                Some((wp, add))
             })
             .collect();
 
@@ -321,19 +332,33 @@ impl WorkerState {
                 .filter_map(|uid| uid_idx_map.get(&uid).copied())
                 .collect::<Vec<_>>();
 
-            // Remove them
-            let (commit, _, _) = group
-                .remove_members(
+            if pending_remove_idxs.is_empty() {
+                None
+            } else {
+                let Ok((commit, _, _)) = group.remove_members(
                     &self.mls_provider,
                     self.my_signing_keys.as_ref().unwrap(),
                     &pending_remove_idxs,
-                )
-                .expect("could not remove user");
-            Some(commit)
+                ) else {
+                    info!("skip remove_members due to invalid remove list");
+                    return WorkerResponse {
+                        adds,
+                        remove: None,
+                        new_safety_number: Some(self.safety_number()),
+                        sender_id: Some(self.uid_as_str()),
+                        ..Default::default()
+                    };
+                };
+                if group.merge_pending_commit(&self.mls_provider).is_err() {
+                    info!("skip remove_members due to merge_pending_commit error");
+                    None
+                } else {
+                    Some(commit)
+                }
+            }
         } else {
             None
         };
-        group.merge_pending_commit(&self.mls_provider).unwrap();
 
         WorkerResponse {
             adds,
@@ -355,6 +380,21 @@ impl WorkerState {
             .unwrap();
         // Add the user to the pending list, as long as it's not us (we might get this event when we join)
         if self.uid() != kp_to_uid(&user_kp) {
+            let uid = kp_to_uid(&user_kp);
+            let already_pending = self.pending_adds.iter().any(|kp| kp_to_uid(kp) == uid);
+            let already_member = self
+                .mls_group
+                .as_ref()
+                .map(|group| {
+                    group
+                        .members()
+                        .any(|member| member.credential.serialized_content() == uid)
+                })
+                .unwrap_or(false);
+
+            if already_pending || already_member {
+                return self.process_pendings();
+            }
             self.pending_adds.push(user_kp);
         }
 
@@ -370,11 +410,17 @@ impl WorkerState {
     /// This will panic if a user tries to remove themselves.
     fn user_left(&mut self, uid_to_remove: &[u8]) -> WorkerResponse {
         if uid_to_remove == self.uid() {
-            panic!("cannot remove self");
+            return WorkerResponse::default();
         }
 
         // Add this user to the pending removes
-        self.pending_removes.push(uid_to_remove.to_vec());
+        if !self
+            .pending_removes
+            .iter()
+            .any(|uid| uid.as_slice() == uid_to_remove)
+        {
+            self.pending_removes.push(uid_to_remove.to_vec());
+        }
         // Mark this user as left
         self.users_who_left_since_i_joined
             .insert(uid_to_remove.to_vec());
