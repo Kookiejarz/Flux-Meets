@@ -43,8 +43,8 @@ type MessagesToE2eeWorker =
 			id: string
 	  }
 	| { type: 'recvMlsMessage'; msg: Uint8Array }
-	| { type: 'encryptStream'; kind: string; in: ReadableStream; out: WritableStream }
-	| { type: 'decryptStream'; kind: string; in: ReadableStream; out: WritableStream }
+	| { type: 'encryptStream'; in: ReadableStream; out: WritableStream }
+	| { type: 'decryptStream'; in: ReadableStream; out: WritableStream }
 	| { type: 'initializeAndCreateGroup'; id: string }
 
 type MessagesFromE2eeWorker =
@@ -178,14 +178,13 @@ export class EncryptionWorker {
 		this.worker.postMessage(message)
 	}
 
-	async setupSenderTransform(sender: RTCRtpSender, kind: string) {
+	async setupSenderTransform(sender: RTCRtpSender) {
 		console.log('Setting up sender transform')
 
 		// If this is Firefox, we will have to use RTCRtpScriptTransform
 		if (window.RTCRtpScriptTransform) {
 			sender.transform = new RTCRtpScriptTransform(this.worker, {
 				operation: 'encryptStream',
-				kind,
 			})
 			return
 		}
@@ -200,7 +199,6 @@ export class EncryptionWorker {
 			this.worker.postMessage(
 				{
 					type: 'encryptStream',
-					kind,
 					in: readable,
 					out: writable,
 				},
@@ -215,14 +213,13 @@ export class EncryptionWorker {
 		)
 	}
 
-	async setupReceiverTransform(receiver: RTCRtpReceiver, kind: string) {
+	async setupReceiverTransform(receiver: RTCRtpReceiver) {
 		console.log('Setting up receiver transform')
 
 		// If this is Firefox, we will have to use RTCRtpScriptTransform
 		if (window.RTCRtpScriptTransform) {
 			receiver.transform = new RTCRtpScriptTransform(this.worker, {
 				operation: 'decryptStream',
-				kind,
 			})
 
 			return
@@ -238,7 +235,6 @@ export class EncryptionWorker {
 			this.worker.postMessage(
 				{
 					type: 'decryptStream',
-					kind,
 					in: readable,
 					out: writable,
 				},
@@ -529,13 +525,26 @@ export function useE2EE({
 				const vp9Codecs = codecs.filter(isVp9)
 				const rtxCodecs = codecs.filter(isRtx)
 
-				const preferredCodecs = [
-					...h265Codecs,
-					...h264Codecs,
-					...vp8Codecs,
-					...vp9Codecs,
-					...rtxCodecs,
-				]
+				const isMobile =
+					/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+						navigator.userAgent
+					)
+
+				const preferredCodecs = isMobile
+					? [
+							...vp8Codecs,
+							...vp9Codecs,
+							...h265Codecs,
+							...h264Codecs,
+							...rtxCodecs,
+					  ]
+					: [
+							...h265Codecs,
+							...h264Codecs,
+							...vp8Codecs,
+							...vp9Codecs,
+							...rtxCodecs,
+					  ]
 
 				if (preferredCodecs.length > 0) {
 					transceiver.setCodecPreferences(preferredCodecs)
@@ -545,7 +554,7 @@ export function useE2EE({
 			if (senderKey && boundSenderKeys.has(senderKey)) return
 
 			worker
-				.setupSenderTransform(transceiver.sender, kind ?? 'unknown')
+				.setupSenderTransform(transceiver.sender)
 				.then(() => {
 					registerBoundKey('sender', senderKey)
 				})
@@ -588,7 +597,7 @@ export function useE2EE({
 			if (receiverKey && boundReceiverKeys.has(receiverKey)) return
 
 			worker
-				.setupReceiverTransform(transceiver.receiver, kind ?? 'unknown')
+				.setupReceiverTransform(transceiver.receiver)
 				.then(() => {
 					registerBoundKey('receiver', receiverKey)
 				})
@@ -631,9 +640,12 @@ export function useE2EE({
 
 		const setupWorker = (worker: EncryptionWorker, type: 'audio' | 'video') => {
 			worker.onNewSafetyNumber((buffer) => {
+				const nextSafetyNumber = arrayBufferToDecimal(
+					buffer as unknown as ArrayBuffer
+				)
 				setSafetyNumber((prev) => {
-					if (prev) return prev
-					return arrayBufferToDecimal(buffer as unknown as ArrayBuffer)
+					if (prev === nextSafetyNumber) return prev
+					return nextSafetyNumber
 				})
 			})
 			worker.handleOutgoingEvents((data) => {
@@ -703,14 +715,7 @@ export function useE2EE({
 		return () => {
 			room.websocket.removeEventListener('message', handler)
 		}
-	}, [
-		audioWorker,
-		videoWorker,
-		firstUser,
-		joined,
-		room.websocket,
-		peerExchangeParticipants,
-	])
+	}, [audioWorker, videoWorker, firstUser, joined, room.websocket])
 
 	return {
 		e2eeSafetyNumber: enabled ? safetyNumber : undefined,

@@ -68,9 +68,16 @@ export default function Lobby() {
 	useEffect(() => {
 		if (e2eeInitRef.current) return
 		if (!e2eeStatus.enabled) return
+		if (!room.isConnected || !room.identity) return
 		e2eeOnJoin(room.otherUsers.length === 0)
 		e2eeInitRef.current = true
-	}, [e2eeOnJoin, e2eeStatus.enabled, room.otherUsers.length])
+	}, [
+		e2eeOnJoin,
+		e2eeStatus.enabled,
+		room.otherUsers.length,
+		room.isConnected,
+		room.identity,
+	])
 
 	const roomUrl = useRoomUrl()
 

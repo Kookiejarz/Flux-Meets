@@ -73,55 +73,48 @@ pub fn initLogging() {
 #[wasm_bindgen]
 #[allow(non_snake_case)]
 pub async fn processEvent(event: Object) -> JsValue {
-    let ty = obj_get(&event, &"type".into())
-        .expect("event expects input field 'type'")
-        .as_string()
-        .expect("event field 'type' must be a string");
+    let ty = match obj_get(&event, &"type".into()) {
+        Ok(v) => v.as_string().unwrap_or_else(|| "unknown".to_string()),
+        Err(_) => "unknown".to_string(),
+    };
     let ty = ty.as_str();
     info!("Received event of type {ty} from main thread");
 
     let ret = match ty {
         "encryptStream" | "decryptStream" => {
-            // Grab the streams from the object and pass them to `process_stream`
-            let read_stream: ReadableStream = obj_get(&event, &"in".into())
-                .expect("encrypt/decryptStream event expects input field 'in'")
-                .dyn_into()
-                .expect("encrypt/decryptStream field 'in' must be a ReadableStream");
-            let write_stream: WritableStream = obj_get(&event, &"out".into())
-                .expect("encrypt/decryptStream event expects input field 'out'")
-                .dyn_into()
-                .expect("encrypt/decryptStream field 'out' must be a WritableStream");
-            let reader = ReadableStreamDefaultReader::new(&read_stream).unwrap();
-            let writer = write_stream.get_writer().unwrap();
-
-            let kind = obj_get(&event, &"kind".into())
-                .ok()
-                .and_then(|k| k.as_string())
-                .unwrap_or_else(|| "unknown".to_string());
+            let in_field: ReadableStream = match obj_get(&event, &"in".into()) {
+                Ok(v) => v.dyn_into().expect("field 'in' must be a ReadableStream"),
+                Err(_) => panic!("encrypt/decryptStream event expects input field 'in'"),
+            };
+            let out_field: WritableStream = match obj_get(&event, &"out".into()) {
+                Ok(v) => v.dyn_into().expect("field 'out' must be a WritableStream"),
+                Err(_) => panic!("encrypt/decryptStream event expects input field 'out'"),
+            };
+            let reader = ReadableStreamDefaultReader::new(&in_field).unwrap();
+            let writer = out_field.get_writer().unwrap();
 
             if ty == "encryptStream" {
-                process_stream(reader, writer, encrypt_msg, kind).await;
+                process_stream(reader, writer, encrypt_msg).await;
             } else {
-                process_stream(reader, writer, decrypt_msg, kind).await;
+                process_stream(reader, writer, decrypt_msg).await;
             }
 
-            // No response necessary if we're just writing between two streams
             None
         }
 
         "initialize" => {
             let user_id = obj_get(&event, &"id".into())
-                .expect("initialize event expects input field 'id'")
-                .as_string()
-                .expect("initialize field 'id' must be a string");
+                .ok()
+                .and_then(|v| v.as_string())
+                .expect("initialize event expects input field 'id' as a string");
             Some(mls_ops::new_state(&user_id))
         }
 
         "initializeAndCreateGroup" => {
             let user_id = obj_get(&event, &"id".into())
-                .expect("initializeAndCreateGroup event expects input field 'id'")
-                .as_string()
-                .expect("initializeAndCreateGroup field 'id' must be a string");
+                .ok()
+                .and_then(|v| v.as_string())
+                .expect("initializeAndCreateGroup event expects input field 'id' as a string");
             Some(mls_ops::new_state_and_start_group(&user_id))
         }
 
@@ -131,31 +124,36 @@ pub async fn processEvent(event: Object) -> JsValue {
         }
 
         "userLeft" => {
-            let uid_to_remove = obj_get(&event, &"id".into()).unwrap().as_string().unwrap();
-            Some(mls_ops::remove_user(&uid_to_remove))
+            let uid_to_remove = obj_get(&event, &"id".into())
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default();
+            if !uid_to_remove.is_empty() {
+                Some(mls_ops::remove_user(&uid_to_remove))
+            } else {
+                None
+            }
         }
 
         "recvMlsWelcome" => {
             let welcome_bytes = extract_bytes_field("recvMlsWelcome", &event, "welcome");
             let rtree_bytes = extract_bytes_field("recvMlsWelcome", &event, "rtree");
-            // We don't really use this field
-            let _sender = obj_get(&event, &"senderId".into())
-                .expect("recvMlsWelcome event expects input field 'senderId'")
-                .as_string()
-                .expect("recvMlsWelcome field 'senderId' must be a string");
             Some(mls_ops::join_group(&welcome_bytes, &rtree_bytes))
         }
 
         "recvMlsMessage" => {
             let msg_bytes = extract_bytes_field("recvMlsMessage", &event, "msg");
             let sender = obj_get(&event, &"senderId".into())
-                .expect("recvMlsMessage event expects input field 'senderId'")
-                .as_string()
-                .expect("recvMlsMessage field 'senderId' must be a string");
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_else(|| "unknown".to_string());
             Some(mls_ops::handle_commit(&msg_bytes, &sender))
         }
 
-        _ => panic!("unknown message type {ty} from main thread"),
+        _ => {
+            info!("Received unknown message type: {ty}");
+            None
+        }
     };
 
     // Now we have to format our response. We're gonna make a list of objects to send to the main
@@ -256,15 +254,12 @@ async fn process_stream<F>(
     reader: ReadableStreamDefaultReader,
     writer: WritableStreamDefaultWriter,
     f: F,
-    kind: String,
 ) where
-    F: Fn(&[u8]) -> Vec<u8>,
+    F: Fn(&[u8], usize) -> Vec<u8>,
 {
     loop {
         let promise = reader.read();
 
-        // Await the call. This will return an object { value, done }, where value is a view
-        // containing the new data, and done is a bool indicating that there is nothing left to read
         let Ok(res) = JsFuture::from(promise).await else {
             info!("Stream read rejected, ending transform loop");
             break;
@@ -273,67 +268,49 @@ async fn process_stream<F>(
             info!("Stream chunk was not an object, ending transform loop");
             break;
         };
-        let done_reading = obj_get(&res, &"done".into()).unwrap().as_bool().unwrap();
+        let done_reading = obj_get(&res, &"done".into())
+            .ok()
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
-        // When done is true, value may be undefined / non-frame. Stop before processing.
         if done_reading {
             break;
         }
 
-        // Read a frame and get the underlying bytestring
-        let frame = obj_get(&res, &"value".into()).unwrap();
+        let frame = match obj_get(&res, &"value".into()) {
+            Ok(v) => v,
+            Err(_) => {
+                info!("Failed to get frame value from stream chunk");
+                continue;
+            }
+        };
 
-        // Process the frame data
         let Some(frame_data) = get_frame_data(&frame) else {
-            info!("Skipping non-encoded frame chunk in stream transform");
+            // This is expected for some control frames, just pass them through
+            let promise = writer.write_with_chunk(&frame);
+            if JsFuture::from(promise).await.is_err() {
+                break;
+            }
             continue;
         };
-        
-        let mut unencrypted_bytes = 0;
-        if kind == "audio" {
-            unencrypted_bytes = 1;
-        } else if kind == "video" {
-            if frame_data.len() > 4 && frame_data[0] == 0 && frame_data[1] == 0 && frame_data[2] == 0 && frame_data[3] == 1 {
-                unencrypted_bytes = 5;
-            } else if frame_data.len() > 3 && frame_data[0] == 0 && frame_data[1] == 0 && frame_data[2] == 1 {
-                unencrypted_bytes = 4;
-            } else {
-                let frame_type = obj_get(&frame, &"type".into()).unwrap_or(JsValue::UNDEFINED);
-                if let Some(t) = frame_type.as_string() {
-                    if t == "key" {
-                        unencrypted_bytes = 10;
-                    } else if t == "delta" {
-                        unencrypted_bytes = 3;
-                    }
-                }
+
+        let frame_type = obj_get(&frame, &"type".into()).unwrap_or(JsValue::UNDEFINED);
+        let mut unencrypted_bytes = 1; // Default for audio
+        if let Some(t) = frame_type.as_string() {
+            if t == "key" {
+                unencrypted_bytes = 10;
+            } else if t == "delta" {
+                unencrypted_bytes = 3;
             }
         }
-        
-        if unencrypted_bytes > frame_data.len() {
-            unencrypted_bytes = frame_data.len();
-        }
 
-        let new_frame_data = if unencrypted_bytes > 0 {
-            let mut payload = f(&frame_data[unencrypted_bytes..]);
-            if payload.is_empty() {
-                Vec::new() // If encryption/decryption failed or returned empty
-            } else {
-                let mut assembled = Vec::with_capacity(unencrypted_bytes + payload.len());
-                assembled.extend_from_slice(&frame_data[..unencrypted_bytes]);
-                assembled.append(&mut payload);
-                assembled
-            }
-        } else {
-            f(&frame_data)
-        };
+        let new_frame_data = f(&frame_data, unencrypted_bytes);
 
-        // Set the new frame data value
         if !set_frame_data(&frame, &new_frame_data) {
             info!("Skipping frame with unsupported writable data shape");
             continue;
         }
 
-        // Write the read chunk to the writable stream. This promise returns nothing
         let promise = writer.write_with_chunk(&frame);
         if JsFuture::from(promise).await.is_err() {
             info!("Stream write rejected, ending transform loop");

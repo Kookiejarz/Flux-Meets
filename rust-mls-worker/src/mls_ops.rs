@@ -515,11 +515,12 @@ impl WorkerState {
 
     /// Takes a message, encrypts it, frames it as an `MlsMessageOut`, and serializes it.
     /// If encryption cannot be performed, returns the original frame unchanged.
-    fn encrypt_app_msg_nofail(&mut self, msg: &[u8]) -> Vec<u8> {
-        // We can't encrypt every part of a frame. Leave some of the header.
-        let Some((header, msg_to_encrypt)) = split_frame_header(msg) else {
+    fn encrypt_app_msg_nofail(&mut self, msg: &[u8], unencrypted_bytes: usize) -> Vec<u8> {
+        if msg.len() <= unencrypted_bytes {
             return msg.to_vec();
-        };
+        }
+
+        let (header, msg_to_encrypt) = msg.split_at(unencrypted_bytes);
 
         let Some(group) = self.mls_group.as_mut() else {
             return msg.to_vec();
@@ -543,10 +544,12 @@ impl WorkerState {
 
     /// Takes a ciphertext, deserializes it, decrypts it into an Application Message, and returns
     /// the bytes.
-    fn decrypt_app_msg(&mut self, ct: &[u8]) -> Result<Vec<u8>, DecryptAppMsgError> {
-        // Only the header is encrypted
-        let (unencrypted_prefix, msg_to_decrypt) =
-            split_frame_header(ct).ok_or(DecryptAppMsgError::WrongMsgType("invalid frame"))?;
+    fn decrypt_app_msg(&mut self, ct: &[u8], unencrypted_bytes: usize) -> Result<Vec<u8>, DecryptAppMsgError> {
+        if ct.len() <= unencrypted_bytes {
+            return Err(DecryptAppMsgError::WrongMsgType("frame too short"));
+        }
+
+        let (unencrypted_prefix, msg_to_decrypt) = ct.split_at(unencrypted_bytes);
 
         if !msg_to_decrypt.starts_with(&MLS_FRAME_MARKER) {
             return Err(DecryptAppMsgError::WrongMsgType("frame without MLS marker"));
@@ -586,8 +589,8 @@ impl WorkerState {
 
     /// Takes a ciphertext, deserializes it, decrypts it into an Application Message, and returns
     /// the bytes. If decryption fails, returns the original frame unchanged.
-    fn decrypt_app_msg_nofail(&mut self, ct: &[u8]) -> Vec<u8> {
-        self.decrypt_app_msg(ct).unwrap_or_else(|e| {
+    fn decrypt_app_msg_nofail(&mut self, ct: &[u8], unencrypted_bytes: usize) -> Vec<u8> {
+        self.decrypt_app_msg(ct, unencrypted_bytes).unwrap_or_else(|e| {
             // Only log NoGroup errors occasionally to avoid spam during initialization
             match e {
                 DecryptAppMsgError::NoGroup => {
@@ -678,26 +681,26 @@ pub fn new_state_and_start_group(uid: &str) -> WorkerResponse {
 
 /// Acquires the global state and encrypts the message if the MLS group exists. If not, returns all
 /// 0s with the length of `msg`
-pub fn encrypt_msg(msg: &[u8]) -> Vec<u8> {
+pub fn encrypt_msg(msg: &[u8], unencrypted_bytes: usize) -> Vec<u8> {
     STATE
         .try_with(|state_cell| {
             let Ok(mut state) = state_cell.try_borrow_mut() else {
                 return Vec::new();
             };
-            state.encrypt_app_msg_nofail(msg)
+            state.encrypt_app_msg_nofail(msg, unencrypted_bytes)
         })
         .unwrap_or_default()
 }
 
 /// Acquires the global state and attempts to decrypt the given MLS application message. On failure,
 /// returns the empty vector.
-pub fn decrypt_msg(msg: &[u8]) -> Vec<u8> {
+pub fn decrypt_msg(msg: &[u8], unencrypted_bytes: usize) -> Vec<u8> {
     STATE
         .try_with(|state_cell| {
             let Ok(mut state) = state_cell.try_borrow_mut() else {
                 return Vec::new();
             };
-            state.decrypt_app_msg_nofail(msg)
+            state.decrypt_app_msg_nofail(msg, unencrypted_bytes)
         })
         .unwrap_or_default()
 }
