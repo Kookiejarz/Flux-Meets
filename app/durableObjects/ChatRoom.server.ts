@@ -1054,13 +1054,14 @@ export class ChatRoom extends Server<Env> {
 		return Math.floor(parsed)
 	}
 
-	private async cleanupEndedMeetingsIfNeeded() {
+	private async cleanupEndedMeetingsIfNeeded(options?: { force?: boolean }) {
 		if (!this.db) return
+		const force = options?.force === true
 
 		const now = Date.now()
 		const lastCleanupAt =
 			(await this.ctx.storage.get<number>('meetingCleanupLastRunAt')) ?? 0
-		if (now - lastCleanupAt < endedMeetingCleanupInterval) return
+		if (!force && now - lastCleanupAt < endedMeetingCleanupInterval) return
 
 		await this.ctx.storage.put('meetingCleanupLastRunAt', now)
 
@@ -1116,7 +1117,7 @@ export class ChatRoom extends Server<Env> {
 				.where(eq(Meetings.id, meetingId))
 				.run()
 
-			await this.cleanupEndedMeetingsIfNeeded()
+			await this.cleanupEndedMeetingsIfNeeded({ force: true })
 		}
 	}
 
@@ -1176,6 +1177,9 @@ export class ChatRoom extends Server<Env> {
 		await this.broadcastRoomState()
 		if (activeUserCount !== 0) {
 			this.ctx.storage.setAlarm(Date.now() + alarmInterval)
+		} else {
+			// Keep low-frequency alarm so historical meeting cleanup still runs when room is idle.
+			this.ctx.storage.setAlarm(Date.now() + endedMeetingCleanupInterval)
 		}
 	}
 }
