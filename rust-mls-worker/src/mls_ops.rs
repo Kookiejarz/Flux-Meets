@@ -87,6 +87,8 @@ struct WorkerState {
     pending_adds: Vec<KeyPackage>,
     /// The set of UIDs of room members who have not yet been removed from the MLS group
     pending_removes: Vec<Vec<u8>>,
+    /// Counter for NoGroup errors to reduce excessive logging during initialization
+    no_group_error_count: u32,
 }
 
 impl WorkerState {
@@ -194,6 +196,9 @@ impl WorkerState {
 
         // Starting a group means you don't have to be Welcomed
         self.users_alive_before_i_was_welcomed = Some(BTreeSet::new());
+        // Reset error counter since group is now initialized
+        self.no_group_error_count = 0;
+        info!("Successfully created MLS group");
 
         // Return the new safety number
         self.safety_number()
@@ -259,6 +264,15 @@ impl WorkerState {
                 })
                 .collect(),
         );
+
+        // Reset error counter since group is now initialized
+        let prev_error_count = self.no_group_error_count;
+        self.no_group_error_count = 0;
+        if prev_error_count > 0 {
+            info!("Successfully joined MLS group after {} failed decryption attempts. Media should now be visible.", prev_error_count);
+        } else {
+            info!("Successfully joined MLS group");
+        }
 
         // Return the new safety number
         WorkerResponse {
@@ -562,7 +576,19 @@ impl WorkerState {
     /// the bytes. If any error happens, returns the empty vec.
     fn decrypt_app_msg_nofail(&mut self, ct: &[u8]) -> Vec<u8> {
         self.decrypt_app_msg(ct).unwrap_or_else(|e| {
-            info!("Frame decryption failed: {e}");
+            // Only log NoGroup errors occasionally to avoid spam during initialization
+            match e {
+                DecryptAppMsgError::NoGroup => {
+                    self.no_group_error_count += 1;
+                    // Log only the first error and then every 100th error
+                    if self.no_group_error_count == 1 || self.no_group_error_count % 100 == 0 {
+                        info!("Frame decryption failed (count: {}): Not in a group yet. This is normal during initialization while waiting for Welcome message.", self.no_group_error_count);
+                    }
+                },
+                _ => {
+                    info!("Frame decryption failed: {e}");
+                }
+            }
             Vec::new()
         })
     }
