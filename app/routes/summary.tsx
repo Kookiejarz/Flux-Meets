@@ -22,13 +22,61 @@ const redirectToHome = new Response(null, {
 	},
 })
 
+type SummaryParticipant = {
+	userId: string
+	userName: string
+}
+
+function parseParticipantSnapshot(
+	encoded: string | null
+): SummaryParticipant[] {
+	if (!encoded) return []
+	try {
+		const parsed = JSON.parse(encoded)
+		if (!Array.isArray(parsed)) return []
+		return parsed
+			.map((item) => {
+				if (!item || typeof item !== 'object') return null
+				const userId =
+					typeof (item as any).userId === 'string'
+						? (item as any).userId.trim()
+						: ''
+				const userName =
+					typeof (item as any).userName === 'string'
+						? (item as any).userName.trim()
+						: ''
+				if (!userId || !userName) return null
+				return { userId, userName }
+			})
+			.filter((item): item is SummaryParticipant => item !== null)
+	} catch {
+		return []
+	}
+}
+
+function mergeParticipants(
+	dbParticipants: SummaryParticipant[],
+	snapshotParticipants: SummaryParticipant[]
+) {
+	const map = new Map<string, SummaryParticipant>()
+	for (const participant of [...snapshotParticipants, ...dbParticipants]) {
+		const key = participant.userId || participant.userName.toLowerCase()
+		if (!map.has(key)) map.set(key, participant)
+	}
+	return Array.from(map.values())
+}
+
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
+	let snapshotParticipants: SummaryParticipant[] = []
 	try {
 		const url = new URL(request.url)
 		const meetingId = url.searchParams.get('meetingId')
+		snapshotParticipants = parseParticipantSnapshot(
+			url.searchParams.get('participants')
+		)
 
 		if (!meetingId) {
-			return json({ meeting: null, participants: [], error: null })
+			return json({ meeting: null, participants: snapshotParticipants, error: null })
 		}
 
 		const db = getDb(context)
@@ -36,7 +84,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 			console.warn('Database binding missing')
 			return json({
 				meeting: null,
-				participants: [],
+				participants: snapshotParticipants,
 				error: null, // 允许继续反馈
 			})
 		}
@@ -47,7 +95,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 				.from(Meetings)
 				.where(eq(Meetings.id, meetingId))
 
-			const participants = meeting
+			const dbParticipants: SummaryParticipant[] = meeting
 				? await db
 						.select({
 							userName: Transcripts.userName,
@@ -57,6 +105,10 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 						.where(eq(Transcripts.meetingId, meetingId))
 						.groupBy(Transcripts.userId, Transcripts.userName)
 				: []
+			const participants = mergeParticipants(
+				dbParticipants,
+				snapshotParticipants
+			)
 
 			return json({ meeting, participants, error: null })
 		} catch (dbError: any) {
@@ -64,7 +116,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 			// 数据库错误时返回空数据但不阻止反馈流程
 			return json({
 				meeting: null,
-				participants: [],
+				participants: snapshotParticipants,
 				error: null,
 			})
 		}
@@ -72,7 +124,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 		console.error('Unexpected error:', e)
 		return json({
 			meeting: null,
-			participants: [],
+			participants: snapshotParticipants,
 			error: null,
 		})
 	}
@@ -199,24 +251,27 @@ export default function MeetingSummary() {
 
 				<div className="space-y-3">
 					{/* Participants Section - More compact */}
-					{participants.length > 0 && (
-						<div className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl">
-							<h2 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-								Participants
-							</h2>
-							<div className="flex flex-wrap gap-1.5">
-								{participants
-									.filter((p) => p !== null)
-									.map((p, i) => (
-										<div
-											key={p.userId || i}
-											className="bg-white/5 px-3 py-1 rounded-lg text-xs font-medium border border-white/5 hover:bg-white/10 transition-colors"
-										>
-											{p.userName}
-										</div>
-									))}
+						{participants.length > 0 && (
+							<div className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl">
+								<h2 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+									Participants
+								</h2>
+								<div className="flex flex-wrap gap-1.5">
+									{participants
+										.filter(
+											(p: SummaryParticipant | null): p is SummaryParticipant =>
+												p !== null
+										)
+										.map((p: SummaryParticipant, i: number) => (
+											<div
+												key={p.userId || i}
+												className="bg-white/5 px-3 py-1 rounded-lg text-xs font-medium border border-white/5 hover:bg-white/10 transition-colors"
+											>
+												{p.userName}
+											</div>
+										))}
+								</div>
 							</div>
-						</div>
 					)}
 
 					{/* Download Card - Compact */}

@@ -243,11 +243,15 @@ class NativeMediaDevice {
 
 			// Monitor track state changes (especially important on mobile)
 			track.addEventListener('mute', () => {
-				console.warn(`🔇 ${this.kind} track muted by system - this means NO audio is being captured!`)
+				console.warn(
+					`🔇 ${this.kind} track muted by system - this means NO audio is being captured!`
+				)
 				// On mobile, system mute often means permission was revoked or device is busy
 				// We should try to recover by restarting
 				if (isMobileDevice() && this.isBroadcasting$.value) {
-					console.log(`📱 Mobile device detected mute - will attempt recovery in 2s`)
+					console.log(
+						`📱 Mobile device detected mute - will attempt recovery in 2s`
+					)
 					setTimeout(() => {
 						if (this.currentTrack?.muted || this.originalTrack?.muted) {
 							console.log('♻️ Attempting to recover from system mute...')
@@ -260,10 +264,14 @@ class NativeMediaDevice {
 				}
 			})
 			track.addEventListener('unmute', () => {
-				console.log(`🔊 ${this.kind} track unmuted by system - audio capture resumed`)
+				console.log(
+					`🔊 ${this.kind} track unmuted by system - audio capture resumed`
+				)
 			})
 			track.addEventListener('ended', () => {
-				console.warn(`⚠️ ${this.kind} track ended - device disconnected or permission lost`)
+				console.warn(
+					`⚠️ ${this.kind} track ended - device disconnected or permission lost`
+				)
 			})
 
 			let processedTrack: MediaStreamTrack = track
@@ -361,6 +369,10 @@ class NativeMediaDevice {
 }
 
 class NativeScreenshare {
+	private activeStream: MediaStream | null = null
+	private activeTrack: MediaStreamTrack | null = null
+	private activeTrackEndedHandler: (() => void) | null = null
+
 	readonly video = {
 		isBroadcasting$: createBehaviorSubject<boolean>(false),
 		broadcastTrack$: createBehaviorSubject<MediaStreamTrack | undefined>(
@@ -368,36 +380,80 @@ class NativeScreenshare {
 		),
 	}
 
+	private clearShare(shouldStopTracks: boolean) {
+		if (this.activeTrack && this.activeTrackEndedHandler) {
+			this.activeTrack.removeEventListener('ended', this.activeTrackEndedHandler)
+		}
+
+		if (shouldStopTracks && this.activeStream) {
+			this.activeStream.getTracks().forEach((t) => {
+				if (t.readyState !== 'ended') t.stop()
+			})
+		}
+
+		this.activeTrack = null
+		this.activeTrackEndedHandler = null
+		this.activeStream = null
+		this.video.broadcastTrack$.next(undefined)
+		this.video.isBroadcasting$.next(false)
+	}
+
 	async startBroadcasting() {
 		if (!navigator.mediaDevices?.getDisplayMedia) return
 		try {
-			const stream = await navigator.mediaDevices.getDisplayMedia({
-				video: true,
+			// Ensure stale share sessions are torn down before creating a new one.
+			this.clearShare(true)
+			const baseOptions: DisplayMediaStreamOptions = {
+				video: {
+					frameRate: { ideal: 30, max: 60 },
+				},
 				audio: false,
-			})
+			}
+			const preferredOptions = {
+				...baseOptions,
+				preferCurrentTab: true,
+				selfBrowserSurface: 'exclude',
+				surfaceSwitching: 'include',
+				monitorTypeSurfaces: 'include',
+				systemAudio: 'exclude',
+			} as DisplayMediaStreamOptions
+			let stream: MediaStream
+			try {
+				// Prefer native browser hints when available.
+				stream = await navigator.mediaDevices.getDisplayMedia(preferredOptions)
+			} catch (err: any) {
+				const unsupported =
+					err?.name === 'TypeError' ||
+					err?.name === 'NotSupportedError' ||
+					err?.name === 'OverconstrainedError'
+				if (!unsupported) throw err
+				stream = await navigator.mediaDevices.getDisplayMedia(baseOptions)
+			}
 			const track = stream.getVideoTracks()[0]
 			if (!track) throw new Error('No screenshare track')
-			
-			// 监听track结束事件（用户在浏览器中点击"停止共享"按钮）
-			track.addEventListener('ended', () => {
+
+			this.activeStream = stream
+			this.activeTrack = track
+
+			// Guard by identity so stale "ended" callbacks cannot stop a newer share.
+			const handleEnded = () => {
+				if (this.activeTrack !== track) return
 				console.log('🛑 Screenshare track ended by user')
-				this.stopBroadcasting()
-			})
-			
+				this.clearShare(false)
+			}
+			this.activeTrackEndedHandler = handleEnded
+			track.addEventListener('ended', handleEnded)
+
 			this.video.broadcastTrack$.next(track)
 			this.video.isBroadcasting$.next(true)
 		} catch (err) {
-			this.video.broadcastTrack$.next(undefined)
-			this.video.isBroadcasting$.next(false)
+			this.clearShare(false)
 			throw err
 		}
 	}
 
 	stopBroadcasting() {
-		const track = this.video.broadcastTrack$.value
-		if (track) track.stop()
-		this.video.broadcastTrack$.next(undefined)
-		this.video.isBroadcasting$.next(false)
+		this.clearShare(true)
 	}
 }
 
@@ -420,15 +476,19 @@ function useNoiseSuppression() {
 		} else {
 			mic.removeTransform(noiseSuppression)
 		}
-		
+
 		// If transform state changed and mic is already broadcasting, restart to apply the change
-		const needsRestart = wasEnabled !== suppressNoise && mic.isBroadcasting$.value
+		const needsRestart =
+			wasEnabled !== suppressNoise && mic.isBroadcasting$.value
 		if (needsRestart) {
-			console.log('🔄 Restarting mic to apply noise suppression change:', suppressNoise)
+			console.log(
+				'🔄 Restarting mic to apply noise suppression change:',
+				suppressNoise
+			)
 			mic.stopBroadcasting()
 			mic.startBroadcasting().catch(() => {})
 		}
-		
+
 		return () => {
 			mic.removeTransform(noiseSuppression)
 		}
@@ -446,15 +506,16 @@ function useBlurVideo() {
 		} else {
 			camera.removeTransform(blurVideoTrack)
 		}
-		
+
 		// If transform state changed and camera is already broadcasting, restart to apply the change
-		const needsRestart = wasEnabled !== blurVideo && camera.isBroadcasting$.value
+		const needsRestart =
+			wasEnabled !== blurVideo && camera.isBroadcasting$.value
 		if (needsRestart) {
 			console.log('🔄 Restarting camera to apply blur change:', blurVideo)
 			camera.stopBroadcasting()
 			camera.startBroadcasting().catch(() => {})
 		}
-		
+
 		return () => {
 			camera.removeTransform(blurVideoTrack)
 		}
@@ -464,8 +525,21 @@ function useBlurVideo() {
 }
 
 function useScreenshare() {
-	const startScreenShare = useCallback(() => {
-		screenshare.startBroadcasting()
+	const applyScreenshareHints = () => {
+		const track = screenshare.video.broadcastTrack$.value
+		// Hint the encoder to prioritize detail (text/UI) over motion
+		if (track && 'contentHint' in track) {
+			try {
+				;(track as any).contentHint = 'detail'
+			} catch {
+				// ignore
+			}
+		}
+	}
+
+	const startScreenShare = useCallback(async () => {
+		await screenshare.startBroadcasting()
+		applyScreenshareHints()
 	}, [])
 	const endScreenShare = useCallback(() => {
 		screenshare.stopBroadcasting()
@@ -593,7 +667,7 @@ export default function useUserMedia(options: {
 					console.log('⏭️ Skipping auto-start: devices already broadcasting')
 					return
 				}
-				
+
 				const perm = await navigator.permissions?.query({
 					name: 'microphone' as any,
 				})

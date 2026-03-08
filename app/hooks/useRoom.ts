@@ -29,18 +29,19 @@ export default function useRoom({
 		onOpen: () => {
 			console.log('WebSocket connection opened')
 			setIsConnected(true)
-			
+
 			// 发送用户浏览器偏好语言列表到服务器（用于动态翻译语言池）
 			// 使用 navigator.languages 数组获取所有偏好语言，提供回退机制
-			const browserLanguages = navigator.languages.length > 0 
-				? Array.from(navigator.languages)
-				: [navigator.language || 'en']
-			
+			const browserLanguages =
+				navigator.languages.length > 0
+					? Array.from(navigator.languages)
+					: [navigator.language || 'en']
+
 			console.log('[Language] Sending user languages:', browserLanguages)
 			websocket.send(
-				JSON.stringify({ 
-					type: 'setLanguage', 
-					languages: browserLanguages 
+				JSON.stringify({
+					type: 'setLanguage',
+					languages: browserLanguages,
 				} satisfies ClientMessage)
 			)
 		},
@@ -65,6 +66,8 @@ export default function useRoom({
 					break
 				case 'directMessage':
 				case 'roomMessage':
+					break
+				case 'roomMessageEncrypted':
 					break
 				case 'muteMic':
 					userMedia.turnMicOff()

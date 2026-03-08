@@ -780,11 +780,11 @@ export class ChatRoom extends Server<Env> {
 					)
 					break
 				}
-				case 'roomMessage': {
-					const { message } = data
-					const fromUser = await this.ctx.storage.get<User>(
-						`session-${connection.id}`
-					)
+					case 'roomMessage': {
+						const { message } = data
+						const fromUser = await this.ctx.storage.get<User>(
+							`session-${connection.id}`
+						)
 
 					for (const otherConnection of this.getConnections<User>()) {
 						if (otherConnection.id !== connection.id) {
@@ -793,10 +793,28 @@ export class ChatRoom extends Server<Env> {
 								from: fromUser!.name,
 								message,
 							})
+							}
 						}
+						break
 					}
-					break
-				}
+					case 'roomMessageEncrypted': {
+						const { ciphertext, iv } = data
+						const fromUser = await this.ctx.storage.get<User>(
+							`session-${connection.id}`
+						)
+
+						for (const otherConnection of this.getConnections<User>()) {
+							if (otherConnection.id !== connection.id) {
+								this.sendMessage(otherConnection, {
+									type: 'roomMessageEncrypted',
+									from: fromUser!.name,
+									ciphertext,
+									iv,
+								})
+							}
+						}
+						break
+					}
 				case 'muteUser': {
 					const user = await this.ctx.storage.get<User>(
 						`session-${connection.id}`

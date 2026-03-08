@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Linkify from 'linkify-react'
 import { useEffect, useRef, useState } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
+import { encryptChat } from '~/utils/chatEncryption'
 import { cn } from '~/utils/style'
 import { Button } from './Button'
 import { Icon } from './Icon/Icon'
@@ -12,6 +13,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 		room: { websocket, identity },
 		chatMessages,
 		setChatMessages,
+		e2eeSafetyNumber,
 	} = useRoomContext()
 	const [inputText, setInputText] = useState('')
 	const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -20,23 +22,38 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 	}, [chatMessages])
 
-	const sendMessage = (e: React.FormEvent) => {
+	const sendMessage = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!inputText.trim()) return
-
-		websocket.send(
-			JSON.stringify({
-				type: 'roomMessage',
-				message: inputText.trim(),
-			})
-		)
+		const text = inputText.trim()
+		if (e2eeSafetyNumber) {
+			try {
+				const encrypted = await encryptChat(text, e2eeSafetyNumber)
+				websocket.send(
+					JSON.stringify({
+						type: 'roomMessageEncrypted',
+						...encrypted,
+					})
+				)
+			} catch (err) {
+				console.error('Failed to encrypt chat message', err)
+				return
+			}
+		} else {
+			websocket.send(
+				JSON.stringify({
+					type: 'roomMessage',
+					message: text,
+				})
+			)
+		}
 
 		setChatMessages((prev) => [
 			...prev,
 			{
 				id: crypto.randomUUID(),
 				sender: identity?.name || 'Me',
-				text: inputText.trim(),
+				text,
 				time: new Date(),
 				isSelf: true,
 			},

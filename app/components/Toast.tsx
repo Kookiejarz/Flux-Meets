@@ -63,7 +63,7 @@ export const NotificationToastsProvider = (props: { children?: ReactNode }) => {
 		<ToastPrimitive.Provider duration={4000}>
 			<NotificationToasts.Provider value={value}>
 				{props.children}
-				<ToastPrimitive.Viewport className="fixed bottom-0 right-0 z-[100] flex flex-col p-6 gap-3 w-full max-w-md m-0 list-none outline-none pointer-events-none" />
+					<ToastPrimitive.Viewport className="fixed top-0 right-0 z-[100] flex flex-col p-6 gap-3 w-full max-w-md m-0 list-none outline-none pointer-events-none" />
 				<AnimatePresence mode="popLayout">
 					{messages.map(({ content, id, duration }) => (
 						<Root

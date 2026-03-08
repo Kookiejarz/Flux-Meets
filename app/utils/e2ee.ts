@@ -1,5 +1,5 @@
 import type { PartyTracks } from 'partytracks/client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import invariant from 'tiny-invariant'
 import type useRoom from '~/hooks/useRoom'
 import { RELEASE } from '~/utils/constants'
@@ -349,6 +349,12 @@ export function useE2EE({
 	const [peerExchangeSenders, setPeerExchangeSenders] = useState<Set<string>>(
 		new Set()
 	)
+	const senderTransformsBoundRef = useRef<WeakSet<RTCRtpSender>>(new WeakSet())
+	const senderTransformsPendingRef = useRef<WeakSet<RTCRtpSender>>(new WeakSet())
+	const receiverTransformsBoundRef = useRef<WeakSet<RTCRtpReceiver>>(new WeakSet())
+	const receiverTransformsPendingRef = useRef<WeakSet<RTCRtpReceiver>>(
+		new WeakSet()
+	)
 	const senderTransforms: TransformCoverage = {
 		required: senderKeys.size,
 		bound: boundSenderKeys.size,
@@ -476,6 +482,10 @@ export function useE2EE({
 		setReceiverKeys(new Set())
 		setBoundReceiverKeys(new Set())
 		setPeerExchangeSenders(new Set())
+		senderTransformsBoundRef.current = new WeakSet()
+		senderTransformsPendingRef.current = new WeakSet()
+		receiverTransformsBoundRef.current = new WeakSet()
+		receiverTransformsPendingRef.current = new WeakSet()
 	}, [])
 
 	useEffect(() => {
@@ -494,8 +504,9 @@ export function useE2EE({
 				transceiver.direction === 'sendrecv'
 			if (!shouldHandleSender) return
 
-			const senderKey = getTransceiverKey(transceiver, 'sender')
 			const kind = transceiver.sender.track?.kind
+			if (kind !== 'audio' && kind !== 'video') return
+			const senderKey = getTransceiverKey(transceiver, 'sender')
 			const worker = kind === 'audio' ? audioWorker : videoWorker
 
 			registerRequiredKey('sender', senderKey)
@@ -531,34 +542,27 @@ export function useE2EE({
 					)
 
 				const preferredCodecs = isMobile
-					? [
-							...vp8Codecs,
-							...vp9Codecs,
-							...h265Codecs,
-							...h264Codecs,
-							...rtxCodecs,
-					  ]
-					: [
-							...h265Codecs,
-							...h264Codecs,
-							...vp8Codecs,
-							...vp9Codecs,
-							...rtxCodecs,
-					  ]
+					? [...vp8Codecs, ...vp9Codecs, ...h265Codecs, ...h264Codecs, ...rtxCodecs]
+					: [...h265Codecs, ...h264Codecs, ...vp8Codecs, ...vp9Codecs, ...rtxCodecs]
 
 				if (preferredCodecs.length > 0) {
 					transceiver.setCodecPreferences(preferredCodecs)
 				}
 			}
 
-			if (senderKey && boundSenderKeys.has(senderKey)) return
+			if (senderTransformsBoundRef.current.has(transceiver.sender)) return
+			if (senderTransformsPendingRef.current.has(transceiver.sender)) return
+			senderTransformsPendingRef.current.add(transceiver.sender)
 
 			worker
 				.setupSenderTransform(transceiver.sender)
 				.then(() => {
+					senderTransformsPendingRef.current.delete(transceiver.sender)
+					senderTransformsBoundRef.current.add(transceiver.sender)
 					registerBoundKey('sender', senderKey)
 				})
 				.catch((error) => {
+					senderTransformsPendingRef.current.delete(transceiver.sender)
 					setLastError(
 						(error as Error)?.message || `Failed to bind ${kind} sender transform`
 					)
@@ -577,7 +581,6 @@ export function useE2EE({
 		getTransceiverKey,
 		registerRequiredKey,
 		registerBoundKey,
-		boundSenderKeys,
 	])
 
 	useEffect(() => {
@@ -588,20 +591,26 @@ export function useE2EE({
 				transceiver.direction === 'sendrecv'
 			if (!shouldHandleReceiver) return
 
-			const receiverKey = getTransceiverKey(transceiver, 'receiver')
 			const kind = transceiver.receiver.track?.kind
+			if (kind !== 'audio' && kind !== 'video') return
+			const receiverKey = getTransceiverKey(transceiver, 'receiver')
 			const worker = kind === 'audio' ? audioWorker : videoWorker
 
 			registerRequiredKey('receiver', receiverKey)
 
-			if (receiverKey && boundReceiverKeys.has(receiverKey)) return
+			if (receiverTransformsBoundRef.current.has(transceiver.receiver)) return
+			if (receiverTransformsPendingRef.current.has(transceiver.receiver)) return
+			receiverTransformsPendingRef.current.add(transceiver.receiver)
 
 			worker
 				.setupReceiverTransform(transceiver.receiver)
 				.then(() => {
+					receiverTransformsPendingRef.current.delete(transceiver.receiver)
+					receiverTransformsBoundRef.current.add(transceiver.receiver)
 					registerBoundKey('receiver', receiverKey)
 				})
 				.catch((error) => {
+					receiverTransformsPendingRef.current.delete(transceiver.receiver)
 					setLastError(
 						(error as Error)?.message ||
 							`Failed to bind ${kind} receiver transform`
@@ -621,7 +630,6 @@ export function useE2EE({
 		getTransceiverKey,
 		registerRequiredKey,
 		registerBoundKey,
-		boundReceiverKeys,
 	])
 
 	const onJoin = useCallback(

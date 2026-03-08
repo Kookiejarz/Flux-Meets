@@ -40,6 +40,20 @@ function numberOrUndefined(value: unknown): number | undefined {
 	return isNaN(num) ? undefined : num
 }
 
+function isLikelyMobileClient() {
+	if (typeof navigator === 'undefined') return false
+	const uaDataMobile = (navigator as any).userAgentData?.mobile
+	if (typeof uaDataMobile === 'boolean') return uaDataMobile
+	const ua = navigator.userAgent || ''
+	const mobileUa =
+		/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
+			ua
+		)
+	// iPadOS may report as Macintosh while still being touch-first.
+	const touchMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+	return mobileUa || touchMac
+}
+
 function trackObjectToString(trackObject?: TrackObject) {
 	if (!trackObject) return undefined
 	return trackObject.sessionId + '/' + trackObject.trackName
@@ -566,6 +580,7 @@ function Room({ room, userMedia }: RoomProps) {
 			? [
 					{
 						rid: 'a',
+						networkPriority: 'high',
 						// 屏幕共享高质量层：使用90%配置上限
 						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.9),
 						// 高帧率模式30fps，低延迟模式15fps
@@ -574,6 +589,7 @@ function Room({ room, userMedia }: RoomProps) {
 					},
 					{
 						rid: 'b',
+						networkPriority: 'high',
 						scaleResolutionDownBy: 1.5,
 						// 屏幕共享中质量层：使用55%配置上限
 						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.55),
@@ -582,6 +598,7 @@ function Room({ room, userMedia }: RoomProps) {
 					},
 					{
 						rid: 'c',
+						networkPriority: 'high',
 						scaleResolutionDownBy: 2.0,
 						// 屏幕共享低质量层
 						maxBitrate: Math.min(
@@ -595,6 +612,7 @@ function Room({ room, userMedia }: RoomProps) {
 			: [
 					{
 						// 非 simulcast 模式
+						networkPriority: 'high',
 						maxFramerate: screenshareFps,
 						maxBitrate: Math.min(maxWebcamBitrate, effectiveWebcamBitrate),
 					},
@@ -627,27 +645,31 @@ function Room({ room, userMedia }: RoomProps) {
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 
-	// Mobile devices should have captions enabled by default
-	const [captionsEnabled, setCaptionsEnabled] = useState(() => {
-		if (typeof window === 'undefined') return false
-		return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-			navigator.userAgent
-		)
-	})
+	const mobileClient = typeof window !== 'undefined' ? isLikelyMobileClient() : false
+	// Mobile users should have captions enabled by default, while preserving manual overrides.
+	const [storedCaptionsEnabled, setStoredCaptionsEnabled] = useLocalStorage<boolean>(
+		'settings-captions-enabled',
+		mobileClient
+	)
+	const captionsEnabled = storedCaptionsEnabled ?? mobileClient
+	const setCaptionsEnabled: Dispatch<SetStateAction<boolean>> = (val) => {
+		setStoredCaptionsEnabled((prev) => {
+			const prevVal = prev ?? mobileClient
+			return typeof val === 'function' ? val(prevVal) : val
+		})
+	}
 	// Auto-detect ASR support: use Workers AI on mobile or when browser SpeechRecognition is unavailable
 	const [asrSource, setAsrSource] = useState<
 		'browser' | 'workers-ai' | 'assembly-ai'
 	>(() => {
 		if (typeof window === 'undefined') return 'browser'
-		const isMobileDevice =
-			/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-				navigator.userAgent
-			)
 		const hasSpeechRecognition =
 			!!(window as any).SpeechRecognition ||
 			!!(window as any).webkitSpeechRecognition
 		// Use Workers AI if on mobile or browser doesn't support SpeechRecognition
-		return isMobileDevice || !hasSpeechRecognition ? 'workers-ai' : 'browser'
+		return isLikelyMobileClient() || !hasSpeechRecognition
+			? 'workers-ai'
+			: 'browser'
 	})
 	const [storedLocalCcLanguage, setStoredLocalCcLanguage] = useLocalStorage<
 		'browser' | 'zh-CN' | 'en-US'
@@ -970,7 +992,6 @@ function Room({ room, userMedia }: RoomProps) {
 					: [{} as RTCRtpEncodingParameters]
 			const nextEncodings = encodings.map((enc) => ({
 				...enc,
-				networkPriority: 'high' as RTCPriorityType,
 				maxBitrate: targetBitrate,
 			}))
 			const changed = nextEncodings.some(

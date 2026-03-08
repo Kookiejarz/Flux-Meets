@@ -51,6 +51,12 @@ export type ServerMessage =
 			message: string
 	  }
 	| {
+			type: 'roomMessageEncrypted'
+			from: string
+			ciphertext: string
+			iv: string
+	  }
+	| {
 			type: 'muteMic'
 	  }
 	| {
@@ -91,6 +97,11 @@ export type ClientMessage =
 	| {
 			type: 'roomMessage'
 			message: string
+	  }
+	| {
+			type: 'roomMessageEncrypted'
+			ciphertext: string
+			iv: string
 	  }
 	| {
 			type: 'muteUser'

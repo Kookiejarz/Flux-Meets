@@ -22,7 +22,6 @@ import { ParticipantLayout } from '~/components/ParticipantLayout'
 import { ParticipantsButton } from '~/components/ParticipantsMenu'
 import { PullAudioTracks } from '~/components/PullAudioTracks'
 import { RaiseHandButton } from '~/components/RaiseHandButton'
-import { SafetyNumberToast } from '~/components/SafetyNumberToast'
 import { ScreenshareButton } from '~/components/ScreenshareButton'
 import Toast, { useDispatchToast } from '~/components/Toast'
 import { Tooltip } from '~/components/Tooltip'
@@ -34,11 +33,12 @@ import { useRoomUrl } from '~/hooks/useRoomUrl'
 import useSounds from '~/hooks/useSounds'
 import useStageManager, { screenshareSuffix } from '~/hooks/useStageManager'
 import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
+import type { User } from '~/types/Messages'
+import { decryptChat } from '~/utils/chatEncryption'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
 import getUsername from '~/utils/getUsername.server'
 import { isMobile } from '~/utils/isMobile'
 import isNonNullable from '~/utils/isNonNullable'
-import type { User } from '~/types/Messages'
 
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -52,8 +52,8 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 		username,
 		bugReportsEnabled: Boolean(
 			context.env.FEEDBACK_URL &&
-				context.env.FEEDBACK_QUEUE &&
-				context.env.FEEDBACK_STORAGE
+			context.env.FEEDBACK_QUEUE &&
+			context.env.FEEDBACK_STORAGE
 		),
 		disableLobbyEnforcement: context.env.DISABLE_LOBBY_ENFORCEMENT === 'true',
 		mode: context.mode,
@@ -113,9 +113,9 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 
 	const [unreadCount, setUnreadCount] = useState(0)
 	const [chatOpen, setChatOpen] = useState(false)
-	const [focusedScreenshareId, setFocusedScreenshareId] = useState<string | null>(
-		null
-	)
+	const [focusedScreenshareId, setFocusedScreenshareId] = useState<
+		string | null
+	>(null)
 
 	const [raisedHand, setRaisedHand] = useState(false)
 	// Only monitor speaking when mic is enabled, otherwise always false
@@ -152,6 +152,26 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 					setUnreadCount((c) => c + 1)
 				}
 				playSound('message').catch(console.error)
+			} else if (data.type === 'roomMessageEncrypted' && e2eeSafetyNumber) {
+				decryptChat(data.ciphertext, data.iv, e2eeSafetyNumber).then(
+					(plain) => {
+						if (!plain) return
+						setChatMessages((prev) => [
+							...prev,
+							{
+								id: crypto.randomUUID(),
+								sender: data.from,
+								text: plain,
+								time: new Date(),
+								isSelf: false,
+							},
+						])
+						if (!chatOpen) {
+							setUnreadCount((c) => c + 1)
+						}
+						playSound('message').catch(console.error)
+					}
+				)
 			}
 		}
 
@@ -210,7 +230,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	const focusedScreenshareUser =
 		focusedScreenshareId === null
 			? null
-			: actorsOnStage.find((u) => u.id === focusedScreenshareId) ?? null
+			: (actorsOnStage.find((u) => u.id === focusedScreenshareId) ?? null)
 	const mobileLandscape = mobile && width > height
 
 	useEffect(() => {
