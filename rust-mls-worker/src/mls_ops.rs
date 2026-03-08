@@ -22,6 +22,7 @@ use thiserror::Error;
 
 const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 const PROT_VERSION: ProtocolVersion = ProtocolVersion::Mls10;
+const MLS_FRAME_MARKER: [u8; 4] = *b"OMLS";
 // Permit decryption of messages that are up to 500 messages old (for that sender)
 const OUT_OF_ORDER_TOLERANCE: u32 = 500;
 // Permit decryption of messages from up to 1000 messages in the future (for that sender). 1000 is
@@ -512,30 +513,32 @@ impl WorkerState {
         }
     }
 
-    /// Takes a message, encrypts it, frames it as an `MlsMessageOut`, and serializes it. If
-    /// `self.mls_group` doesn't exist, returns all 0s, with the length of `msg`.
+    /// Takes a message, encrypts it, frames it as an `MlsMessageOut`, and serializes it.
+    /// If encryption cannot be performed, returns the original frame unchanged.
     fn encrypt_app_msg_nofail(&mut self, msg: &[u8]) -> Vec<u8> {
         // We can't encrypt every part of a frame. Leave some of the header.
-        let (header, msg_to_encrypt) = split_frame_header(msg).unwrap_or_default();
+        let Some((header, msg_to_encrypt)) = split_frame_header(msg) else {
+            return msg.to_vec();
+        };
 
-        // Encrypt the non-header part
-        let encrypted_payload = self
-            .mls_group
-            .as_mut()
-            .map(|group| {
-                group
-                    .create_message(
-                        &self.mls_provider,
-                        self.my_signing_keys.as_ref().unwrap(),
-                        msg_to_encrypt,
-                    )
-                    .unwrap()
-                    .to_bytes()
-                    .unwrap()
-            })
-            .unwrap_or_default();
+        let Some(group) = self.mls_group.as_mut() else {
+            return msg.to_vec();
+        };
 
-        [header, &encrypted_payload].concat()
+        let Some(signing_keys) = self.my_signing_keys.as_ref() else {
+            return msg.to_vec();
+        };
+
+        let Ok(mls_msg) = group.create_message(&self.mls_provider, signing_keys, msg_to_encrypt)
+        else {
+            return msg.to_vec();
+        };
+
+        let Ok(encrypted_payload) = mls_msg.to_bytes() else {
+            return msg.to_vec();
+        };
+
+        [header, &MLS_FRAME_MARKER, &encrypted_payload].concat()
     }
 
     /// Takes a ciphertext, deserializes it, decrypts it into an Application Message, and returns
@@ -544,6 +547,15 @@ impl WorkerState {
         // Only the header is encrypted
         let (unencrypted_prefix, msg_to_decrypt) =
             split_frame_header(ct).ok_or(DecryptAppMsgError::WrongMsgType("invalid frame"))?;
+
+        if !msg_to_decrypt.starts_with(&MLS_FRAME_MARKER) {
+            return Err(DecryptAppMsgError::WrongMsgType("frame without MLS marker"));
+        }
+
+        let msg_to_decrypt = &msg_to_decrypt[MLS_FRAME_MARKER.len()..];
+        if msg_to_decrypt.is_empty() {
+            return Err(DecryptAppMsgError::WrongMsgType("empty MLS payload"));
+        }
 
         let group = self.mls_group.as_mut().ok_or(DecryptAppMsgError::NoGroup)?;
         let framed = MlsMessageIn::tls_deserialize_exact_bytes(msg_to_decrypt)?;
@@ -573,7 +585,7 @@ impl WorkerState {
     }
 
     /// Takes a ciphertext, deserializes it, decrypts it into an Application Message, and returns
-    /// the bytes. If any error happens, returns the empty vec.
+    /// the bytes. If decryption fails, returns the original frame unchanged.
     fn decrypt_app_msg_nofail(&mut self, ct: &[u8]) -> Vec<u8> {
         self.decrypt_app_msg(ct).unwrap_or_else(|e| {
             // Only log NoGroup errors occasionally to avoid spam during initialization
@@ -584,12 +596,15 @@ impl WorkerState {
                     if self.no_group_error_count == 1 || self.no_group_error_count % 100 == 0 {
                         info!("Frame decryption failed (count: {}): Not in a group yet. This is normal during initialization while waiting for Welcome message.", self.no_group_error_count);
                     }
-                },
+                }
+                DecryptAppMsgError::WrongMsgType(_) => {
+                    // Non-MLS frame; expected during setup or mixed streams.
+                }
                 _ => {
                     info!("Frame decryption failed: {e}");
                 }
             }
-            Vec::new()
+            ct.to_vec()
         })
     }
 }
