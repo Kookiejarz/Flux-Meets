@@ -25,10 +25,17 @@ export const VideoInputSelector: FC<{ id?: string }> = ({ id }) => {
 		)
 	}
 
+	const hasSelectedVideoDevice = videoInputDevices.some(
+		(d) => d.deviceId === videoDeviceId
+	)
+	const selectedVideoDeviceId = hasSelectedVideoDevice
+		? videoDeviceId
+		: videoInputDevices[0]?.deviceId
+
 	return (
 		<div className="max-w-[40ch]">
 			<Select
-				value={videoDeviceId || videoInputDevices[0]?.deviceId}
+				value={selectedVideoDeviceId}
 				onValueChange={setVideoDeviceId}
 				id={id}
 			>

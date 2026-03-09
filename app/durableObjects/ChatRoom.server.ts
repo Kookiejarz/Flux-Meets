@@ -19,6 +19,11 @@ import {
 	Transcripts,
 } from 'schema'
 import invariant from 'tiny-invariant'
+import {
+	createAssemblyAiStreamingSession,
+	transcribeWithWorkersAi,
+	type AssemblyAiStreamingSession,
+} from '~/utils/asr.server'
 import { log } from '~/utils/logging'
 import {
 	CallsNewSession,
@@ -27,11 +32,6 @@ import {
 	requestOpenAIService,
 	type SessionDescription,
 } from '~/utils/openai.server'
-import {
-	transcribeWithWorkersAi,
-	createAssemblyAiStreamingSession,
-	type AssemblyAiStreamingSession,
-} from '~/utils/asr.server'
 import { translate } from '~/utils/translation.server'
 
 const alarmInterval = 15_000
@@ -421,35 +421,38 @@ export class ChatRoom extends Server<Env> {
 	// 添加用户语言到动态语言池
 	addUserLanguages(userId: string, languages: string[]) {
 		console.log('[Language Pool] Adding user languages:', { userId, languages })
-		
+
 		// 规范化语言代码（取前2位，例如 zh-CN -> zh）
 		const langCodes = new Set(
-			languages.map(lang => lang.toLowerCase().split('-')[0])
+			languages.map((lang) => lang.toLowerCase().split('-')[0])
 		)
-		
-		const oldLangs = this.userLanguageMap.get(userId)
-		
+
 		// 更新用户的语言集合
 		this.userLanguageMap.set(userId, langCodes)
-		
-		// 将所有语言添加到房间语言池
-		for (const langCode of langCodes) {
-			this.roomLanguages.add(langCode)
-		}
-		
+		this.rebuildRoomLanguagePool()
+
 		log({
 			eventName: 'userLanguagesAdded',
 			userId,
 			languages: Array.from(langCodes),
 			roomLanguages: Array.from(this.roomLanguages),
 		})
-		
+
 		console.log('[Language Pool] Updated:', {
 			userId,
 			langCodes: Array.from(langCodes),
 			roomLanguages: Array.from(this.roomLanguages),
-			userCount: this.userLanguageMap.size
+			userCount: this.userLanguageMap.size,
 		})
+	}
+
+	private rebuildRoomLanguagePool() {
+		this.roomLanguages.clear()
+		for (const langs of this.userLanguageMap.values()) {
+			for (const lang of langs) {
+				this.roomLanguages.add(lang)
+			}
+		}
 	}
 
 	setUserLanguagePreference(userId: string, languages: string[]) {
@@ -457,7 +460,8 @@ export class ChatRoom extends Server<Env> {
 			languages.map((lang) => lang.toLowerCase().split('-')[0]).filter(Boolean)
 		)
 		this.userLanguageMap.set(userId, langCodes)
-		console.log('[Language Pool] User preference updated (pool unchanged until rejoin):', {
+		this.rebuildRoomLanguagePool()
+		console.log('[Language Pool] User preference updated:', {
 			userId,
 			langCodes: Array.from(langCodes),
 			roomLanguages: Array.from(this.roomLanguages),
@@ -469,15 +473,8 @@ export class ChatRoom extends Server<Env> {
 		const userLangs = this.userLanguageMap.get(userId)
 		if (userLangs) {
 			this.userLanguageMap.delete(userId)
-			
-			// 重新计算房间语言池：仅保留其他用户需要的语言
-			this.roomLanguages.clear()
-			for (const langs of this.userLanguageMap.values()) {
-				for (const lang of langs) {
-					this.roomLanguages.add(lang)
-				}
-			}
-			
+			this.rebuildRoomLanguagePool()
+
 			log({
 				eventName: 'userLanguagesRemoved',
 				userId,
@@ -495,11 +492,10 @@ export class ChatRoom extends Server<Env> {
 			return langs
 		}
 		// 否则使用配置的默认语言
-		const defaultLangs = (
+		const defaultLangs =
 			this.env.WORKERS_AI_TRANSLATION_TARGET_LANGS?.split(',')
 				.map((lang) => lang.trim())
 				.filter(Boolean) ?? defaultWorkersAiTargetLangs
-		)
 		console.log('[Translation] Using default languages:', defaultLangs)
 		return defaultLangs
 	}
@@ -513,11 +509,11 @@ export class ChatRoom extends Server<Env> {
 			this.env.ENABLE_WORKERS_AI_ASR === 'true' ||
 			(this.env.ENABLE_WORKERS_AI_ASR === undefined &&
 				this.env.ENABLE_WORKERS_AI === 'true')
-		
+
 		if (!asrEnabled) return
 
 		const asrProvider = this.env.ASR_PROVIDER || 'workers-ai'
-		
+
 		if (asrProvider === 'assembly-ai') {
 			await this.handleAssemblyAiAudioChunk(connection, data)
 		} else {
@@ -566,46 +562,43 @@ export class ChatRoom extends Server<Env> {
 		try {
 			// 获取或创建该用户的 Assembly AI 流式会话
 			let session = this.assemblyAiSessions.get(connection.id)
-			
+
 			if (!session) {
-				const model = this.env.ASSEMBLY_AI_ASR_MODEL || 'universal-streaming-multilingual'
-				
+				const model =
+					this.env.ASSEMBLY_AI_ASR_MODEL || 'universal-streaming-multilingual'
+
 				// 创建新会话
-				session = createAssemblyAiStreamingSession(
-					apiKey,
-					model,
-					(result) => {
-						// 收到转录结果的回调
-						console.log('[Assembly AI] Transcription result:', { 
-							text: result.text, 
-							isFinal: result.isFinal 
+				session = createAssemblyAiStreamingSession(apiKey, model, (result) => {
+					// 收到转录结果的回调
+					console.log('[Assembly AI] Transcription result:', {
+						text: result.text,
+						isFinal: result.isFinal,
+					})
+
+					const captionMessage = {
+						type: 'caption',
+						userId: connection.id,
+						text: result.text,
+						isFinal: result.isFinal,
+						translate: true, // Auto-translate for Assembly AI ASR
+					} as const
+
+					this.broadcastMessage(captionMessage)
+
+					// 如果是最终结果，触发持久化和翻译
+					if (result.isFinal) {
+						console.log('[Assembly AI] Final result, triggering translation')
+						this.handleCaption(connection, captionMessage).catch((err) => {
+							console.error('Assembly AI caption handler error:', err)
 						})
-						
-						const captionMessage = {
-							type: 'caption',
-							userId: connection.id,
-							text: result.text,
-							isFinal: result.isFinal,
-							translate: true, // Auto-translate for Assembly AI ASR
-						} as const
-
-						this.broadcastMessage(captionMessage)
-
-						// 如果是最终结果，触发持久化和翻译
-						if (result.isFinal) {
-							console.log('[Assembly AI] Final result, triggering translation')
-							this.handleCaption(connection, captionMessage).catch((err) => {
-								console.error('Assembly AI caption handler error:', err)
-							})
-						}
 					}
-				)
-				
+				})
+
 				// 连接到 Assembly AI
 				await session.connect()
 				this.assemblyAiSessions.set(connection.id, session)
 			}
-			
+
 			// 发送音频数据到 Assembly AI
 			session.sendAudio(data.data)
 		} catch (e) {
@@ -617,12 +610,12 @@ export class ChatRoom extends Server<Env> {
 		connection: Connection<User>,
 		data: { text: string; isFinal: boolean; translate?: boolean }
 	) {
-		console.log('[Caption] Handling caption:', { 
-			text: data.text, 
-			isFinal: data.isFinal, 
-			translate: data.translate 
+		console.log('[Caption] Handling caption:', {
+			text: data.text,
+			isFinal: data.isFinal,
+			translate: data.translate,
 		})
-		
+
 		if (!data.isFinal) return
 
 		// 1) 持久化字幕（失败不影响后续翻译）
@@ -656,19 +649,19 @@ export class ChatRoom extends Server<Env> {
 				console.log('[Translation] Target languages:', targetLangs)
 
 				if (targetLangs.length === 0) {
-					console.warn('[Translation] No target languages configured, skipping translation')
+					console.warn(
+						'[Translation] No target languages configured, skipping translation'
+					)
 					return
 				}
 
-				const translations = await translate(
-					this.env,
-					data.text,
-					targetLangs
-				)
+				const translations = await translate(this.env, data.text, targetLangs)
 				console.log('[Translation] Received translations:', translations.length)
 
 				for (const translation of translations) {
-					console.log(`[Translation] Broadcasting: [${translation.language}] ${translation.text}`)
+					console.log(
+						`[Translation] Broadcasting: [${translation.language}] ${translation.text}`
+					)
 					this.broadcastMessage({
 						type: 'caption',
 						userId: connection.id,
@@ -780,11 +773,11 @@ export class ChatRoom extends Server<Env> {
 					)
 					break
 				}
-					case 'roomMessage': {
-						const { message } = data
-						const fromUser = await this.ctx.storage.get<User>(
-							`session-${connection.id}`
-						)
+				case 'roomMessage': {
+					const { message } = data
+					const fromUser = await this.ctx.storage.get<User>(
+						`session-${connection.id}`
+					)
 
 					for (const otherConnection of this.getConnections<User>()) {
 						if (otherConnection.id !== connection.id) {
@@ -793,28 +786,28 @@ export class ChatRoom extends Server<Env> {
 								from: fromUser!.name,
 								message,
 							})
-							}
 						}
-						break
 					}
-					case 'roomMessageEncrypted': {
-						const { ciphertext, iv } = data
-						const fromUser = await this.ctx.storage.get<User>(
-							`session-${connection.id}`
-						)
+					break
+				}
+				case 'roomMessageEncrypted': {
+					const { ciphertext, iv } = data
+					const fromUser = await this.ctx.storage.get<User>(
+						`session-${connection.id}`
+					)
 
-						for (const otherConnection of this.getConnections<User>()) {
-							if (otherConnection.id !== connection.id) {
-								this.sendMessage(otherConnection, {
-									type: 'roomMessageEncrypted',
-									from: fromUser!.name,
-									ciphertext,
-									iv,
-								})
-							}
+					for (const otherConnection of this.getConnections<User>()) {
+						if (otherConnection.id !== connection.id) {
+							this.sendMessage(otherConnection, {
+								type: 'roomMessageEncrypted',
+								from: fromUser!.name,
+								ciphertext,
+								iv,
+							})
 						}
-						break
 					}
+					break
+				}
 				case 'muteUser': {
 					const user = await this.ctx.storage.get<User>(
 						`session-${connection.id}`

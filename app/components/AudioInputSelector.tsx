@@ -25,11 +25,18 @@ export const AudioInputSelector: FC<{ id?: string }> = ({ id }) => {
 		)
 	}
 
+	const hasSelectedAudioDevice = audioInputDevices.some(
+		(d) => d.deviceId === audioDeviceId
+	)
+	const selectedAudioDeviceId = hasSelectedAudioDevice
+		? audioDeviceId
+		: audioInputDevices[0]?.deviceId
+
 	return (
 		<div className="max-w-[40ch]">
 			<Select
 				id={id}
-				value={audioDeviceId || audioInputDevices[0]?.deviceId}
+				value={selectedAudioDeviceId}
 				onValueChange={setAudioDeviceId}
 			>
 				{audioInputDevices.map((d) => (

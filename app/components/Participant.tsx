@@ -36,7 +36,6 @@ import { MuteUserButton } from './MuteUserButton'
 import { OptionalLink } from './OptionalLink'
 import { usePulledAudioTrack } from './PullAudioTracks'
 import { Spinner } from './Spinner'
-import { SafetyNumberToast } from './SafetyNumberToast'
 import { useDispatchToast } from './Toast'
 import { Tooltip } from './Tooltip'
 import { VideoSrcObject } from './VideoSrcObject'
@@ -192,9 +191,32 @@ export const Participant = forwardRef<
 			return fallback || 'en'
 		}
 
-		const preferredNonEnglish = normalized.find((lang) => lang !== 'en')
-		return preferredNonEnglish || normalized[0]
+		return normalized[0]
 	}, [])
+
+	const detectOriginalCaptionLanguage = useCallback(
+		(text: string): string | null => {
+			const normalized = text.trim()
+			if (!normalized) return null
+
+			const hanMatches = normalized.match(/\p{Script=Han}/gu) ?? []
+			if (
+				hanMatches.length >= Math.max(2, Math.floor(normalized.length * 0.15))
+			) {
+				return 'zh'
+			}
+
+			const latinMatches = normalized.match(/[A-Za-z]/g) ?? []
+			if (
+				latinMatches.length >= Math.max(3, Math.floor(normalized.length * 0.2))
+			) {
+				return 'en'
+			}
+
+			return null
+		},
+		[]
+	)
 
 	const shouldDisplayCaption = useCallback(
 		(text: string): boolean => {
@@ -212,9 +234,6 @@ export const Participant = forwardRef<
 			if (effectiveLanguage === 'auto') {
 				// AUTO 下自己只显示 STT 原文，不显示翻译
 				if (isSelf) return isOriginalCaption
-
-				// AUTO 下保留原文，避免无 [EN]/[ZH] 标签时字幕不显示
-				if (isOriginalCaption) return true
 				effectiveLanguage = getBrowserLanguage()
 			}
 
@@ -223,10 +242,21 @@ export const Participant = forwardRef<
 				return lang === effectiveLanguage
 			}
 
-			// 没有语言标签的原文字幕，总是显示（除了'original'模式已在上面处理）
-			return isOriginalCaption
+			// AUTO 下：看别人发言时，如果原文检测语言与浏览器首选一致，则显示原文
+			if (displayCaptionLanguage === 'auto' && isOriginalCaption) {
+				const detectedLang = detectOriginalCaptionLanguage(text)
+				return detectedLang === effectiveLanguage
+			}
+
+			// 显式语言过滤（en/zh）下，不显示无标签原文
+			return false
 		},
-		[displayCaptionLanguage, getBrowserLanguage, isSelf]
+		[
+			displayCaptionLanguage,
+			getBrowserLanguage,
+			isSelf,
+			detectOriginalCaptionLanguage,
+		]
 	)
 
 	const normalizeCaptionText = useCallback((text: string) => {
@@ -247,23 +277,31 @@ export const Participant = forwardRef<
 			const minLen = Math.min(na.length, nb.length)
 			if (minLen < 6) return false
 
-			return na.startsWith(nb) || nb.startsWith(na) || na.includes(nb) || nb.includes(na)
+			return (
+				na.startsWith(nb) ||
+				nb.startsWith(na) ||
+				na.includes(nb) ||
+				nb.includes(na)
+			)
 		},
 		[normalizeCaptionText]
 	)
 
 	// 缓存的清理逻辑
-	const cleanupCaptions = useCallback((prev: typeof captions) => {
-		const now = Date.now()
-		// 只在有过期字幕时才执行清理（给淡出动画留足时间）
-		const needsCleanup = prev.some((c) => now - c.timestamp > captionRemoveMs)
-		if (!needsCleanup) return prev
+	const cleanupCaptions = useCallback(
+		(prev: typeof captions) => {
+			const now = Date.now()
+			// 只在有过期字幕时才执行清理（给淡出动画留足时间）
+			const needsCleanup = prev.some((c) => now - c.timestamp > captionRemoveMs)
+			if (!needsCleanup) return prev
 
-		return prev.filter((caption) => {
-			// 保留未完成和未超时的字幕
-			return now - caption.timestamp < captionRemoveMs
-		})
-	}, [captionRemoveMs])
+			return prev.filter((caption) => {
+				// 保留未完成和未超时的字幕
+				return now - caption.timestamp < captionRemoveMs
+			})
+		},
+		[captionRemoveMs]
+	)
 
 	useEffect(() => {
 		if (!shouldShowCaptionsOnThisTile && captions.length > 0) {
@@ -325,7 +363,10 @@ export const Participant = forwardRef<
 							// final 与当前 unfinished 不相似：视为迟到包，忽略，保持当前生成字幕在底部
 							if (data.isFinal) {
 								const lastFinal = [...prev].reverse().find((c) => c.isFinal)
-								if (lastFinal && isSimilarCaptionText(lastFinal.text, incomingText)) {
+								if (
+									lastFinal &&
+									isSimilarCaptionText(lastFinal.text, incomingText)
+								) {
 									return prev
 								}
 								return prev
@@ -411,11 +452,11 @@ export const Participant = forwardRef<
 					onKeyDown={
 						isScreenshareClickable
 							? (event) => {
-								if (event.key === 'Enter' || event.key === ' ') {
-									event.preventDefault()
-									onParticipantClick?.(user)
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault()
+										onParticipantClick?.(user)
+									}
 								}
-							}
 							: undefined
 					}
 					role={isScreenshareClickable ? 'button' : undefined}
@@ -489,11 +530,14 @@ export const Participant = forwardRef<
 						}}
 					/>
 					{/* Only show spinner when user has video enabled but track hasn't arrived yet */}
-					{shouldPullVideo && user.tracks.videoEnabled && user.tracks.video && !pulledVideoTrack && (
-						<div className="absolute inset-0 grid w-full h-full place-items-center">
-							<Spinner className="h-8 w-8" />
-						</div>
-					)}
+					{shouldPullVideo &&
+						user.tracks.videoEnabled &&
+						user.tracks.video &&
+						!pulledVideoTrack && (
+							<div className="absolute inset-0 grid w-full h-full place-items-center">
+								<Spinner className="h-8 w-8" />
+							</div>
+						)}
 					<HoverFade className="absolute inset-0 grid w-full h-full place-items-center">
 						<div className="flex gap-2 p-2 rounded bg-zinc-900/30">
 							{!isScreenShare && (
@@ -508,9 +552,9 @@ export const Participant = forwardRef<
 					{!isScreenShare && (
 						<div className="absolute left-3 top-3 bg-black/40 backdrop-blur-md p-1.5 rounded-md">
 							{/* Show audio indicator when speaking, regardless of video state */}
-							{audioTrack &&
-								user.tracks.audioEnabled &&
-								isSpeaking && <AudioIndicator audioTrack={audioTrack} />}
+							{audioTrack && user.tracks.audioEnabled && isSpeaking && (
+								<AudioIndicator audioTrack={audioTrack} />
+							)}
 
 							{!user.tracks.audioEnabled && !user.tracks.audioUnavailable && (
 								<Tooltip content="Mic is turned off">
