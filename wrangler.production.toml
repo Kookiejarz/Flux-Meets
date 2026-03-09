@@ -75,7 +75,7 @@ OPENAI_TRANSLATION_MODEL = "gpt-5-nano-2025-08-07"  # 或 gpt-4o, gpt-3.5-turbo
 GEMINI_TRANSLATION_MODEL = "gemini-3.1-flash-lite-preview"  # 或 gemini-1.5-flash, gemini-1.5-pro
 
 #  选项3: Inception 翻译（推荐，速度快）
-INCEPTION_TRANSLATION_MODEL=mercury-2
+INCEPTION_TRANSLATION_MODEL= "mercury-2"
 
 # 选项3: Workers AI 翻译（Cloudflare原生，免费但质量一般）
 ENABLE_WORKERS_AI = "false"
