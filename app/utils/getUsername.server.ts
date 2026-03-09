@@ -7,8 +7,12 @@ export async function setUsername(
 	request: Request,
 	returnUrl: string = '/'
 ) {
+	const normalizedUsername = username.trim()
+	if (!normalizedUsername) {
+		throw safeRedirect('/set-username')
+	}
 	const session = await getSession(request.headers.get('Cookie'))
-	session.set('username', username)
+	session.set('username', normalizedUsername)
 	throw safeRedirect(returnUrl, {
 		headers: {
 			'Set-Cookie': await commitSession(session),
@@ -26,11 +30,13 @@ export default async function getUsername(request: Request) {
 	const accessUsername = request.headers.get(
 		ACCESS_AUTHENTICATED_USER_EMAIL_HEADER
 	)
-	if (accessUsername) return accessUsername
+	if (accessUsername?.trim()) return accessUsername.trim()
 
 	const session = await getSession(request.headers.get('Cookie'))
 	const sessionUsername = session.get('username')
-	if (typeof sessionUsername === 'string') return sessionUsername
+	if (typeof sessionUsername === 'string' && sessionUsername.trim()) {
+		return sessionUsername.trim()
+	}
 
 	return null
 }

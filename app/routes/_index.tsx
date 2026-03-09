@@ -111,10 +111,23 @@ export default function Index() {
 	const [roomNameInput, setRoomNameInput] = useState('')
 	const normalizedDirectoryName = data?.displayName?.trim()
 	const normalizedUsername = username?.trim()
-	const effectiveDisplayName =
+	const usernameLooksLikeEmail = Boolean(
+		normalizedUsername && normalizedUsername.includes('@')
+	)
+	const genericDirectoryNames = new Set([
+		'there',
+		'user',
+		'unknown',
+		'guest',
+		'anonymous',
+		'undefined undefined',
+		'null null',
+	])
+	const isUsableDirectoryName =
 		normalizedDirectoryName &&
-		normalizedDirectoryName.toLowerCase() !== 'undefined undefined' &&
-		normalizedDirectoryName.toLowerCase() !== 'null null'
+		!genericDirectoryNames.has(normalizedDirectoryName.toLowerCase())
+	const effectiveDisplayName =
+		usernameLooksLikeEmail && isUsableDirectoryName
 			? normalizedDirectoryName
 			: normalizedUsername || 'there'
 

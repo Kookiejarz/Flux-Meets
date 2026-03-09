@@ -12,16 +12,25 @@ interface UserMetadata {
 export function useUserMetadata(email: string) {
 	const { userDirectoryUrl } = useOutletContext<{ userDirectoryUrl?: string }>()
 	const normalizedDirectoryUrl = userDirectoryUrl?.trim()
+	const normalizedEmail = email?.trim()
+	const shouldQueryDirectory =
+		Boolean(normalizedDirectoryUrl) &&
+		typeof normalizedEmail === 'string' &&
+		normalizedEmail.includes('@')
 
 	const initialData: UserMetadata = {
-		displayName: email,
+		displayName: normalizedEmail || email,
 	}
 
 	return useQuery({
 		initialData,
-		queryKey: ['user-metadata', normalizedDirectoryUrl, email],
+		queryKey: ['user-metadata', normalizedDirectoryUrl, normalizedEmail],
 		queryFn: async ({ queryKey: [, directoryUrl, currentEmail] }) => {
-			if (!directoryUrl || typeof directoryUrl !== 'string') {
+			if (
+				!shouldQueryDirectory ||
+				!directoryUrl ||
+				typeof directoryUrl !== 'string'
+			) {
 				return initialData
 			}
 
@@ -39,7 +48,9 @@ export function useUserMetadata(email: string) {
 					.join(' ')
 					.trim()
 				const displayName =
-					parsedData.displayName?.trim() || combinedName || initialData.displayName
+					parsedData.displayName?.trim() ||
+					combinedName ||
+					initialData.displayName
 
 				return {
 					...parsedData,

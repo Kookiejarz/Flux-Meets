@@ -325,7 +325,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							</div>
 							<div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-zinc-400">
 								<div className="rounded-md border border-white/10 p-2">
-									<p className="font-semibold text-zinc-300 mb-1">
+									<p className="font-semibold text-neutral-100 mb-1">
 										Video Tier Rules
 									</p>
 									<p>
@@ -346,7 +346,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 									</p>
 								</div>
 								<div className="rounded-md border border-white/10 p-2">
-									<p className="font-semibold text-zinc-300 mb-1">
+									<p className="font-semibold text-neutral-100 mb-1">
 										Audio Tier Rules
 									</p>
 									<p>
