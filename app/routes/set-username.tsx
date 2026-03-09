@@ -29,6 +29,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function SetUsername() {
 	const [nameInput, setNameInput] = useState('')
+	const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
+		const trimmed = nameInput.trim()
+		if (trimmed && typeof window !== 'undefined') {
+			window.localStorage.setItem('username', trimmed)
+		}
+		// allow normal form POST
+	}
 
 	return (
 		<div className="flex flex-col items-center justify-center h-full p-6 mx-auto group">
@@ -51,6 +58,7 @@ export default function SetUsername() {
 				<div className="animate-fade-in-up transition-all duration-1000">
 					<Form
 						method="post"
+						onSubmit={handleSubmit}
 						className="relative flex flex-col sm:flex-row gap-3 p-2 bg-white dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl shadow-orange-500/5 focus-within:shadow-orange-500/20 focus-within:border-orange-500/50 transition-all duration-500"
 					>
 						<div className="relative flex-grow">

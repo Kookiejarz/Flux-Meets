@@ -16,7 +16,7 @@ import getUsername from '~/utils/getUsername.server'
 import { cn } from '~/utils/style'
 
 type IndexLoaderData = {
-	username: string
+	username: string | null
 	usedAccess: boolean
 	directoryUrl: string | undefined
 	e2eeEnabled: boolean
@@ -28,13 +28,6 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	// Default to true; allow explicit opt-out via E2EE_ENABLED="false"
 	const e2eeEnabled = env?.E2EE_ENABLED === 'false' ? false : true
 	const username = await getUsername(request)
-
-	// If no username after redirect, redirect to set-username again
-	if (!username) {
-		throw redirect(
-			`/set-username?return-url=${encodeURIComponent(request.url)}`
-		)
-	}
 
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
 	return data({ username, usedAccess, directoryUrl, e2eeEnabled })
