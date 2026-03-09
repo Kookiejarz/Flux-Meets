@@ -65,7 +65,7 @@ ASSEMBLY_AI_ASR_MODEL = "universal-streaming-multilingual"  # universal-streamin
 # 作用：将字幕实时翻译成目标语言，客户端根据用户浏览器语言过滤显示
 
 # 翻译提供商选择: openai, gemini, workers-ai
-TRANSLATION_PROVIDER = "gemini"  # 推荐 openai 或 gemini
+TRANSLATION_PROVIDER = "inception"  # 推荐 openai, Inception或 gemini
 
 # 选项1: OpenAI 翻译（质量好，成本较高）
 OPENAI_TRANSLATION_MODEL = "gpt-5-nano-2025-08-07"  # 或 gpt-4o, gpt-3.5-turbo
@@ -73,6 +73,9 @@ OPENAI_TRANSLATION_MODEL = "gpt-5-nano-2025-08-07"  # 或 gpt-4o, gpt-3.5-turbo
 # 选项2: Gemini 翻译（推荐，质量好+免费额度大）
 # GEMINI_API_KEY = "your_gemini_api_key"  # 从 https://aistudio.google.com/apikey 获取
 GEMINI_TRANSLATION_MODEL = "gemini-3.1-flash-lite-preview"  # 或 gemini-1.5-flash, gemini-1.5-pro
+
+#  选项3: Inception 翻译（推荐，速度快）
+INCEPTION_TRANSLATION_MODEL=mercury-2
 
 # 选项3: Workers AI 翻译（Cloudflare原生，免费但质量一般）
 ENABLE_WORKERS_AI = "false"

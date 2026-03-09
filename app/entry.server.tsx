@@ -1,7 +1,7 @@
 import type { EntryContext } from '@remix-run/cloudflare'
 import { RemixServer } from '@remix-run/react'
 import { renderToString } from 'react-dom/server'
-import { RELEASE, SENTRY_DSN } from './utils/constants'
+import { RELEASE } from './utils/constants'
 
 export default function handleRequest(
 	request: Request,
@@ -18,7 +18,6 @@ export default function handleRequest(
 			<script>
 				window.ENV = ${JSON.stringify({
 					RELEASE: RELEASE ?? 'dev',
-					SENTRY_DSN: SENTRY_DSN,
 				})}
 			</script>
 		`

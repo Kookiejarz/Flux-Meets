@@ -2,7 +2,7 @@ import type { Env } from '~/types/Env'
 
 /**
  * Translation Service
- * 支持多种翻译提供商：OpenAI, Gemini, Workers AI
+ * 支持多种翻译提供商：OpenAI, Gemini, Inception, Workers AI
  */
 
 export interface TranslationResult {
@@ -43,7 +43,10 @@ async function openAIChatTranslate(
 	model: string,
 	text: string,
 	lang: string
-): Promise<{ ok: true; translatedText: string | null } | { ok: false; status: number; errorBody: string }> {
+): Promise<
+	| { ok: true; translatedText: string | null }
+	| { ok: false; status: number; errorBody: string }
+> {
 	const response = await fetch('https://api.openai.com/v1/chat/completions', {
 		method: 'POST',
 		headers: {
@@ -80,7 +83,10 @@ async function openAIResponsesTranslate(
 	model: string,
 	text: string,
 	lang: string
-): Promise<{ ok: true; translatedText: string | null } | { ok: false; status: number; errorBody: string }> {
+): Promise<
+	| { ok: true; translatedText: string | null }
+	| { ok: false; status: number; errorBody: string }
+> {
 	const response = await fetch('https://api.openai.com/v1/responses', {
 		method: 'POST',
 		headers: {
@@ -139,76 +145,99 @@ export async function translateWithOpenAI(
 	const useResponsesOnly = /^gpt-5/i.test(model)
 
 	const translatedResults = await Promise.all(
-		normalizedTargetLanguages.map(async (lang): Promise<TranslationResult | null> => {
-			try {
-				if (useResponsesOnly) {
-					const responsesResult = await openAIResponsesTranslate(env, model, text, lang)
-					if (responsesResult.ok) {
-						if (responsesResult.translatedText && responsesResult.translatedText !== text) {
+		normalizedTargetLanguages.map(
+			async (lang): Promise<TranslationResult | null> => {
+				try {
+					if (useResponsesOnly) {
+						const responsesResult = await openAIResponsesTranslate(
+							env,
+							model,
+							text,
+							lang
+						)
+						if (responsesResult.ok) {
+							if (
+								responsesResult.translatedText &&
+								responsesResult.translatedText !== text
+							) {
+								return {
+									language: lang,
+									text: responsesResult.translatedText,
+								}
+							}
+							return null
+						}
+
+						console.error(
+							`OpenAI responses translation failed for ${lang}: ${responsesResult.status}. Body:`,
+							responsesResult.errorBody
+						)
+						return null
+					}
+
+					const chatResult = await openAIChatTranslate(env, model, text, lang)
+
+					if (chatResult.ok) {
+						if (
+							chatResult.translatedText &&
+							chatResult.translatedText !== text
+						) {
 							return {
 								language: lang,
-								text: responsesResult.translatedText,
+								text: chatResult.translatedText,
 							}
 						}
 						return null
 					}
 
-					console.error(
-						`OpenAI responses translation failed for ${lang}: ${responsesResult.status}. Body:`,
-						responsesResult.errorBody
-					)
-					return null
-				}
+					if (chatResult.status === 400 || chatResult.status === 404) {
+						console.warn(
+							`OpenAI chat/completions failed for ${lang} (${chatResult.status}), falling back to /v1/responses. Body:`,
+							chatResult.errorBody
+						)
 
-				const chatResult = await openAIChatTranslate(env, model, text, lang)
-
-				if (chatResult.ok) {
-					if (chatResult.translatedText && chatResult.translatedText !== text) {
-						return {
-							language: lang,
-							text: chatResult.translatedText,
+						const responsesResult = await openAIResponsesTranslate(
+							env,
+							model,
+							text,
+							lang
+						)
+						if (responsesResult.ok) {
+							if (
+								responsesResult.translatedText &&
+								responsesResult.translatedText !== text
+							) {
+								return {
+									language: lang,
+									text: responsesResult.translatedText,
+								}
+							}
+							return null
 						}
-					}
-					return null
-				}
 
-				if (chatResult.status === 400 || chatResult.status === 404) {
-					console.warn(
-						`OpenAI chat/completions failed for ${lang} (${chatResult.status}), falling back to /v1/responses. Body:`,
+						console.error(
+							`OpenAI responses translation failed for ${lang}: ${responsesResult.status}. Body:`,
+							responsesResult.errorBody
+						)
+						return null
+					}
+
+					console.error(
+						`OpenAI translation failed for ${lang}: ${chatResult.status}. Body:`,
 						chatResult.errorBody
 					)
-
-					const responsesResult = await openAIResponsesTranslate(env, model, text, lang)
-					if (responsesResult.ok) {
-						if (responsesResult.translatedText && responsesResult.translatedText !== text) {
-							return {
-								language: lang,
-								text: responsesResult.translatedText,
-							}
-						}
-						return null
-					}
-
-					console.error(
-						`OpenAI responses translation failed for ${lang}: ${responsesResult.status}. Body:`,
-						responsesResult.errorBody
-					)
+					return null
+				} catch (e) {
+					console.error(`OpenAI translation error for ${lang}:`, e)
 					return null
 				}
-
-				console.error(
-					`OpenAI translation failed for ${lang}: ${chatResult.status}. Body:`,
-					chatResult.errorBody
-				)
-				return null
-			} catch (e) {
-				console.error(`OpenAI translation error for ${lang}:`, e)
-				return null
 			}
-		})
+		)
 	)
 
-	return translatedResults.filter((item): item is TranslationResult => item !== null)
+	return translatedResults.filter(
+		(item): item is TranslationResult => item !== null
+	)
 }
 
 /**
@@ -233,56 +262,147 @@ export async function translateWithGemini(
 	const normalizedTargetLanguages = normalizeTargetLanguages(targetLanguages)
 
 	const translatedResults = await Promise.all(
-		normalizedTargetLanguages.map(async (lang): Promise<TranslationResult | null> => {
-			try {
-				const response = await fetch(
-					`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-						},
-						body: JSON.stringify({
-							contents: [
-								{
-									parts: [
-										{
-											text: `Translate to ${lang.toUpperCase()}. Output only the translation:\n\n${text}`,
-										},
-									],
-								},
-							],
-							generationConfig: {
-								temperature: 0.3,
-								maxOutputTokens: 200,
+		normalizedTargetLanguages.map(
+			async (lang): Promise<TranslationResult | null> => {
+				try {
+					const response = await fetch(
+						`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+						{
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
 							},
-						}),
-					}
-				)
-
-				if (response.ok) {
-					const result: any = await response.json()
-					const translatedText =
-						result.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-					if (translatedText && translatedText !== text) {
-						return {
-							language: lang,
-							text: translatedText,
+							body: JSON.stringify({
+								contents: [
+									{
+										parts: [
+											{
+												text: `Translate to ${lang.toUpperCase()}. Output only the translation:\n\n${text}`,
+											},
+										],
+									},
+								],
+								generationConfig: {
+									temperature: 0.3,
+									maxOutputTokens: 200,
+								},
+							}),
 						}
+					)
+
+					if (response.ok) {
+						const result: any = await response.json()
+						const translatedText =
+							result.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+						if (translatedText && translatedText !== text) {
+							return {
+								language: lang,
+								text: translatedText,
+							}
+						}
+						return null
 					}
+
+					console.error(
+						`Gemini translation failed for ${lang}:`,
+						response.status
+					)
+					return null
+				} catch (e) {
+					console.error(`Gemini translation error for ${lang}:`, e)
 					return null
 				}
-
-				console.error(`Gemini translation failed for ${lang}:`, response.status)
-				return null
-			} catch (e) {
-				console.error(`Gemini translation error for ${lang}:`, e)
-				return null
 			}
-		})
+		)
 	)
 
-	return translatedResults.filter((item): item is TranslationResult => item !== null)
+	return translatedResults.filter(
+		(item): item is TranslationResult => item !== null
+	)
+}
+
+/**
+ * Inception Translation
+ */
+export async function translateWithInception(
+	env: Env,
+	text: string,
+	targetLanguages: string[]
+): Promise<TranslationResult[]> {
+	if (
+		!env.INCEPTION_API_KEY ||
+		!env.INCEPTION_TRANSLATION_MODEL ||
+		env.INCEPTION_TRANSLATION_MODEL.trim() === ''
+	) {
+		console.error('Inception translation not configured')
+		return []
+	}
+
+	const model = env.INCEPTION_TRANSLATION_MODEL
+	const apiKey = env.INCEPTION_API_KEY
+	const normalizedTargetLanguages = normalizeTargetLanguages(targetLanguages)
+
+	const translatedResults = await Promise.all(
+		normalizedTargetLanguages.map(
+			async (lang): Promise<TranslationResult | null> => {
+				try {
+					const response = await fetch(
+						'https://api.inceptionlabs.ai/v1/chat/completions',
+						{
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								Authorization: `Bearer ${apiKey}`,
+							},
+							body: JSON.stringify({
+								model,
+								messages: [
+									{
+										role: 'system',
+										content: `Translate to ${lang.toUpperCase()}. Output only the translation.`,
+									},
+									{
+										role: 'user',
+										content: text,
+									},
+								],
+								reasoning_effort: 'high',
+								temperature: 0.75,
+								stream: true,
+								diffusing: true,
+							}),
+						}
+					)
+
+					if (response.ok) {
+						const result: any = await response.json()
+						const translatedText =
+							result.choices?.[0]?.message?.content?.trim() ?? null
+						if (translatedText && translatedText !== text) {
+							return {
+								language: lang,
+								text: translatedText,
+							}
+						}
+						return null
+					}
+
+					console.error(
+						`Inception translation failed for ${lang}: ${response.status}. Body:`,
+						await response.text()
+					)
+					return null
+				} catch (e) {
+					console.error(`Inception translation error for ${lang}:`, e)
+					return null
+				}
+			}
+		)
+	)
+
+	return translatedResults.filter(
+		(item): item is TranslationResult => item !== null
+	)
 }
 
 /**
@@ -307,28 +427,35 @@ export async function translateWithWorkersAI(
 	const normalizedTargetLanguages = normalizeTargetLanguages(targetLanguages)
 
 	const translatedResults = await Promise.all(
-		normalizedTargetLanguages.map(async (lang): Promise<TranslationResult | null> => {
-			try {
-				const translation = await env.AI.run(translationModel, {
-					text: text,
-					target_lang: lang,
-				})
+		normalizedTargetLanguages.map(
+			async (lang): Promise<TranslationResult | null> => {
+				try {
+					const translation = await env.AI.run(translationModel, {
+						text: text,
+						target_lang: lang,
+					})
 
-				if (translation?.translated_text && translation.translated_text !== text) {
-					return {
-						language: lang,
-						text: translation.translated_text,
+					if (
+						translation?.translated_text &&
+						translation.translated_text !== text
+					) {
+						return {
+							language: lang,
+							text: translation.translated_text,
+						}
 					}
+					return null
+				} catch (e) {
+					console.error(`Workers AI translation error for ${lang}:`, e)
+					return null
 				}
-				return null
-			} catch (e) {
-				console.error(`Workers AI translation error for ${lang}:`, e)
-				return null
 			}
-		})
+		)
 	)
 
-	return translatedResults.filter((item): item is TranslationResult => item !== null)
+	return translatedResults.filter(
+		(item): item is TranslationResult => item !== null
+	)
 }
 
 /**
@@ -348,6 +475,8 @@ export async function translate(
 			return translateWithGemini(env, text, targetLanguages)
 		case 'workers-ai':
 			return translateWithWorkersAI(env, text, targetLanguages)
+		case 'inception':
+			return translateWithInception(env, text, targetLanguages)
 		case 'none':
 			return []
 		default:
