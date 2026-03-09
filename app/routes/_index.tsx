@@ -108,7 +108,25 @@ export default function Index() {
 	const dispatchToast = useDispatchToast()
 	const [roomNameInput, setRoomNameInput] = useState('')
 	const normalizedUsername = username?.trim()
-	const effectiveDisplayName = normalizedUsername || 'there'
+	const cachedUsername =
+		typeof window !== 'undefined'
+			? window.localStorage.getItem('username')?.trim()
+			: undefined
+	const effectiveDisplayName = normalizedUsername || cachedUsername || 'there'
+	const effectiveE2ee = e2eeEnabled ?? true
+	useEffect(() => {
+		if (normalizedUsername && typeof window !== 'undefined') {
+			window.localStorage.setItem('username', normalizedUsername)
+		}
+		if (
+			!normalizedUsername &&
+			!cachedUsername &&
+			typeof window !== 'undefined'
+		) {
+			const target = `/set-username?return-url=${encodeURIComponent(window.location.href)}`
+			window.location.replace(target)
+		}
+	}, [normalizedUsername, cachedUsername])
 
 	const isCreatingNew = roomNameInput.trim() === ''
 
@@ -137,14 +155,14 @@ export default function Index() {
 							<span className="text-orange-500">{effectiveDisplayName}</span>
 						</p>
 						<p className="text-[11px] text-zinc-400 dark:text-zinc-500">
-							{e2eeEnabled
+							{effectiveE2ee
 								? 'E2EE check will run before entering the meeting room.'
 								: 'E2EE is currently disabled in this environment.'}
 						</p>
 						<p className="text-[10px] text-zinc-400 dark:text-zinc-600 opacity-70">
 							{/* Temporary debug to trace missing names/E2EE flag */}
-							debug: user={normalizedUsername ?? 'null'} e2ee=
-							{String(e2eeEnabled)}
+							debug: user={normalizedUsername ?? cachedUsername ?? 'null'} e2ee=
+							{String(effectiveE2ee)}
 						</p>
 						{!usedAccess && (
 							<a
