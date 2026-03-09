@@ -146,6 +146,7 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 			MAX_WEBCAM_QUALITY_LEVEL,
 			MAX_API_HISTORY,
 			EXPERIMENTAL_SIMULCAST_ENABLED,
+			E2EE_ENABLED,
 		},
 	} = context
 
@@ -188,7 +189,8 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		maxWebcamQualityLevel: numberOrUndefined(MAX_WEBCAM_QUALITY_LEVEL),
 		maxApiHistory: numberOrUndefined(MAX_API_HISTORY),
 		simulcastEnabled: EXPERIMENTAL_SIMULCAST_ENABLED === 'true',
-		e2eeEnabled: context.env.E2EE_ENABLED === 'true' || mode === 'production',
+		// Default to true; allow explicit opt-out via E2EE_ENABLED="false"
+		e2eeEnabled: E2EE_ENABLED === 'false' ? false : true,
 		aiEnabled: context.env.ENABLE_WORKERS_AI === 'true',
 	})
 }

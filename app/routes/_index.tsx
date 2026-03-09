@@ -13,7 +13,6 @@ import { Input } from '~/components/Input'
 import { useDispatchToast } from '~/components/Toast'
 import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import getUsername from '~/utils/getUsername.server'
-import { mode } from '~/utils/mode'
 import { cn } from '~/utils/style'
 
 type IndexLoaderData = {
@@ -26,7 +25,8 @@ type IndexLoaderData = {
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const env = context.env ?? (context as any)
 	const directoryUrl = env?.USER_DIRECTORY_URL
-	const e2eeEnabled = env?.E2EE_ENABLED === 'true' || mode === 'production'
+	// Default to true; allow explicit opt-out via E2EE_ENABLED="false"
+	const e2eeEnabled = env?.E2EE_ENABLED === 'false' ? false : true
 	const username = await getUsername(request)
 
 	// If no username after redirect, redirect to set-username again
