@@ -399,18 +399,22 @@ export function useE2EE({
 
 	const audioWorker = useMemo(
 		() =>
-			new EncryptionWorker({
-				id: `${room.websocket.id}-audio`,
-			}),
-		[room.websocket.id]
+			enabled
+				? new EncryptionWorker({
+						id: `${room.websocket.id}-audio`,
+					})
+				: null,
+		[enabled, room.websocket.id]
 	)
 
 	const videoWorker = useMemo(
 		() =>
-			new EncryptionWorker({
-				id: `${room.websocket.id}-video`,
-			}),
-		[room.websocket.id]
+			enabled
+				? new EncryptionWorker({
+						id: `${room.websocket.id}-video`,
+					})
+				: null,
+		[enabled, room.websocket.id]
 	)
 
 	const getTransceiverKey = useCallback(
@@ -489,6 +493,7 @@ export function useE2EE({
 	}, [])
 
 	useEffect(() => {
+		if (!audioWorker || !videoWorker) return
 		return () => {
 			audioWorker.dispose()
 			videoWorker.dispose()
@@ -496,7 +501,7 @@ export function useE2EE({
 	}, [audioWorker, videoWorker])
 
 	useEffect(() => {
-		if (!enabled || !joined) return
+		if (!enabled || !joined || !audioWorker || !videoWorker) return
 
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
 			const shouldHandleSender =
@@ -584,7 +589,7 @@ export function useE2EE({
 	])
 
 	useEffect(() => {
-		if (!enabled || !joined) return
+		if (!enabled || !joined || !audioWorker || !videoWorker) return
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
 			const shouldHandleReceiver =
 				transceiver.direction === 'recvonly' ||
@@ -644,7 +649,7 @@ export function useE2EE({
 	)
 
 	useEffect(() => {
-		if (!joined) return
+		if (!joined || !audioWorker || !videoWorker) return
 
 		const setupWorker = (worker: EncryptionWorker, type: 'audio' | 'video') => {
 			worker.onNewSafetyNumber((buffer) => {

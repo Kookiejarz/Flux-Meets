@@ -1,5 +1,5 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
-import { useNavigate } from '@remix-run/react'
+import { useNavigate, useParams } from '@remix-run/react'
 import type { FC } from 'react'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { camera, mic, screenshare } from '../hooks/useUserMedia'
@@ -19,8 +19,13 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 	className,
 }) => {
 	const navigate = useNavigate()
+	const { roomName } = useParams()
 	const {
-		room: { identity, otherUsers },
+		room: {
+			identity,
+			otherUsers,
+			roomState: { startTime },
+		},
 	} = useRoomContext()
 
 	const participantSnapshot = Array.from(
@@ -46,6 +51,7 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 				displayType="danger"
 				className={className}
 				onClick={() => {
+					const endedAt = Date.now()
 					console.log(
 						'Leave Button Clicked - meetingId:',
 						meetingId,
@@ -63,11 +69,23 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 						if (meetingId) {
 							// best-effort mark meeting ended using client timestamp
 							const body = new URLSearchParams({ meetingId })
-							fetch('/api/meeting-end', { method: 'POST', body }).catch(() => {})
+							fetch('/api/meeting-end', {
+								method: 'POST',
+								body,
+								keepalive: true,
+							}).catch(() => {})
 							params.set('meetingId', meetingId)
 							if (participantSnapshot.length > 0) {
 								params.set('participants', JSON.stringify(participantSnapshot))
 							}
+							if (roomName) {
+								params.set('roomName', roomName)
+							}
+							if (startTime) {
+								params.set('startedAt', String(startTime))
+							}
+							params.set('endedAt', String(endedAt))
+							params.set('userCount', String(participantSnapshot.length))
 							navigate(`/summary?${params}`)
 						} else {
 							console.warn('No meetingId found, redirecting to home')

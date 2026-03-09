@@ -38,6 +38,55 @@ type SummaryLoaderData = {
 	error: null
 }
 
+function normalizeTimestamp(input: string | null): string | null {
+	if (!input) return null
+	const numeric = Number(input)
+	if (Number.isFinite(numeric) && numeric > 0) {
+		return new Date(numeric).toISOString()
+	}
+	const parsed = new Date(input)
+	if (!Number.isNaN(parsed.getTime())) {
+		return parsed.toISOString()
+	}
+	return null
+}
+
+function parseMeetingSnapshot(url: URL): SummaryLoaderData['meeting'] {
+	const created = normalizeTimestamp(url.searchParams.get('startedAt'))
+	const ended = normalizeTimestamp(url.searchParams.get('endedAt'))
+	const roomName = url.searchParams.get('roomName')?.trim() || null
+	const peakUserCountRaw = url.searchParams.get('userCount')
+	const parsedUserCount =
+		peakUserCountRaw === null ? NaN : Number.parseInt(peakUserCountRaw, 10)
+	const peakUserCount =
+		Number.isFinite(parsedUserCount) && parsedUserCount >= 0
+			? parsedUserCount
+			: null
+
+	if (!created) return null
+
+	return {
+		roomName,
+		created,
+		ended,
+		peakUserCount,
+	}
+}
+
+function mergeMeeting(
+	dbMeeting: SummaryLoaderData['meeting'],
+	snapshotMeeting: SummaryLoaderData['meeting']
+): SummaryLoaderData['meeting'] {
+	if (!dbMeeting) return snapshotMeeting
+	if (!snapshotMeeting) return dbMeeting
+	return {
+		roomName: dbMeeting.roomName ?? snapshotMeeting.roomName,
+		created: dbMeeting.created || snapshotMeeting.created,
+		ended: dbMeeting.ended ?? snapshotMeeting.ended,
+		peakUserCount: dbMeeting.peakUserCount ?? snapshotMeeting.peakUserCount,
+	}
+}
+
 function normalizeParticipants(input: unknown): SummaryParticipant[] {
 	if (!Array.isArray(input)) return []
 	return input
@@ -86,16 +135,18 @@ function mergeParticipants(
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	let snapshotParticipants: SummaryParticipant[] = []
+	let snapshotMeeting: SummaryLoaderData['meeting'] = null
 	try {
 		const url = new URL(request.url)
 		const meetingId = url.searchParams.get('meetingId')
 		snapshotParticipants = parseParticipantSnapshot(
 			url.searchParams.get('participants')
 		)
+		snapshotMeeting = parseMeetingSnapshot(url)
 
 		if (!meetingId) {
 			return data({
-				meeting: null,
+				meeting: snapshotMeeting,
 				participants: snapshotParticipants,
 				error: null,
 			})
@@ -105,7 +156,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 		if (!db) {
 			console.warn('Database binding missing')
 			return data({
-				meeting: null,
+				meeting: snapshotMeeting,
 				participants: snapshotParticipants,
 				error: null, // 允许继续反馈
 			})
@@ -133,12 +184,16 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 				snapshotParticipants
 			)
 
-			return data({ meeting, participants, error: null })
+			return data({
+				meeting: mergeMeeting(meeting ?? null, snapshotMeeting),
+				participants,
+				error: null,
+			})
 		} catch (dbError: any) {
 			console.error('Database query failed:', dbError)
 			// 数据库错误时返回空数据但不阻止反馈流程
 			return data({
-				meeting: null,
+				meeting: snapshotMeeting,
 				participants: snapshotParticipants,
 				error: null,
 			})
@@ -146,7 +201,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	} catch (e: any) {
 		console.error('Unexpected error:', e)
 		return data({
-			meeting: null,
+			meeting: snapshotMeeting,
 			participants: snapshotParticipants,
 			error: null,
 		})
