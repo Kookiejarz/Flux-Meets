@@ -106,6 +106,14 @@ export default function Index() {
 	const dispatchToast = useDispatchToast()
 	const { data } = useUserMetadata(username)
 	const [roomNameInput, setRoomNameInput] = useState('')
+	const normalizedDirectoryName = data?.displayName?.trim()
+	const normalizedUsername = username?.trim()
+	const effectiveDisplayName =
+		normalizedDirectoryName &&
+		normalizedDirectoryName.toLowerCase() !== 'undefined undefined' &&
+		normalizedDirectoryName.toLowerCase() !== 'null null'
+			? normalizedDirectoryName
+			: normalizedUsername || 'there'
 
 	const isCreatingNew = roomNameInput.trim() === ''
 
@@ -131,9 +139,7 @@ export default function Index() {
 					<div className="flex flex-col items-center gap-2">
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
 							Welcome back,{' '}
-							<span className="text-orange-500">
-								{data?.displayName || username}
-							</span>
+							<span className="text-orange-500">{effectiveDisplayName}</span>
 						</p>
 						{!usedAccess && (
 							<a

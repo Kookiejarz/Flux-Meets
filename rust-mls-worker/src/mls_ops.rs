@@ -257,11 +257,7 @@ impl WorkerState {
                 .filter_map(|m| {
                     let uid = m.credential.serialized_content().to_vec();
                     // Don't collect my own UID
-                    if uid != my_uid {
-                        Some(uid)
-                    } else {
-                        None
-                    }
+                    if uid != my_uid { Some(uid) } else { None }
                 })
                 .collect(),
         );
@@ -270,7 +266,10 @@ impl WorkerState {
         let prev_error_count = self.no_group_error_count;
         self.no_group_error_count = 0;
         if prev_error_count > 0 {
-            info!("Successfully joined MLS group after {} failed decryption attempts. Media should now be visible.", prev_error_count);
+            info!(
+                "Successfully joined MLS group after {} failed decryption attempts. Media should now be visible.",
+                prev_error_count
+            );
         } else {
             info!("Successfully joined MLS group");
         }
@@ -544,7 +543,11 @@ impl WorkerState {
 
     /// Takes a ciphertext, deserializes it, decrypts it into an Application Message, and returns
     /// the bytes.
-    fn decrypt_app_msg(&mut self, ct: &[u8], unencrypted_bytes: usize) -> Result<Vec<u8>, DecryptAppMsgError> {
+    fn decrypt_app_msg(
+        &mut self,
+        ct: &[u8],
+        unencrypted_bytes: usize,
+    ) -> Result<Vec<u8>, DecryptAppMsgError> {
         if ct.len() <= unencrypted_bytes {
             return Err(DecryptAppMsgError::WrongMsgType("frame too short"));
         }
@@ -840,11 +843,18 @@ fn split_frame_header(frame: &[u8]) -> Option<(&[u8], &[u8])> {
     frame.split_at_checked(unencrypted_prefix_size)
 }
 
+/// Returns how many bytes from the beginning of a frame should remain unencrypted so that
+/// codec/decoder parsing can proceed (e.g. Annex-B NAL start+header for H264/H265, VP8 payload
+/// header).
+pub(crate) fn infer_unencrypted_prefix_size(frame: &[u8]) -> usize {
+    split_frame_header(frame).map_or(1, |(prefix, _)| prefix.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use openmls::prelude::tls_codec::Serialize;
-    use rand::{seq::SliceRandom, Rng};
+    use rand::{Rng, seq::SliceRandom};
 
     // Converts an MlsMessageOut to an MlsMessageIn
     fn msg_out_to_in(m: &MlsMessageOut) -> MlsMessageIn {

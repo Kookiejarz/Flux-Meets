@@ -3,8 +3,10 @@ use js_sys::{
     Reflect::{get as obj_get, set as obj_set},
     Uint8Array,
 };
-use log::{info, Level};
-use mls_ops::{decrypt_msg, encrypt_msg, WelcomePackageOut, WorkerResponse};
+use log::{Level, info};
+use mls_ops::{
+    WelcomePackageOut, WorkerResponse, decrypt_msg, encrypt_msg, infer_unencrypted_prefix_size,
+};
 use openmls::prelude::tls_codec::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -294,15 +296,25 @@ async fn process_stream<F>(
             continue;
         };
 
-        let frame_type = obj_get(&frame, &"type".into()).unwrap_or(JsValue::UNDEFINED);
-        let mut unencrypted_bytes = 1; // Default for audio
-        if let Some(t) = frame_type.as_string() {
-            if t == "key" {
-                unencrypted_bytes = 10;
-            } else if t == "delta" {
-                unencrypted_bytes = 3;
+        let unencrypted_bytes = if RtcEncodedVideoFrame::instanceof(&frame) {
+            infer_unencrypted_prefix_size(&frame_data)
+        } else if RtcEncodedAudioFrame::instanceof(&frame) {
+            1
+        } else {
+            // Fallback for frame-like objects where constructor checks fail.
+            let frame_type = obj_get(&frame, &"type".into()).unwrap_or(JsValue::UNDEFINED);
+            if let Some(t) = frame_type.as_string() {
+                if t == "key" {
+                    10
+                } else if t == "delta" {
+                    3
+                } else {
+                    1
+                }
+            } else {
+                1
             }
-        }
+        };
 
         let new_frame_data = f(&frame_data, unencrypted_bytes);
 
