@@ -69,6 +69,13 @@ export const Participant = forwardRef<
 	React.JSX.IntrinsicElements['div'] & Props
 >(({ user, style, onParticipantClick }, ref) => {
 	const { data } = useUserMetadata(user.name)
+	const rawDisplayName = data?.displayName?.trim()
+	const displayName =
+		rawDisplayName &&
+		rawDisplayName.toLowerCase() !== 'undefined undefined' &&
+		rawDisplayName.toLowerCase() !== 'null null'
+			? rawDisplayName
+			: user.name
 	const {
 		traceLink,
 		partyTracks,
@@ -88,6 +95,9 @@ export const Participant = forwardRef<
 	const id = user.id
 	const isSelf = identity && id.startsWith(identity.id)
 	const isScreenShare = id.endsWith(screenshareSuffix)
+	const traceHref = user.transceiverSessionId
+		? populateTraceLink(user.transceiverSessionId, traceLink)
+		: undefined
 	const ownerUserId = isScreenShare
 		? id.slice(0, -screenshareSuffix.length)
 		: id
@@ -486,7 +496,7 @@ export const Participant = forwardRef<
 										<img
 											className="rounded-full"
 											src={`data:image/png;base64,${data.photob64}`}
-											alt={data.displayName}
+											alt={displayName}
 										/>
 									</div>
 								) : (
@@ -574,7 +584,7 @@ export const Participant = forwardRef<
 							)}
 						</div>
 					)}
-					{data?.displayName && user.transceiverSessionId && (
+					{displayName && (
 						<div className="flex items-center gap-2 absolute m-3 left-0 bottom-0 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium">
 							<ConnectionIndicator quality={getConnectionQuality(packetLoss)} />
 							{!isScreenShare && e2eeStatus.enabled && (
@@ -630,11 +640,11 @@ export const Participant = forwardRef<
 							)}
 							<OptionalLink
 								className="leading-none text-white/90"
-								href={populateTraceLink(user.transceiverSessionId, traceLink)}
+								href={traceHref}
 								target="_blank"
 								rel="noopener noreferrer"
 							>
-								{data.displayName}
+								{displayName}
 								{showDebugInfo && peerConnection && (
 									<span className="opacity-50 font-normal">
 										{' '}

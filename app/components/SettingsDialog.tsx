@@ -89,6 +89,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 		speakerVolume,
 		setSpeakerVolume,
 		adaptiveNetwork,
+		adaptivePolicy,
 	} = useRoomContext()
 
 	return (
@@ -321,6 +322,76 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								{adaptiveNetwork.lastUpdatedAt
 									? new Date(adaptiveNetwork.lastUpdatedAt).toLocaleTimeString()
 									: '--'}
+							</div>
+							<div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-zinc-400">
+								<div className="rounded-md border border-white/10 p-2">
+									<p className="font-semibold text-zinc-300 mb-1">
+										Video Tier Rules
+									</p>
+									<p>
+										Downgrade when loss &gt;{' '}
+										{formatPercent(adaptivePolicy.video.downgradeLossThreshold)}{' '}
+										or RTT &gt; {adaptivePolicy.video.downgradeRttMs}ms
+									</p>
+									<p>
+										Upgrade when loss &lt;{' '}
+										{formatPercent(adaptivePolicy.video.upgradeLossThreshold)},
+										RTT &lt; {adaptivePolicy.video.upgradeRttMs}ms and measured
+										bitrate &gt;{' '}
+										{Math.round(adaptivePolicy.video.upgradeBitrateRatio * 100)}
+										% of target
+									</p>
+									<p className="mt-1">
+										Check interval: {adaptivePolicy.video.checkIntervalMs}ms
+									</p>
+								</div>
+								<div className="rounded-md border border-white/10 p-2">
+									<p className="font-semibold text-zinc-300 mb-1">
+										Audio Tier Rules
+									</p>
+									<p>
+										Very bad: loss &gt;{' '}
+										{formatPercent(adaptivePolicy.audio.veryBadLossThreshold)}{' '}
+										or RTT &gt; {adaptivePolicy.audio.veryBadRttMs}ms
+									</p>
+									<p>
+										Bad: loss &gt;{' '}
+										{formatPercent(adaptivePolicy.audio.badLossThreshold)}
+										or RTT &gt; {adaptivePolicy.audio.badRttMs}ms
+									</p>
+									<p>
+										Unstable: loss &gt;{' '}
+										{formatPercent(adaptivePolicy.audio.unstableLossThreshold)}{' '}
+										or RTT &gt; {adaptivePolicy.audio.unstableRttMs}ms
+									</p>
+									<p>
+										Stable: loss &lt;{' '}
+										{formatPercent(adaptivePolicy.audio.stableLossThreshold)}{' '}
+										and RTT &lt; {adaptivePolicy.audio.stableRttMs}ms for{' '}
+										{adaptivePolicy.audio.stableDurationMs}ms
+									</p>
+								</div>
+							</div>
+							<div className="mt-3 text-[11px] text-zinc-400">
+								<p className="font-semibold text-zinc-300 mb-1">Tier Targets</p>
+								<p>
+									Video:{' '}
+									{adaptivePolicy.video.tiers
+										.map(
+											(tier, index) =>
+												`T${index + 1} ${formatBitrate(tier.bitrate)}/${tier.framerate}fps`
+										)
+										.join(' | ')}
+								</p>
+								<p>
+									Audio:{' '}
+									{adaptivePolicy.audio.tiers
+										.map(
+											(bitrate, index) =>
+												`T${index + 1} ${formatBitrate(bitrate)}`
+										)
+										.join(' | ')}
+								</p>
 							</div>
 						</div>
 

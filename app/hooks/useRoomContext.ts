@@ -105,6 +105,30 @@ export type RoomContextType = {
 		downlinkBitrate: number
 		lastUpdatedAt: number
 	}
+	adaptivePolicy: {
+		video: {
+			checkIntervalMs: number
+			downgradeLossThreshold: number
+			downgradeRttMs: number
+			upgradeLossThreshold: number
+			upgradeRttMs: number
+			upgradeBitrateRatio: number
+			tiers: { bitrate: number; framerate: number; scale: number }[]
+		}
+		audio: {
+			checkIntervalMs: number
+			stableDurationMs: number
+			stableLossThreshold: number
+			stableRttMs: number
+			unstableLossThreshold: number
+			unstableRttMs: number
+			badLossThreshold: number
+			badRttMs: number
+			veryBadLossThreshold: number
+			veryBadRttMs: number
+			tiers: number[]
+		}
+	}
 }
 
 export function useRoomContext() {

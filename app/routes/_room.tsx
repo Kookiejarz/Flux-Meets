@@ -188,7 +188,7 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		maxWebcamQualityLevel: numberOrUndefined(MAX_WEBCAM_QUALITY_LEVEL),
 		maxApiHistory: numberOrUndefined(MAX_API_HISTORY),
 		simulcastEnabled: EXPERIMENTAL_SIMULCAST_ENABLED === 'true',
-		e2eeEnabled: context.env.E2EE_ENABLED === 'true',
+		e2eeEnabled: context.env.E2EE_ENABLED === 'true' || mode === 'production',
 		aiEnabled: context.env.ENABLE_WORKERS_AI === 'true',
 	})
 }
@@ -747,6 +747,12 @@ function Room({ room, userMedia }: RoomProps) {
 		downlinkBitrate: 0,
 		lastUpdatedAt: 0,
 	})
+	const videoAdaptCheckIntervalMs = 4_000
+	const videoDowngradeLossThreshold = 0.08
+	const videoDowngradeRttMs = 330
+	const videoUpgradeLossThreshold = 0.02
+	const videoUpgradeRttMs = 150
+	const videoUpgradeBitrateRatio = 0.8
 	const publishAdaptiveMetrics = useCallback(
 		(patch: Partial<typeof adaptiveNetwork>) => {
 			setAdaptiveNetwork((prev) => ({
@@ -841,6 +847,55 @@ function Room({ room, userMedia }: RoomProps) {
 			},
 		],
 		[maxWebcamBitrate, maxWebcamFramerate]
+	)
+	const audioBitrateTiers = useMemo(
+		() => [
+			audioVeryLowBitrate,
+			audioLowBitrate,
+			audioMediumBitrate,
+			audioHighBitrate,
+		],
+		[audioVeryLowBitrate, audioLowBitrate, audioMediumBitrate, audioHighBitrate]
+	)
+	const adaptivePolicy = useMemo(
+		() => ({
+			video: {
+				checkIntervalMs: videoAdaptCheckIntervalMs,
+				downgradeLossThreshold: videoDowngradeLossThreshold,
+				downgradeRttMs: videoDowngradeRttMs,
+				upgradeLossThreshold: videoUpgradeLossThreshold,
+				upgradeRttMs: videoUpgradeRttMs,
+				upgradeBitrateRatio: videoUpgradeBitrateRatio,
+				tiers,
+			},
+			audio: {
+				checkIntervalMs: audioAdaptCheckIntervalMs,
+				stableDurationMs: audioAdaptStableDurationMs,
+				stableLossThreshold: audioAdaptStableLossThreshold,
+				stableRttMs: audioAdaptStableRttMs,
+				unstableLossThreshold: audioAdaptUnstableLossThreshold,
+				unstableRttMs: audioAdaptUnstableRttMs,
+				badLossThreshold: audioAdaptBadLossThreshold,
+				badRttMs: audioAdaptBadRttMs,
+				veryBadLossThreshold: audioAdaptVeryBadLossThreshold,
+				veryBadRttMs: audioAdaptVeryBadRttMs,
+				tiers: audioBitrateTiers,
+			},
+		}),
+		[
+			audioAdaptBadLossThreshold,
+			audioAdaptBadRttMs,
+			audioAdaptCheckIntervalMs,
+			audioAdaptStableDurationMs,
+			audioAdaptStableLossThreshold,
+			audioAdaptStableRttMs,
+			audioAdaptUnstableLossThreshold,
+			audioAdaptUnstableRttMs,
+			audioAdaptVeryBadLossThreshold,
+			audioAdaptVeryBadRttMs,
+			audioBitrateTiers,
+			tiers,
+		]
 	)
 
 	useEffect(() => {
@@ -953,12 +1008,15 @@ function Room({ room, userMedia }: RoomProps) {
 			}
 
 			const target = tiers[tierRef.current]
-			if (lossRate > 0.08 || rtt > 0.33) {
+			if (
+				lossRate > videoDowngradeLossThreshold ||
+				rtt > videoDowngradeRttMs / 1000
+			) {
 				tierRef.current = Math.max(0, tierRef.current - 1)
 			} else if (
-				lossRate < 0.02 &&
-				bitrate > target.bitrate * 0.8 &&
-				rtt < 0.15
+				lossRate < videoUpgradeLossThreshold &&
+				bitrate > target.bitrate * videoUpgradeBitrateRatio &&
+				rtt < videoUpgradeRttMs / 1000
 			) {
 				tierRef.current = Math.min(tiers.length - 1, tierRef.current + 1)
 			}
@@ -973,7 +1031,7 @@ function Room({ room, userMedia }: RoomProps) {
 				uplinkBitrate: transportStats.uplinkBitrate ?? bitrate,
 				...getTransportBitratePatch(transportStats),
 			})
-		}, 4000)
+		}, videoAdaptCheckIntervalMs)
 
 		return () => {
 			stopped = true
@@ -987,6 +1045,12 @@ function Room({ room, userMedia }: RoomProps) {
 		publishAdaptiveMetrics,
 		getTransportBitratePatch,
 		readSelectedTransportStats,
+		videoAdaptCheckIntervalMs,
+		videoDowngradeLossThreshold,
+		videoDowngradeRttMs,
+		videoUpgradeLossThreshold,
+		videoUpgradeRttMs,
+		videoUpgradeBitrateRatio,
 	])
 
 	useEffect(() => {
@@ -995,12 +1059,6 @@ function Room({ room, userMedia }: RoomProps) {
 		let stopped = false
 		let stableSince = 0
 		let currentTier = 2
-		const audioBitrateTiers = [
-			audioVeryLowBitrate,
-			audioLowBitrate,
-			audioMediumBitrate,
-			audioHighBitrate,
-		]
 		publishAdaptiveMetrics({
 			audioTier: currentTier,
 			audioTierCount: audioBitrateTiers.length,
@@ -1222,6 +1280,7 @@ function Room({ room, userMedia }: RoomProps) {
 		audioLowBitrate,
 		audioMediumBitrate,
 		audioHighBitrate,
+		audioBitrateTiers,
 		audioAdaptCheckIntervalMs,
 		audioAdaptStableDurationMs,
 		audioAdaptStableLossThreshold,
@@ -1344,6 +1403,7 @@ function Room({ room, userMedia }: RoomProps) {
 		room,
 		simulcastEnabled,
 		adaptiveNetwork,
+		adaptivePolicy,
 		pushedTracks: {
 			video: trackObjectToString(pushedVideoTrack),
 			audio: trackObjectToString(pushedAudioTrack),

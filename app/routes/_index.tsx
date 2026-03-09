@@ -14,17 +14,20 @@ import { useDispatchToast } from '~/components/Toast'
 import { useUserMetadata } from '~/hooks/useUserMetadata'
 import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import getUsername from '~/utils/getUsername.server'
+import { mode } from '~/utils/mode'
 import { cn } from '~/utils/style'
 
 type IndexLoaderData = {
 	username: string
 	usedAccess: boolean
 	directoryUrl: string | undefined
+	e2eeEnabled: boolean
 }
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
-	const directoryUrl =
-		context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
+	const env = context.env ?? (context as any)
+	const directoryUrl = env?.USER_DIRECTORY_URL
+	const e2eeEnabled = env?.E2EE_ENABLED === 'true' || mode === 'production'
 	const username = await getUsername(request)
 
 	// If no username after redirect, redirect to set-username again
@@ -35,7 +38,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	}
 
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
-	return data({ username, usedAccess, directoryUrl })
+	return data({ username, usedAccess, directoryUrl, e2eeEnabled })
 }
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -100,7 +103,7 @@ export const action: ActionFunction = async ({ request, context }) => {
 }
 
 export default function Index() {
-	const { username, usedAccess } = useLoaderData<IndexLoaderData>()
+	const { username, usedAccess, e2eeEnabled } = useLoaderData<IndexLoaderData>()
 	const actionData = useActionData<{ error?: string }>()
 	const [searchParams] = useSearchParams()
 	const dispatchToast = useDispatchToast()
@@ -140,6 +143,11 @@ export default function Index() {
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
 							Welcome back,{' '}
 							<span className="text-orange-500">{effectiveDisplayName}</span>
+						</p>
+						<p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+							{e2eeEnabled
+								? 'E2EE check will run before entering the meeting room.'
+								: 'E2EE is currently disabled in this environment.'}
 						</p>
 						{!usedAccess && (
 							<a
