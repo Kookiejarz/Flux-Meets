@@ -11,7 +11,6 @@ import { Button } from '~/components/Button'
 import { Disclaimer } from '~/components/Disclaimer'
 import { Input } from '~/components/Input'
 import { useDispatchToast } from '~/components/Toast'
-import { useUserMetadata } from '~/hooks/useUserMetadata'
 import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import getUsername from '~/utils/getUsername.server'
 import { mode } from '~/utils/mode'
@@ -107,29 +106,9 @@ export default function Index() {
 	const actionData = useActionData<{ error?: string }>()
 	const [searchParams] = useSearchParams()
 	const dispatchToast = useDispatchToast()
-	const { data } = useUserMetadata(username)
 	const [roomNameInput, setRoomNameInput] = useState('')
-	const normalizedDirectoryName = data?.displayName?.trim()
 	const normalizedUsername = username?.trim()
-	const usernameLooksLikeEmail = Boolean(
-		normalizedUsername && normalizedUsername.includes('@')
-	)
-	const genericDirectoryNames = new Set([
-		'there',
-		'user',
-		'unknown',
-		'guest',
-		'anonymous',
-		'undefined undefined',
-		'null null',
-	])
-	const isUsableDirectoryName =
-		normalizedDirectoryName &&
-		!genericDirectoryNames.has(normalizedDirectoryName.toLowerCase())
-	const effectiveDisplayName =
-		usernameLooksLikeEmail && isUsableDirectoryName
-			? normalizedDirectoryName
-			: normalizedUsername || 'there'
+	const effectiveDisplayName = normalizedUsername || 'there'
 
 	const isCreatingNew = roomNameInput.trim() === ''
 
