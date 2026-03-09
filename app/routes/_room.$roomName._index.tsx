@@ -1,6 +1,6 @@
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
-import { json } from '@remix-run/cloudflare'
+import { data } from '@remix-run/cloudflare'
 import { useNavigate, useParams, useSearchParams } from '@remix-run/react'
 import { useObservableAsValue } from 'partytracks/react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
@@ -25,7 +25,7 @@ import getUsername from '~/utils/getUsername.server'
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const username = await getUsername(request)
 	invariant(username)
-	return json({ username, callsAppId: context.env.CALLS_APP_ID })
+	return data({ username, callsAppId: context.env.CALLS_APP_ID })
 }
 
 let refreshCheckDone = false
@@ -181,7 +181,10 @@ export default function Lobby() {
 				{e2eeStatus.enabled && (
 					<div className="p-3 rounded-md text-sm text-zinc-200 bg-zinc-900/80 border border-white/10 space-y-2">
 						<p className="font-semibold flex items-center gap-2">
-							<Icon type="LockClosedIcon" className="w-4 h-4 text-emerald-400" />
+							<Icon
+								type="LockClosedIcon"
+								className="w-4 h-4 text-emerald-400"
+							/>
 							E2EE Runtime Verification
 						</p>
 						<p>
@@ -193,7 +196,8 @@ export default function Lobby() {
 							{e2eeStatus.receiverTransforms.required}
 						</p>
 						<p>
-							Safety number: {e2eeStatus.safetyNumberReady ? 'ready' : 'pending'}
+							Safety number:{' '}
+							{e2eeStatus.safetyNumberReady ? 'ready' : 'pending'}
 						</p>
 						<p>
 							Peer exchange:{' '}

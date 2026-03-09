@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from '@remix-run/cloudflare'
-import { json } from '@remix-run/cloudflare'
+import { data } from '@remix-run/cloudflare'
 import type { ChatCard } from '~/types/GoogleChatApi'
 import { RELEASE } from '~/utils/constants'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
@@ -144,7 +144,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	await context.env.FEEDBACK_QUEUE.send(chatCard)
 
-	return json({
+	return data({
 		status: 'ok',
 	})
 }

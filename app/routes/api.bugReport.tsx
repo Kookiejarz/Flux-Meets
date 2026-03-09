@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from '@remix-run/cloudflare'
-import { json } from '@remix-run/cloudflare'
+import { data } from '@remix-run/cloudflare'
 import invariant from 'tiny-invariant'
 import type { RoomHistory } from '~/hooks/useRoomHistory'
 import type { ChatCard } from '~/types/GoogleChatApi'
@@ -128,7 +128,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	await context.env.FEEDBACK_QUEUE.send(chatCard)
 
-	return json({
+	return data({
 		status: 'ok',
 	})
 }

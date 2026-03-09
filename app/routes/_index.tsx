@@ -1,5 +1,5 @@
 import type { ActionFunction, LoaderFunctionArgs } from '@remix-run/cloudflare'
-import { json, redirect } from '@remix-run/cloudflare'
+import { data, redirect } from '@remix-run/cloudflare'
 import {
 	Form,
 	useActionData,
@@ -16,6 +16,12 @@ import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
 import getUsername from '~/utils/getUsername.server'
 import { cn } from '~/utils/style'
 
+type IndexLoaderData = {
+	username: string
+	usedAccess: boolean
+	directoryUrl: string | undefined
+}
+
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const directoryUrl =
 		context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
@@ -29,7 +35,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	}
 
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
-	return json({ username, usedAccess, directoryUrl })
+	return data({ username, usedAccess, directoryUrl })
 }
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -46,7 +52,7 @@ export const action: ActionFunction = async ({ request, context }) => {
 		const rooms = context.env?.rooms ?? (context as any).rooms
 		if (!rooms) {
 			console.error('Durable Object binding "rooms" not found in context.')
-			return json({ error: 'Server configuration error.' }, { status: 500 })
+			return data({ error: 'Server configuration error.' }, { status: 500 })
 		}
 
 		const id = rooms.idFromName(targetRoom)
@@ -64,7 +70,7 @@ export const action: ActionFunction = async ({ request, context }) => {
 			if (!response.ok) {
 				const errorText = await response.text()
 				console.error('Failed to create room in DO:', errorText)
-				return json({ error: 'Failed to create room.' }, { status: 500 })
+				return data({ error: 'Failed to create room.' }, { status: 500 })
 			}
 			return redirect(`/${targetRoom}`)
 		} else {
@@ -76,25 +82,25 @@ export const action: ActionFunction = async ({ request, context }) => {
 				},
 			})
 			if (response.status === 404) {
-				return json(
+				return data(
 					{ error: 'Room not found or has expired.' },
 					{ status: 404 }
 				)
 			}
 			if (!response.ok) {
 				console.error('Failed to check room existence:', response.status)
-				return json({ error: 'Failed to join room.' }, { status: 500 })
+				return data({ error: 'Failed to join room.' }, { status: 500 })
 			}
 			return redirect(`/${targetRoom}`)
 		}
 	} catch (err) {
 		console.error('Action error:', err)
-		return json({ error: 'An unexpected error occurred.' }, { status: 500 })
+		return data({ error: 'An unexpected error occurred.' }, { status: 500 })
 	}
 }
 
 export default function Index() {
-	const { username, usedAccess } = useLoaderData<typeof loader>()
+	const { username, usedAccess } = useLoaderData<IndexLoaderData>()
 	const actionData = useActionData<{ error?: string }>()
 	const [searchParams] = useSearchParams()
 	const dispatchToast = useDispatchToast()

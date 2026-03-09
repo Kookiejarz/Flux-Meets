@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from '@remix-run/cloudflare'
-import { json, redirect } from '@remix-run/cloudflare'
+import { data, redirect } from '@remix-run/cloudflare'
 import { Outlet, useLoaderData, useParams } from '@remix-run/react'
 import { useObservableAsValue, useValueAsObservable } from 'partytracks/react'
 import {
@@ -50,13 +50,43 @@ function isLikelyMobileClient() {
 			ua
 		)
 	// iPadOS may report as Macintosh while still being touch-first.
-	const touchMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+	const touchMac =
+		navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
 	return mobileUa || touchMac
 }
 
 function trackObjectToString(trackObject?: TrackObject) {
 	if (!trackObject) return undefined
 	return trackObject.sessionId + '/' + trackObject.trackName
+}
+
+type RoomLoaderData = {
+	userDirectoryUrl: string | undefined
+	traceLink: string | undefined
+	apiExtraParams: string | undefined
+	iceServers: RTCIceServer[] | undefined
+	feedbackEnabled: boolean
+	maxWebcamFramerate: number | undefined
+	maxWebcamBitrate: number | undefined
+	maxAudioBitrate: number | undefined
+	audioAdaptCheckIntervalMs: number | undefined
+	audioAdaptStableDurationMs: number | undefined
+	audioAdaptStableLossThreshold: number | undefined
+	audioAdaptStableRttMs: number | undefined
+	audioAdaptUnstableLossThreshold: number | undefined
+	audioAdaptUnstableRttMs: number | undefined
+	audioAdaptBadLossThreshold: number | undefined
+	audioAdaptBadRttMs: number | undefined
+	audioAdaptVeryBadLossThreshold: number | undefined
+	audioAdaptVeryBadRttMs: number | undefined
+	captionFadeStartMs: number | undefined
+	captionRemoveMs: number | undefined
+	captionCleanupIntervalMs: number | undefined
+	maxWebcamQualityLevel: number | undefined
+	maxApiHistory: number | undefined
+	simulcastEnabled: boolean
+	e2eeEnabled: boolean
+	aiEnabled: boolean
 }
 
 export const loader = async ({ context, params }: LoaderFunctionArgs) => {
@@ -119,7 +149,7 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		},
 	} = context
 
-	return json({
+	return data({
 		userDirectoryUrl: context.env.USER_DIRECTORY_URL,
 		traceLink: TRACE_LINK,
 		apiExtraParams: API_EXTRA_PARAMS,
@@ -299,7 +329,7 @@ function Room({ room, userMedia }: RoomProps) {
 		simulcastEnabled,
 		e2eeEnabled,
 		aiEnabled,
-	} = useLoaderData<typeof loader>()
+	} = useLoaderData<RoomLoaderData>()
 
 	const [storedWebcamBitrate, setStoredWebcamBitrate] = useLocalStorage<number>(
 		'settings-webcam-bitrate',
@@ -645,12 +675,11 @@ function Room({ room, userMedia }: RoomProps) {
 	const [pinnedTileIds, setPinnedTileIds] = useState<string[]>([])
 	const [showDebugInfo, setShowDebugInfo] = useState(mode !== 'production')
 
-	const mobileClient = typeof window !== 'undefined' ? isLikelyMobileClient() : false
+	const mobileClient =
+		typeof window !== 'undefined' ? isLikelyMobileClient() : false
 	// Mobile users should have captions enabled by default, while preserving manual overrides.
-	const [storedCaptionsEnabled, setStoredCaptionsEnabled] = useLocalStorage<boolean>(
-		'settings-captions-enabled',
-		mobileClient
-	)
+	const [storedCaptionsEnabled, setStoredCaptionsEnabled] =
+		useLocalStorage<boolean>('settings-captions-enabled', mobileClient)
 	const captionsEnabled = storedCaptionsEnabled ?? mobileClient
 	const setCaptionsEnabled: Dispatch<SetStateAction<boolean>> = (val) => {
 		setStoredCaptionsEnabled((prev) => {

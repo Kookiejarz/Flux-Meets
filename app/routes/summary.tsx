@@ -1,5 +1,5 @@
 import {
-	json,
+	data,
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 } from '@remix-run/cloudflare'
@@ -25,6 +25,17 @@ const redirectToHome = new Response(null, {
 type SummaryParticipant = {
 	userId: string
 	userName: string
+}
+
+type SummaryLoaderData = {
+	meeting: {
+		roomName: string | null
+		created: string
+		ended: string | null
+		peakUserCount: number | null
+	} | null
+	participants: SummaryParticipant[]
+	error: null
 }
 
 function parseParticipantSnapshot(
@@ -76,13 +87,17 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 		)
 
 		if (!meetingId) {
-			return json({ meeting: null, participants: snapshotParticipants, error: null })
+			return data({
+				meeting: null,
+				participants: snapshotParticipants,
+				error: null,
+			})
 		}
 
 		const db = getDb(context)
 		if (!db) {
 			console.warn('Database binding missing')
-			return json({
+			return data({
 				meeting: null,
 				participants: snapshotParticipants,
 				error: null, // 允许继续反馈
@@ -110,11 +125,11 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 				snapshotParticipants
 			)
 
-			return json({ meeting, participants, error: null })
+			return data({ meeting, participants, error: null })
 		} catch (dbError: any) {
 			console.error('Database query failed:', dbError)
 			// 数据库错误时返回空数据但不阻止反馈流程
-			return json({
+			return data({
 				meeting: null,
 				participants: snapshotParticipants,
 				error: null,
@@ -122,7 +137,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 		}
 	} catch (e: any) {
 		console.error('Unexpected error:', e)
-		return json({
+		return data({
 			meeting: null,
 			participants: snapshotParticipants,
 			error: null,
@@ -171,7 +186,7 @@ function formatDuration(startStr: string, endStr: string | null) {
 }
 
 export default function MeetingSummary() {
-	const { meeting, participants } = useLoaderData<typeof loader>()
+	const { meeting, participants } = useLoaderData<SummaryLoaderData>()
 	const [params] = useSearchParams()
 	const meetingId = params.get('meetingId')
 
@@ -251,27 +266,27 @@ export default function MeetingSummary() {
 
 				<div className="space-y-3">
 					{/* Participants Section - More compact */}
-						{participants.length > 0 && (
-							<div className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl">
-								<h2 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-									Participants
-								</h2>
-								<div className="flex flex-wrap gap-1.5">
-									{participants
-										.filter(
-											(p: SummaryParticipant | null): p is SummaryParticipant =>
-												p !== null
-										)
-										.map((p: SummaryParticipant, i: number) => (
-											<div
-												key={p.userId || i}
-												className="bg-white/5 px-3 py-1 rounded-lg text-xs font-medium border border-white/5 hover:bg-white/10 transition-colors"
-											>
-												{p.userName}
-											</div>
-										))}
-								</div>
+					{participants.length > 0 && (
+						<div className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl">
+							<h2 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+								Participants
+							</h2>
+							<div className="flex flex-wrap gap-1.5">
+								{participants
+									.filter(
+										(p: SummaryParticipant | null): p is SummaryParticipant =>
+											p !== null
+									)
+									.map((p: SummaryParticipant, i: number) => (
+										<div
+											key={p.userId || i}
+											className="bg-white/5 px-3 py-1 rounded-lg text-xs font-medium border border-white/5 hover:bg-white/10 transition-colors"
+										>
+											{p.userName}
+										</div>
+									))}
 							</div>
+						</div>
 					)}
 
 					{/* Download Card - Compact */}

@@ -1,5 +1,4 @@
 import {
-	json,
 	type LinksFunction,
 	type LoaderFunctionArgs,
 	type MetaFunction,
@@ -31,6 +30,11 @@ function addOneDay(date: Date): Date {
 	return result
 }
 
+type RootLoaderData = {
+	userDirectoryUrl: string
+	backgroundImageUrl: string
+}
+
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const url = new URL(request.url)
 	const username = await getUsername(request)
@@ -42,7 +46,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	}
 
 	const env = (context as any).env || context
-	const defaultResponse = json({
+	const defaultResponse = Response.json({
 		userDirectoryUrl: env.USER_DIRECTORY_URL ?? '',
 		backgroundImageUrl: env.BACKGROUND_IMAGE_URL ?? '',
 	})
@@ -58,8 +62,8 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	if (!CF_Authorization) return defaultResponse
 
 	const [, payload] = CF_Authorization.split('.')
-	const data = JSON.parse(atob(payload))
-	const expires = new Date(data.exp * 1000)
+	const tokenPayload = JSON.parse(atob(payload))
+	const expires = new Date(tokenPayload.exp * 1000)
 	const now = new Date()
 	if (addOneDay(now) > expires) {
 		const headers = new Headers()
@@ -209,7 +213,7 @@ const queryClient = new QueryClient()
 
 export default function App() {
 	const { userDirectoryUrl, backgroundImageUrl } =
-		useLoaderData<typeof loader>()
+		useLoaderData<RootLoaderData>()
 	return (
 		<Toast.Provider>
 			<Document backgroundImageUrl={backgroundImageUrl}>
