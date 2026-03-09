@@ -505,14 +505,14 @@ export class ChatRoom extends Server<Env> {
 		data: { type: 'audioChunk'; data: string }
 	) {
 		// 云端CC（语音识别）独立开关，向后兼容
+		const asrProvider = this.env.ASR_PROVIDER || 'workers-ai'
 		const asrEnabled =
 			this.env.ENABLE_WORKERS_AI_ASR === 'true' ||
 			(this.env.ENABLE_WORKERS_AI_ASR === undefined &&
-				this.env.ENABLE_WORKERS_AI === 'true')
+				this.env.ENABLE_WORKERS_AI === 'true') ||
+			asrProvider === 'assembly-ai'
 
 		if (!asrEnabled) return
-
-		const asrProvider = this.env.ASR_PROVIDER || 'workers-ai'
 
 		if (asrProvider === 'assembly-ai') {
 			await this.handleAssemblyAiAudioChunk(connection, data)

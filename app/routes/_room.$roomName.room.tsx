@@ -271,13 +271,6 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		}
 	}, [moqStatus, dispatchToast])
 
-	useEffect(() => {
-		if (!e2eeSafetyNumber) return
-		dispatchToast(<SafetyNumberToast safetyNumber={e2eeSafetyNumber} />, {
-			id: 'e2ee-safety-number',
-			duration: 0, // Keep visible until dismissed
-		})
-	}, [e2eeSafetyNumber, dispatchToast])
 	return (
 		<PullAudioTracks
 			audioTracks={otherUsers.map((u) => u.tracks.audio).filter(isNonNullable)}

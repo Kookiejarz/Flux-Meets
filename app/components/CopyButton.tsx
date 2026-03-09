@@ -27,6 +27,7 @@ export const CopyButton = forwardRef<
 
 	return (
 		<Button
+			type="button"
 			displayType="secondary"
 			onClick={(e) => {
 				onClick && onClick(e)

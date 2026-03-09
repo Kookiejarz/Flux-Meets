@@ -368,12 +368,9 @@ export async function translateWithInception(
 								],
 								reasoning_effort: 'high',
 								temperature: 0.75,
-								stream: true,
-								diffusing: true,
-							}),
-						}
-					)
-
+								}),
+								}
+								)
 					if (response.ok) {
 						const result: any = await response.json()
 						const translatedText =

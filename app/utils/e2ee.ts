@@ -323,7 +323,7 @@ function reviver(_key: string, value: any) {
 }
 
 export function useE2EE({
-	enabled = false,
+	enabled = true,
 	room,
 	partyTracks,
 }: {
