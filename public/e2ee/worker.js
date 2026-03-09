@@ -11,7 +11,7 @@ const versionQuery = (() => {
 	}
 })()
 
-importScripts(`/e2ee/wasm-pkg/orange_mls_worker.js${versionQuery}`)
+importScripts(`/e2ee/wasm-pkg/flux_mls_worker.js${versionQuery}`)
 
 // Use the `processEvent` top-level function defined in Rust
 const { initLogging, processEvent } = wasm_bindgen
@@ -19,7 +19,7 @@ const { initLogging, processEvent } = wasm_bindgen
 // Load the Wasm file by awaiting the Promise returned by `wasm_bindgen`.
 async function initWasmInWorker() {
 	await wasm_bindgen({
-		module_or_path: `/e2ee/wasm-pkg/orange_mls_worker_bg.wasm${versionQuery}`,
+		module_or_path: `/e2ee/wasm-pkg/flux_mls_worker_bg.wasm${versionQuery}`,
 	})
 	initLogging()
 }

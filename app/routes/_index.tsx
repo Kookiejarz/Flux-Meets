@@ -141,6 +141,11 @@ export default function Index() {
 								? 'E2EE check will run before entering the meeting room.'
 								: 'E2EE is currently disabled in this environment.'}
 						</p>
+						<p className="text-[10px] text-zinc-400 dark:text-zinc-600 opacity-70">
+							{/* Temporary debug to trace missing names/E2EE flag */}
+							debug: user={normalizedUsername ?? 'null'} e2ee=
+							{String(e2eeEnabled)}
+						</p>
 						{!usedAccess && (
 							<a
 								className="text-xs underline text-zinc-400 hover:text-orange-500 transition-colors"
