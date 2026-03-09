@@ -13,7 +13,7 @@ export const Disclaimer: FC<DisclaimerProps> = ({ className }) => {
 				className
 			)}
 		>
-			🎬 Flux Meet is an application powered by{' '}
+			🎬 Flux Meets is an application powered by{' '}
 			<a className="underline" href="https://liuu.org/">
 				Yunheng Liu & Cloudflare Infrastructure
 			</a>

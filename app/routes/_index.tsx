@@ -20,12 +20,14 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const directoryUrl =
 		context.env?.USER_DIRECTORY_URL ?? (context as any).USER_DIRECTORY_URL
 	const username = await getUsername(request)
-	
+
 	// If no username after redirect, redirect to set-username again
 	if (!username) {
-		throw redirect(`/set-username?return-url=${encodeURIComponent(request.url)}`)
+		throw redirect(
+			`/set-username?return-url=${encodeURIComponent(request.url)}`
+		)
 	}
-	
+
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
 	return json({ username, usedAccess, directoryUrl })
 }
@@ -118,7 +120,7 @@ export default function Index() {
 				{/* Header Section */}
 				<div className="text-center space-y-4 animate-float">
 					<h1 className="text-6xl sm:text-7xl font-black orange-glow-text tracking-tighter">
-						Flux Meets
+						🎬 Flux Meets
 					</h1>
 					<div className="flex flex-col items-center gap-2">
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
