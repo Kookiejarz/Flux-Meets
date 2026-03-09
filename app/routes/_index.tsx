@@ -107,19 +107,12 @@ export default function Index() {
 			: undefined
 	const effectiveDisplayName = normalizedUsername || cachedUsername || 'there'
 	const effectiveE2ee = e2eeEnabled ?? true
+
 	useEffect(() => {
 		if (normalizedUsername && typeof window !== 'undefined') {
 			window.localStorage.setItem('username', normalizedUsername)
 		}
-		if (
-			!normalizedUsername &&
-			!cachedUsername &&
-			typeof window !== 'undefined'
-		) {
-			const target = `/set-username?return-url=${encodeURIComponent(window.location.href)}`
-			window.location.replace(target)
-		}
-	}, [normalizedUsername, cachedUsername])
+	}, [normalizedUsername])
 
 	const isCreatingNew = roomNameInput.trim() === ''
 
@@ -151,11 +144,6 @@ export default function Index() {
 							{effectiveE2ee
 								? 'E2EE check will run before entering the meeting room.'
 								: 'E2EE is currently disabled in this environment.'}
-						</p>
-						<p className="text-[10px] text-zinc-400 dark:text-zinc-600 opacity-70">
-							{/* Temporary debug to trace missing names/E2EE flag */}
-							debug: user={normalizedUsername ?? cachedUsername ?? 'null'} e2ee=
-							{String(effectiveE2ee)}
 						</p>
 						{!usedAccess && (
 							<a

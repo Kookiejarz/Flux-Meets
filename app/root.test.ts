@@ -140,6 +140,9 @@ describe('root loader', () => {
 			redirect = r
 		}
 		expect(redirect?.status).toBe(302)
+		expect(redirect?.headers.get('Location')).toBe(
+			'/set-username?return-url=https%3A%2F%2Forange.cloudflare.dev%2F'
+		)
 	})
 
 	it('should NOT redirect to /set-username if CF_Authorization Cookie is missing but username is set', async () => {

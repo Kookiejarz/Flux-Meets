@@ -36,10 +36,13 @@ type RootLoaderData = {
 }
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
-	// Username check is now soft: we allow rendering without it to avoid redirect loops
-	// when session cookies are stripped by proxies. The landing page will still
-	// prompt for a name client-side if missing.
-	await getUsername(request)
+	const url = new URL(request.url)
+	const username = await getUsername(request)
+	if (!username && url.pathname !== '/set-username') {
+		throw safeRedirect(
+			`/set-username?return-url=${encodeURIComponent(request.url)}`
+		)
+	}
 	const env = (context as any).env || context
 	const defaultResponse = Response.json({
 		userDirectoryUrl: env.USER_DIRECTORY_URL ?? '',
