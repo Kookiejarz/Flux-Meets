@@ -55,6 +55,9 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 	open,
 	children,
 }) => {
+	const labelClassName = 'md:text-right text-sm font-semibold text-zinc-200'
+	const helpTextClassName =
+		'md:col-start-2 text-xs text-zinc-400 leading-relaxed -mt-1'
 	const {
 		userMedia: { blurVideo, setBlurVideo, suppressNoise, setSuppressNoise },
 		webcamBitrate,
@@ -93,25 +96,36 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 			{children}
 			<Portal>
 				<DialogOverlay />
-				<DialogContent className="max-w-2xl">
+				<DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto pr-1">
 					<DialogTitle>Settings</DialogTitle>
 					<VisuallyHidden>
 						<Description>
 							Adjust your camera, microphone, and other meeting settings.
 						</Description>
 					</VisuallyHidden>
-					<div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-x-6 gap-y-6 mt-8 items-center">
-						<Label className="md:text-right" htmlFor="camera">
+					<p className="mt-2 text-sm text-zinc-400">
+						Configure devices, media quality, captions, and transport behavior.
+					</p>
+					<div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-x-6 gap-y-5 mt-6 items-start">
+						<div className="md:col-span-2 flex items-center gap-3">
+							<div className="h-px flex-1 bg-white/10" />
+							<p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+								Devices & Audio
+							</p>
+							<div className="h-px flex-1 bg-white/10" />
+						</div>
+
+						<Label className={labelClassName} htmlFor="camera">
 							Camera
 						</Label>
 						<VideoInputSelector id="camera" />
 
-						<Label className="md:text-right" htmlFor="mic">
+						<Label className={labelClassName} htmlFor="mic">
 							Mic
 						</Label>
 						<AudioInputSelector id="mic" />
 
-						<Label className="md:text-right" htmlFor="micVolume">
+						<Label className={labelClassName} htmlFor="micVolume">
 							Mic Volume
 						</Label>
 						<div className="flex items-center gap-3">
@@ -128,12 +142,12 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								{micVolume}%
 							</span>
 						</div>
-						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+						<p className={helpTextClassName}>
 							Adjust microphone input gain (100% = normal, 200% = boost for
 							quiet mics)
 						</p>
 
-						<Label className="md:text-right" htmlFor="speakerVolume">
+						<Label className={labelClassName} htmlFor="speakerVolume">
 							Speaker Volume
 						</Label>
 						<div className="flex items-center gap-3">
@@ -150,13 +164,19 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								{speakerVolume}%
 							</span>
 						</div>
-						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+						<p className={helpTextClassName}>
 							Adjust speaker output volume (100% = normal)
 						</p>
 
-						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+						<div className="md:col-span-2 flex items-center gap-3 pt-1">
+							<div className="h-px flex-1 bg-white/10" />
+							<p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+								Video Encoding
+							</p>
+							<div className="h-px flex-1 bg-white/10" />
+						</div>
 
-						<Label className="md:text-right" htmlFor="bitrate">
+						<Label className={labelClassName} htmlFor="bitrate">
 							Bitrate
 						</Label>
 						<div className="flex flex-wrap gap-2">
@@ -186,7 +206,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							))}
 						</div>
 
-						<Label className="md:text-right" htmlFor="framerate">
+						<Label className={labelClassName} htmlFor="framerate">
 							Framerate
 						</Label>
 						<div className="flex flex-wrap gap-2">
@@ -211,7 +231,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								))}
 						</div>
 
-						<Label className="md:text-right" htmlFor="quality">
+						<Label className={labelClassName} htmlFor="quality">
 							Resolution
 						</Label>
 						<div className="flex flex-wrap gap-2">
@@ -236,7 +256,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								))}
 						</div>
 
-						<Label className="md:text-right" htmlFor="videoDenoise">
+						<Label className={labelClassName} htmlFor="videoDenoise">
 							Video Denoise
 						</Label>
 						<div className="flex flex-col gap-1">
@@ -250,7 +270,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								details. Uses more bandwidth.
 							</span>
 						</div>
-						<Label className="md:text-right" htmlFor="adaptiveNetwork">
+						<Label className={labelClassName} htmlFor="adaptiveNetwork">
 							Adaptive
 						</Label>
 						<div
@@ -304,9 +324,15 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							</div>
 						</div>
 
-						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+						<div className="md:col-span-2 flex items-center gap-3 pt-1">
+							<div className="h-px flex-1 bg-white/10" />
+							<p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+								Captions & Language
+							</p>
+							<div className="h-px flex-1 bg-white/10" />
+						</div>
 
-						<Label className="md:text-right" htmlFor="blurBackground">
+						<Label className={labelClassName} htmlFor="blurBackground">
 							Blur
 						</Label>
 						<Toggle
@@ -315,7 +341,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							onCheckedChange={setBlurVideo}
 						/>
 
-						<Label className="md:text-right" htmlFor="suppressNoise">
+						<Label className={labelClassName} htmlFor="suppressNoise">
 							Background Noise Suppression
 						</Label>
 						<Toggle
@@ -323,11 +349,11 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							checked={suppressNoise}
 							onCheckedChange={setSuppressNoise}
 						/>
-						<p className="md:col-span-2 text-xs text-zinc-500 -mt-2">
+						<p className="md:col-span-2 text-xs text-zinc-400 leading-relaxed -mt-1">
 							Use RNNoise AI to remove background noise. May add slight latency.
 							Best for noisy environments or speaker mode.
 						</p>
-						<Label className="md:text-right" htmlFor="localCcLanguage">
+						<Label className={labelClassName} htmlFor="localCcLanguage">
 							Local CC Language
 						</Label>
 						<div className="flex flex-wrap gap-2" id="localCcLanguage">
@@ -354,11 +380,11 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								</button>
 							))}
 						</div>
-						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+						<p className={helpTextClassName}>
 							Browser uses the detected browser language.
 						</p>
 
-						<Label className="md:text-right" htmlFor="displayCaptionLanguage">
+						<Label className={labelClassName} htmlFor="displayCaptionLanguage">
 							Display Caption Language
 						</Label>
 						<div className="flex flex-wrap gap-2" id="displayCaptionLanguage">
@@ -387,15 +413,21 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								</button>
 							))}
 						</div>
-						<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+						<p className={helpTextClassName}>
 							Filter which translated captions to display.
 						</p>
 
-						<div className="md:col-span-2 border-t border-white/5 my-2"></div>
+						<div className="md:col-span-2 flex items-center gap-3 pt-1">
+							<div className="h-px flex-1 bg-white/10" />
+							<p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+								Advanced & Experimental
+							</p>
+							<div className="h-px flex-1 bg-white/10" />
+						</div>
 
 						{aiEnabled && (
 							<>
-								<Label className="md:text-right" htmlFor="asrSource">
+								<Label className={labelClassName} htmlFor="asrSource">
 									ASR Source
 								</Label>
 								<div className="flex flex-wrap gap-2">
@@ -422,12 +454,12 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 										</button>
 									))}
 								</div>
-								<p className="md:col-start-2 text-xs text-zinc-500 -mt-2">
+								<p className={helpTextClassName}>
 									Browser ASR may not be available on mobile devices. Workers AI
 									or Assembly AI is recommended for mobile.
 								</p>
 
-								<Label className="md:text-right" htmlFor="aiTranslation">
+								<Label className={labelClassName} htmlFor="aiTranslation">
 									AI Translation
 								</Label>
 								<div className="flex items-center gap-4">
@@ -444,7 +476,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								</div>
 							</>
 						)}
-						<Label className="md:text-right" htmlFor="highFpsScreenshare">
+						<Label className={labelClassName} htmlFor="highFpsScreenshare">
 							<div className="flex flex-col md:items-end">
 								<span>High FPS Screenshare</span>
 								<span className="text-[10px] text-zinc-500 font-medium">
@@ -468,7 +500,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 								</span>
 							)}
 						</div>
-						<Label className="md:text-right" htmlFor="moq">
+						<Label className={labelClassName} htmlFor="moq">
 							<div className="flex flex-col md:items-end">
 								<span>Media over QUIC</span>
 								<span className="text-[10px] text-orange-500 font-black uppercase tracking-wider">
