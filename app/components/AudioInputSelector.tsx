@@ -30,15 +30,23 @@ export const AudioInputSelector: FC<{ id?: string }> = ({ id }) => {
 	)
 	const selectedAudioDeviceId = hasSelectedAudioDevice
 		? audioDeviceId
-		: audioInputDevices[0]?.deviceId
+		: audioInputDevices[0]?.deviceId ?? 'unavailable'
+	const audioDevicesAvailable = audioInputDevices.length > 0
 
 	return (
 		<div className="max-w-[40ch]">
 			<Select
 				id={id}
 				value={selectedAudioDeviceId}
-				onValueChange={setAudioDeviceId}
+				onValueChange={(value) => {
+					if (value === 'unavailable') return
+					setAudioDeviceId(value)
+				}}
+				disabled={!audioDevicesAvailable}
 			>
+				{!audioDevicesAvailable && (
+					<Option value="unavailable">(Unavailable)</Option>
+				)}
 				{audioInputDevices.map((d) => (
 					<Option key={d.deviceId} value={d.deviceId}>
 						{d.label || 'Default Microphone'}

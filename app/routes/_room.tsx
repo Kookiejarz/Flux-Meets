@@ -395,8 +395,6 @@ function Room({ room, userMedia }: RoomProps) {
 		},
 		[setPartyTracksGeneration]
 	)
-	const hasResetOnJoinRef = useRef(false)
-
 	const { partyTracks, iceConnectionState } = usePeerConnection({
 		maxApiHistory,
 		apiExtraParams: params.toString(),
@@ -416,16 +414,6 @@ function Room({ room, userMedia }: RoomProps) {
 		room,
 		partyTracks,
 	})
-	useEffect(() => {
-		if (!joined || hasResetOnJoinRef.current) return
-		hasResetOnJoinRef.current = true
-		resetPartyTracksSession('joined')
-	}, [joined, resetPartyTracksSession])
-	useEffect(() => {
-		if (!joined) {
-			hasResetOnJoinRef.current = false
-		}
-	}, [joined])
 	const e2eeMediaGateOpen = !e2eeEnabled || e2eeStatus.coreReady
 
 	const setWebcamBitrate: Dispatch<SetStateAction<number>> = (val) => {

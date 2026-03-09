@@ -30,15 +30,23 @@ export const VideoInputSelector: FC<{ id?: string }> = ({ id }) => {
 	)
 	const selectedVideoDeviceId = hasSelectedVideoDevice
 		? videoDeviceId
-		: videoInputDevices[0]?.deviceId
+		: videoInputDevices[0]?.deviceId ?? 'unavailable'
+	const videoDevicesAvailable = videoInputDevices.length > 0
 
 	return (
 		<div className="max-w-[40ch]">
 			<Select
 				value={selectedVideoDeviceId}
-				onValueChange={setVideoDeviceId}
+				onValueChange={(value) => {
+					if (value === 'unavailable') return
+					setVideoDeviceId(value)
+				}}
 				id={id}
+				disabled={!videoDevicesAvailable}
 			>
+				{!videoDevicesAvailable && (
+					<Option value="unavailable">(Unavailable)</Option>
+				)}
 				{videoInputDevices.map((d) => (
 					<Option key={d.deviceId} value={d.deviceId}>
 						{d.label || 'Default Camera'}

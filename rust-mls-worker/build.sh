@@ -17,6 +17,6 @@ cp "$OUTDIR/flux_mls_worker_bg.wasm" "$OUTDIR/orange_mls_worker_bg.wasm"
 cp "$OUTDIR/flux_mls_worker.d.ts" "$OUTDIR/orange_mls_worker.d.ts"
 cp "$OUTDIR/flux_mls_worker_bg.wasm.d.ts" "$OUTDIR/orange_mls_worker_bg.wasm.d.ts"
 
-# Emit versioned aliases so path-based CDN caches can be busted by changing the worker entry path.
-cp "$OUTDIR/flux_mls_worker.js" "$OUTDIR/orange_mls_worker.v2.js"
-cp "$OUTDIR/flux_mls_worker_bg.wasm" "$OUTDIR/orange_mls_worker_bg.v2.wasm"
+# Emit versioned flux aliases so path-based CDN caches can be busted by changing the worker entry path.
+cp "$OUTDIR/flux_mls_worker.js" "$OUTDIR/flux_mls_worker.v2.js"
+cp "$OUTDIR/flux_mls_worker_bg.wasm" "$OUTDIR/flux_mls_worker_bg.v2.wasm"
