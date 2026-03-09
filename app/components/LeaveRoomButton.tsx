@@ -22,15 +22,13 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 	const { roomName } = useParams()
 	const {
 		room: {
-			identity,
-			otherUsers,
-			roomState: { startTime },
+			roomState: { startTime, users },
 		},
 	} = useRoomContext()
 
 	const participantSnapshot = Array.from(
 		new Map(
-			[identity, ...otherUsers]
+			users
 				.filter((u): u is NonNullable<typeof u> => Boolean(u))
 				.filter((u) => u.id !== 'ai')
 				.map((u) => [
@@ -62,35 +60,35 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 					console.log('📴 Stopping all media devices...')
 					mic.stopBroadcasting()
 					camera.stopBroadcasting()
-						screenshare.stopBroadcasting()
-						console.log('📴 All media devices stopped')
+					screenshare.stopBroadcasting()
+					console.log('📴 All media devices stopped')
 
-						const params = new URLSearchParams()
-						if (meetingId) {
-							// best-effort mark meeting ended using client timestamp
-							const body = new URLSearchParams({ meetingId })
-							fetch('/api/meeting-end', {
-								method: 'POST',
-								body,
-								keepalive: true,
-							}).catch(() => {})
-							params.set('meetingId', meetingId)
-							if (participantSnapshot.length > 0) {
-								params.set('participants', JSON.stringify(participantSnapshot))
-							}
-							if (roomName) {
-								params.set('roomName', roomName)
-							}
-							if (startTime) {
-								params.set('startedAt', String(startTime))
-							}
-							params.set('endedAt', String(endedAt))
-							params.set('userCount', String(participantSnapshot.length))
-							navigate(`/summary?${params}`)
-						} else {
-							console.warn('No meetingId found, redirecting to home')
-							navigate('/')
+					const params = new URLSearchParams()
+					if (meetingId) {
+						// best-effort mark meeting ended using client timestamp
+						const body = new URLSearchParams({ meetingId })
+						fetch('/api/meeting-end', {
+							method: 'POST',
+							body,
+							keepalive: true,
+						}).catch(() => {})
+						params.set('meetingId', meetingId)
+						if (participantSnapshot.length > 0) {
+							params.set('participants', JSON.stringify(participantSnapshot))
 						}
+						if (roomName) {
+							params.set('roomName', roomName)
+						}
+						if (typeof startTime === 'number') {
+							params.set('startedAt', String(startTime))
+						}
+						params.set('endedAt', String(endedAt))
+						params.set('userCount', String(participantSnapshot.length))
+						navigate(`/summary?${params}`)
+					} else {
+						console.warn('No meetingId found, redirecting to home')
+						navigate('/')
+					}
 				}}
 			>
 				<VisuallyHidden>Leave</VisuallyHidden>

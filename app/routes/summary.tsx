@@ -30,7 +30,7 @@ type SummaryParticipant = {
 type SummaryLoaderData = {
 	meeting: {
 		roomName: string | null
-		created: string
+		created: string | null
 		ended: string | null
 		peakUserCount: number | null
 	} | null
@@ -63,7 +63,7 @@ function parseMeetingSnapshot(url: URL): SummaryLoaderData['meeting'] {
 			? parsedUserCount
 			: null
 
-	if (!created) return null
+	if (!created && !roomName && peakUserCount === null) return null
 
 	return {
 		roomName,
@@ -81,7 +81,7 @@ function mergeMeeting(
 	if (!snapshotMeeting) return dbMeeting
 	return {
 		roomName: dbMeeting.roomName ?? snapshotMeeting.roomName,
-		created: dbMeeting.created || snapshotMeeting.created,
+		created: dbMeeting.created ?? snapshotMeeting.created,
 		ended: dbMeeting.ended ?? snapshotMeeting.ended,
 		peakUserCount: dbMeeting.peakUserCount ?? snapshotMeeting.peakUserCount,
 	}
@@ -314,7 +314,7 @@ export default function MeetingSummary() {
 							Duration
 						</p>
 						<p className="text-xs font-bold">
-							{meeting?.created && meeting?.ended
+							{meeting?.created
 								? formatDuration(meeting.created, meeting.ended)
 								: '--'}
 						</p>
@@ -324,7 +324,8 @@ export default function MeetingSummary() {
 							Users
 						</p>
 						<p className="text-xs font-bold">
-							{meeting?.peakUserCount ?? '--'}
+							{meeting?.peakUserCount ??
+								(participants.length > 0 ? participants.length : '--')}
 						</p>
 					</div>
 				</div>

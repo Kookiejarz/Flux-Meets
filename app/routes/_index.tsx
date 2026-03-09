@@ -12,6 +12,8 @@ import { Disclaimer } from '~/components/Disclaimer'
 import { Input } from '~/components/Input'
 import { useDispatchToast } from '~/components/Toast'
 import { ACCESS_AUTHENTICATED_USER_EMAIL_HEADER } from '~/utils/constants'
+import type { E2EEConfigState } from '~/utils/e2eeConfig'
+import { resolveE2EEConfig } from '~/utils/e2eeConfig'
 import getUsername from '~/utils/getUsername.server'
 import { cn } from '~/utils/style'
 
@@ -20,17 +22,24 @@ type IndexLoaderData = {
 	usedAccess: boolean
 	directoryUrl: string | undefined
 	e2eeEnabled: boolean
+	e2eeConfigState: E2EEConfigState
 }
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 	const env = context.env ?? (context as any)
 	const directoryUrl = env?.USER_DIRECTORY_URL
-	// Default to true; allow explicit opt-out via E2EE_ENABLED="false"
-	const e2eeEnabled = env?.E2EE_ENABLED === 'false' ? false : true
+	const { enabled: e2eeEnabled, state: e2eeConfigState } =
+		resolveE2EEConfig(env)
 	const username = await getUsername(request)
 
 	const usedAccess = request.headers.has(ACCESS_AUTHENTICATED_USER_EMAIL_HEADER)
-	return data({ username, usedAccess, directoryUrl, e2eeEnabled })
+	return data({
+		username,
+		usedAccess,
+		directoryUrl,
+		e2eeEnabled,
+		e2eeConfigState,
+	})
 }
 
 export const action: ActionFunction = async ({ request, context }) => {
@@ -95,7 +104,8 @@ export const action: ActionFunction = async ({ request, context }) => {
 }
 
 export default function Index() {
-	const { username, usedAccess, e2eeEnabled } = useLoaderData<IndexLoaderData>()
+	const { username, usedAccess, e2eeEnabled, e2eeConfigState } =
+		useLoaderData<IndexLoaderData>()
 	const actionData = useActionData<{ error?: string }>()
 	const [searchParams] = useSearchParams()
 	const dispatchToast = useDispatchToast()
@@ -143,7 +153,9 @@ export default function Index() {
 						<p className="text-[11px] text-zinc-400 dark:text-zinc-500">
 							{effectiveE2ee
 								? 'E2EE check will run before entering the meeting room.'
-								: 'E2EE is currently disabled in this environment.'}
+								: e2eeConfigState === 'production_misconfigured'
+									? 'Production is misconfigured: E2EE was disabled by server config.'
+									: 'E2EE is currently disabled in this environment.'}
 						</p>
 						{!usedAccess && (
 							<a

@@ -50,8 +50,15 @@ function trackRefreshes() {
 export default function Lobby() {
 	const { roomName } = useParams()
 	const navigate = useNavigate()
-	const { setJoined, userMedia, room, partyTracks, e2eeOnJoin, e2eeStatus } =
-		useRoomContext()
+	const {
+		setJoined,
+		userMedia,
+		room,
+		partyTracks,
+		e2eeOnJoin,
+		e2eeStatus,
+		e2eeConfigState,
+	} = useRoomContext()
 	const { videoStreamTrack, audioStreamTrack, audioEnabled } = userMedia
 	const session = useObservableAsValue(partyTracks.session$)
 	const sessionError = useObservableAsValue(partyTracks.sessionError$)
@@ -88,7 +95,14 @@ export default function Lobby() {
 		return e2eeStatus.strictReady
 	}, [e2eeStatus.enabled, e2eeStatus.strictReady])
 
-	const canJoin = Boolean(session?.sessionId) && e2eeGateReady
+	const e2eeDisabledReason =
+		e2eeConfigState === 'disabled_by_env' ||
+		e2eeConfigState === 'production_misconfigured'
+			? e2eeConfigState
+			: null
+	const e2eeJoinBlocked = e2eeConfigState === 'production_misconfigured'
+	const canJoin =
+		Boolean(session?.sessionId) && e2eeGateReady && !e2eeJoinBlocked
 
 	const handleNameChange = () => {
 		if (editedRoomName && editedRoomName !== roomName) {
@@ -178,7 +192,7 @@ export default function Lobby() {
 						{sessionError}
 					</div>
 				)}
-				{e2eeStatus.enabled && (
+				{e2eeStatus.enabled ? (
 					<div className="p-3 rounded-md text-sm text-zinc-200 bg-zinc-900/80 border border-white/10 space-y-2">
 						<p className="font-semibold flex items-center gap-2">
 							<Icon
@@ -218,7 +232,24 @@ export default function Lobby() {
 							</p>
 						)}
 					</div>
-				)}
+				) : e2eeDisabledReason ? (
+					<div className="p-3 rounded-md text-sm border space-y-2 bg-red-950/70 text-red-100 border-red-500/40">
+						<p className="font-semibold flex items-center gap-2">
+							<Icon type="ExclamationCircleIcon" className="w-4 h-4" />
+							E2EE is disabled
+						</p>
+						<p>
+							{e2eeDisabledReason === 'production_misconfigured'
+								? 'Production cannot join without E2EE. The deployment is currently serving E2EE as disabled.'
+								: 'This environment disabled E2EE via server configuration.'}
+						</p>
+						{e2eeJoinBlocked && (
+							<p className="text-orange-200">
+								Join is blocked until production E2EE is restored.
+							</p>
+						)}
+					</div>
+				) : null}
 				{(userMedia.audioUnavailableReason ||
 					userMedia.videoUnavailableReason) && (
 					<div className="p-3 rounded-md text-sm text-zinc-800 bg-zinc-200 dark:text-zinc-200 dark:bg-zinc-700">

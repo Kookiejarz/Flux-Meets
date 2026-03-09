@@ -41,6 +41,7 @@ import { isMobile } from '~/utils/isMobile'
 import isNonNullable from '~/utils/isNonNullable'
 
 import { AnimatePresence, motion } from 'framer-motion'
+import { SafetyNumberToast } from '~/components/SafetyNumberToast'
 
 import { MeetingTimer } from '~/components/MeetingTimer'
 import { playSound } from '~/utils/playSound'
@@ -122,7 +123,6 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	const speaking = useIsSpeaking(
 		userMedia.audioEnabled ? userMedia.audioStreamTrack : undefined
 	)
-
 	// 初始化端到端加密（仅在组件挂载时执行一次）
 	useMount(() => {
 		// 判断是否是第一个用户（房间中没有其他用户）
@@ -271,6 +271,13 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		}
 	}, [moqStatus, dispatchToast])
 
+	useEffect(() => {
+		if (!e2eeSafetyNumber) return
+		dispatchToast(<SafetyNumberToast safetyNumber={e2eeSafetyNumber} />, {
+			id: 'e2ee-safety-number',
+			duration: 0, // Keep visible until dismissed
+		})
+	}, [e2eeSafetyNumber, dispatchToast])
 	return (
 		<PullAudioTracks
 			audioTracks={otherUsers.map((u) => u.tracks.audio).filter(isNonNullable)}

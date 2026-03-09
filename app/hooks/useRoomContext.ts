@@ -3,6 +3,7 @@ import type { PartyTracks } from 'partytracks/client'
 import type { Dispatch, SetStateAction } from 'react'
 import type { UserMedia } from '~/hooks/useUserMedia'
 import type { E2EEVerificationStatus } from '~/utils/e2ee'
+import type { E2EEConfigState } from '~/utils/e2eeConfig'
 import type useRoom from './useRoom'
 import type { useRoomHistory } from './useRoomHistory'
 
@@ -28,6 +29,7 @@ export type RoomContextType = {
 	simulcastEnabled: boolean
 	e2eeSafetyNumber?: string
 	e2eeStatus: E2EEVerificationStatus
+	e2eeConfigState: E2EEConfigState
 	e2eeOnJoin: (firstUser: boolean) => void
 	webcamBitrate: number
 	setWebcamBitrate: Dispatch<SetStateAction<number>>

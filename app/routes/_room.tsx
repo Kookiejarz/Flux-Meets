@@ -32,6 +32,8 @@ import useUserMedia from '~/hooks/useUserMedia'
 import { useWorkersAiASR } from '~/hooks/useWorkersAiASR'
 import type { TrackObject } from '~/utils/callsTypes'
 import { useE2EE } from '~/utils/e2ee'
+import type { E2EEConfigState } from '~/utils/e2eeConfig'
+import { resolveE2EEConfig } from '~/utils/e2eeConfig'
 import { getIceServers } from '~/utils/getIceServers.server'
 import { mode } from '~/utils/mode'
 
@@ -86,6 +88,7 @@ type RoomLoaderData = {
 	maxApiHistory: number | undefined
 	simulcastEnabled: boolean
 	e2eeEnabled: boolean
+	e2eeConfigState: E2EEConfigState
 	aiEnabled: boolean
 }
 
@@ -123,42 +126,42 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		throw redirect('/?error=unexpected-error')
 	}
 
+	const env = context.env ?? (context as any)
 	const {
-		env: {
-			TRACE_LINK,
-			API_EXTRA_PARAMS,
-			MAX_WEBCAM_FRAMERATE,
-			MAX_WEBCAM_BITRATE,
-			MAX_AUDIO_BITRATE,
-			AUDIO_ADAPT_CHECK_INTERVAL_MS,
-			AUDIO_ADAPT_STABLE_DURATION_MS,
-			AUDIO_ADAPT_STABLE_LOSS_THRESHOLD,
-			AUDIO_ADAPT_STABLE_RTT_MS,
-			AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD,
-			AUDIO_ADAPT_UNSTABLE_RTT_MS,
-			AUDIO_ADAPT_BAD_LOSS_THRESHOLD,
-			AUDIO_ADAPT_BAD_RTT_MS,
-			AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD,
-			AUDIO_ADAPT_VERY_BAD_RTT_MS,
-			CAPTION_FADE_START_MS,
-			CAPTION_REMOVE_MS,
-			CAPTION_CLEANUP_INTERVAL_MS,
-			MAX_WEBCAM_QUALITY_LEVEL,
-			MAX_API_HISTORY,
-			EXPERIMENTAL_SIMULCAST_ENABLED,
-			E2EE_ENABLED,
-		},
-	} = context
+		TRACE_LINK,
+		API_EXTRA_PARAMS,
+		MAX_WEBCAM_FRAMERATE,
+		MAX_WEBCAM_BITRATE,
+		MAX_AUDIO_BITRATE,
+		AUDIO_ADAPT_CHECK_INTERVAL_MS,
+		AUDIO_ADAPT_STABLE_DURATION_MS,
+		AUDIO_ADAPT_STABLE_LOSS_THRESHOLD,
+		AUDIO_ADAPT_STABLE_RTT_MS,
+		AUDIO_ADAPT_UNSTABLE_LOSS_THRESHOLD,
+		AUDIO_ADAPT_UNSTABLE_RTT_MS,
+		AUDIO_ADAPT_BAD_LOSS_THRESHOLD,
+		AUDIO_ADAPT_BAD_RTT_MS,
+		AUDIO_ADAPT_VERY_BAD_LOSS_THRESHOLD,
+		AUDIO_ADAPT_VERY_BAD_RTT_MS,
+		CAPTION_FADE_START_MS,
+		CAPTION_REMOVE_MS,
+		CAPTION_CLEANUP_INTERVAL_MS,
+		MAX_WEBCAM_QUALITY_LEVEL,
+		MAX_API_HISTORY,
+		EXPERIMENTAL_SIMULCAST_ENABLED,
+	} = env
+	const { enabled: e2eeEnabled, state: e2eeConfigState } =
+		resolveE2EEConfig(env)
 
 	return data({
-		userDirectoryUrl: context.env.USER_DIRECTORY_URL,
+		userDirectoryUrl: env.USER_DIRECTORY_URL,
 		traceLink: TRACE_LINK,
 		apiExtraParams: API_EXTRA_PARAMS,
-		iceServers: await getIceServers(context.env),
+		iceServers: await getIceServers(env),
 		feedbackEnabled: Boolean(
-			context.env.FEEDBACK_URL &&
-			context.env.FEEDBACK_QUEUE &&
-			context.env.FEEDBACK_STORAGE
+			env.FEEDBACK_URL &&
+			env.FEEDBACK_QUEUE &&
+			env.FEEDBACK_STORAGE
 		),
 		maxWebcamFramerate: numberOrUndefined(MAX_WEBCAM_FRAMERATE),
 		maxWebcamBitrate: numberOrUndefined(MAX_WEBCAM_BITRATE),
@@ -189,9 +192,9 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		maxWebcamQualityLevel: numberOrUndefined(MAX_WEBCAM_QUALITY_LEVEL),
 		maxApiHistory: numberOrUndefined(MAX_API_HISTORY),
 		simulcastEnabled: EXPERIMENTAL_SIMULCAST_ENABLED === 'true',
-		// Default to true; allow explicit opt-out via E2EE_ENABLED="false"
-		e2eeEnabled: E2EE_ENABLED === 'false' ? false : true,
-		aiEnabled: context.env.ENABLE_WORKERS_AI === 'true',
+		e2eeEnabled,
+		e2eeConfigState,
+		aiEnabled: env.ENABLE_WORKERS_AI === 'true',
 	})
 }
 
@@ -329,7 +332,8 @@ function Room({ room, userMedia }: RoomProps) {
 		maxWebcamQualityLevel = 1080,
 		maxApiHistory = 100,
 		simulcastEnabled,
-		e2eeEnabled,
+		e2eeEnabled = true,
+		e2eeConfigState = 'enabled',
 		aiEnabled,
 	} = useLoaderData<RoomLoaderData>()
 
@@ -1388,6 +1392,7 @@ function Room({ room, userMedia }: RoomProps) {
 		roomHistory,
 		e2eeSafetyNumber,
 		e2eeStatus,
+		e2eeConfigState,
 		e2eeOnJoin: onJoin,
 		iceConnectionState,
 		room,
