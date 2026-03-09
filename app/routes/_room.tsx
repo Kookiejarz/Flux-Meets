@@ -467,8 +467,8 @@ function Room({ room, userMedia }: RoomProps) {
 			? [
 					{
 						rid: 'a',
-						// 高质量层：使用用户配置的90%作为上限
-						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.9),
+						// 高质量层：使用用户配置的95%作为上限
+						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.95),
 						maxFramerate: webcamFramerate,
 						active: true,
 					},
@@ -603,8 +603,8 @@ function Room({ room, userMedia }: RoomProps) {
 		[userMedia.screenShareVideoTrack$, e2eeMediaGateOpen]
 	)
 
-	// 屏幕共享使用和webcam相同的上限参数配置，帧率可选：高帧率模式30fps或低延迟模式15fps
-	const screenshareFps = highFpsScreenshare ? 30 : 15
+	// 屏幕共享使用和webcam相同的上限参数配置，帧率可选：高帧率模式60fps或标准模式30fps
+	const screenshareFps = highFpsScreenshare ? 60 : 30
 	const screenshareEncodings = useStablePojo<RTCRtpEncodingParameters[]>(
 		simulcastEnabled
 			? [
@@ -612,8 +612,8 @@ function Room({ room, userMedia }: RoomProps) {
 						rid: 'a',
 						networkPriority: 'high',
 						// 屏幕共享高质量层：使用90%配置上限
-						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.9),
-						// 高帧率模式30fps，低延迟模式15fps
+						maxBitrate: Math.floor(effectiveWebcamBitrate * 0.95),
+						// 高帧率模式60fps，标准模式30fps
 						maxFramerate: screenshareFps,
 						active: true,
 					},

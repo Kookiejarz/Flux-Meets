@@ -11,9 +11,7 @@ interface UserMetadata {
 
 export function useUserMetadata(email: string) {
 	const { userDirectoryUrl } = useOutletContext<{ userDirectoryUrl?: string }>()
-	const search = new URLSearchParams({ email })
-
-	const key = `${userDirectoryUrl}?${search}`
+	const normalizedDirectoryUrl = userDirectoryUrl?.trim()
 
 	const initialData: UserMetadata = {
 		displayName: email,
@@ -21,18 +19,31 @@ export function useUserMetadata(email: string) {
 
 	return useQuery({
 		initialData,
-		queryKey: [key],
-		queryFn: async ({ queryKey: [key] }) => {
-			if (userDirectoryUrl === undefined) return Promise.resolve(initialData)
-			const response = await fetch(key, { credentials: 'include' })
+		queryKey: ['user-metadata', normalizedDirectoryUrl, email],
+		queryFn: async ({ queryKey: [, directoryUrl, currentEmail] }) => {
+			if (!directoryUrl || typeof directoryUrl !== 'string') {
+				return initialData
+			}
+
+			const search = new URLSearchParams({ email: String(currentEmail) })
+			const response = await fetch(`${directoryUrl}?${search}`, {
+				credentials: 'include',
+			})
 
 			if (
 				response.headers.get('Content-Type')?.startsWith('application/json')
 			) {
 				const parsedData: UserMetadata = (await response.json()) as any
+				const combinedName = [parsedData.firstName, parsedData.lastName]
+					.filter(Boolean)
+					.join(' ')
+					.trim()
+				const displayName =
+					parsedData.displayName?.trim() || combinedName || initialData.displayName
+
 				return {
 					...parsedData,
-					displayName: `${parsedData.firstName} ${parsedData.lastName}`,
+					displayName,
 				}
 			}
 			return initialData

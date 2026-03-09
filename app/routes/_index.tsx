@@ -131,7 +131,9 @@ export default function Index() {
 					<div className="flex flex-col items-center gap-2">
 						<p className="text-sm sm:text-base font-medium text-zinc-500 dark:text-zinc-400">
 							Welcome back,{' '}
-							<span className="text-orange-500">{data?.displayName}</span>
+							<span className="text-orange-500">
+								{data?.displayName || username}
+							</span>
 						</p>
 						{!usedAccess && (
 							<a

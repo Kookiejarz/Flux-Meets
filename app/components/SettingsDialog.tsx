@@ -316,7 +316,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 									Audio loss: {formatPercent(adaptiveNetwork.audioLossRate)}
 								</div>
 							</div>
-							<div className="mt-2 text-[11px] text-zinc-500">
+							<div className="mt-2 text-[11px] text-neutral-200">
 								Updated:{' '}
 								{adaptiveNetwork.lastUpdatedAt
 									? new Date(adaptiveNetwork.lastUpdatedAt).toLocaleTimeString()
@@ -480,7 +480,7 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							<div className="flex flex-col md:items-end">
 								<span>High FPS Screenshare</span>
 								<span className="text-[10px] text-zinc-500 font-medium">
-									30fps (higher latency)
+									60fps (higher latency)
 								</span>
 							</div>
 						</Label>
@@ -492,12 +492,10 @@ export const SettingsDialog: FC<SettingsDialogProps> = ({
 							/>
 							{highFpsScreenshare ? (
 								<span className="text-xs text-orange-500">
-									30fps - Smooth but ~2s delay
+									60fps - Smooth but ~2s delay
 								</span>
 							) : (
-								<span className="text-xs text-green-500">
-									15fps - Low latency
-								</span>
+								<span className="text-xs text-green-500">30fps - Standard</span>
 							)}
 						</div>
 						<Label className={labelClassName} htmlFor="moq">

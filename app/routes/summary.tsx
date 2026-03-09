@@ -38,28 +38,32 @@ type SummaryLoaderData = {
 	error: null
 }
 
+function normalizeParticipants(input: unknown): SummaryParticipant[] {
+	if (!Array.isArray(input)) return []
+	return input
+		.map((item) => {
+			if (!item || typeof item !== 'object') return null
+			const userId =
+				typeof (item as any).userId === 'string'
+					? (item as any).userId.trim()
+					: ''
+			const userName =
+				typeof (item as any).userName === 'string'
+					? (item as any).userName.trim()
+					: ''
+			if (!userId || !userName) return null
+			return { userId, userName }
+		})
+		.filter((item): item is SummaryParticipant => item !== null)
+}
+
 function parseParticipantSnapshot(
 	encoded: string | null
 ): SummaryParticipant[] {
 	if (!encoded) return []
 	try {
 		const parsed = JSON.parse(encoded)
-		if (!Array.isArray(parsed)) return []
-		return parsed
-			.map((item) => {
-				if (!item || typeof item !== 'object') return null
-				const userId =
-					typeof (item as any).userId === 'string'
-						? (item as any).userId.trim()
-						: ''
-				const userName =
-					typeof (item as any).userName === 'string'
-						? (item as any).userName.trim()
-						: ''
-				if (!userId || !userName) return null
-				return { userId, userName }
-			})
-			.filter((item): item is SummaryParticipant => item !== null)
+		return normalizeParticipants(parsed)
 	} catch {
 		return []
 	}
@@ -70,7 +74,10 @@ function mergeParticipants(
 	snapshotParticipants: SummaryParticipant[]
 ) {
 	const map = new Map<string, SummaryParticipant>()
-	for (const participant of [...snapshotParticipants, ...dbParticipants]) {
+	for (const participant of [
+		...normalizeParticipants(snapshotParticipants),
+		...normalizeParticipants(dbParticipants),
+	]) {
 		const key = participant.userId || participant.userName.toLowerCase()
 		if (!map.has(key)) map.set(key, participant)
 	}
@@ -110,7 +117,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 				.from(Meetings)
 				.where(eq(Meetings.id, meetingId))
 
-			const dbParticipants: SummaryParticipant[] = meeting
+			const dbParticipantsRaw: SummaryParticipant[] = meeting
 				? await db
 						.select({
 							userName: Transcripts.userName,
@@ -120,6 +127,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 						.where(eq(Transcripts.meetingId, meetingId))
 						.groupBy(Transcripts.userId, Transcripts.userName)
 				: []
+			const dbParticipants = normalizeParticipants(dbParticipantsRaw)
 			const participants = mergeParticipants(
 				dbParticipants,
 				snapshotParticipants
@@ -186,7 +194,9 @@ function formatDuration(startStr: string, endStr: string | null) {
 }
 
 export default function MeetingSummary() {
-	const { meeting, participants } = useLoaderData<SummaryLoaderData>()
+	const loaderData = useLoaderData<SummaryLoaderData>()
+	const meeting = loaderData?.meeting ?? null
+	const participants = normalizeParticipants(loaderData?.participants)
 	const [params] = useSearchParams()
 	const meetingId = params.get('meetingId')
 
