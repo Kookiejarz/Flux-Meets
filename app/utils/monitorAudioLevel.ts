@@ -22,10 +22,33 @@ export default function monitorAudioLevel({
 	}
 
 	const audioContext = getGlobalAudioContext()
-	
+
+	// Resume AudioContext if suspended (requires user interaction)
+	const ensureRunning = async () => {
+		if (audioContext.state === 'suspended') {
+			try {
+				await audioContext.resume()
+				console.log('✅ monitorAudioLevel: AudioContext resumed successfully')
+			} catch (err) {
+				console.warn('⚠️ monitorAudioLevel: Failed to resume AudioContext:', err)
+			}
+		}
+	}
+
+	// Try to resume immediately
+	ensureRunning()
+
+	// Also listen for state changes to resume if it becomes suspended
+	const onStateChange = () => {
+		if (audioContext.state === 'suspended') {
+			ensureRunning()
+		}
+	}
+	audioContext.addEventListener('statechange', onStateChange)
+
 	const stream = new MediaStream()
 	stream.addTrack(mediaStreamTrack)
-	
+
 	try {
 		const mediaStreamAudioSourceNode =
 			audioContext.createMediaStreamSource(stream)
@@ -37,21 +60,6 @@ export default function monitorAudioLevel({
 
 		const pcmData = new Float32Array(analyserNode.fftSize)
 		let peak = 0
-		
-		// Resume AudioContext if suspended (requires user interaction)
-		const ensureRunning = async () => {
-			if (audioContext.state === 'suspended') {
-				try {
-					await audioContext.resume()
-					console.log('✅ AudioContext resumed successfully')
-				} catch (err) {
-					console.warn('Failed to resume AudioContext:', err)
-				}
-			}
-		}
-		
-		// Try to resume immediately
-		ensureRunning()
 
 		interval = window.setInterval(() => {
 			onMeasure(peak)
@@ -60,6 +68,7 @@ export default function monitorAudioLevel({
 
 		const tick = () => {
 			timeout = window.setTimeout(() => {
+				if (audioContext.state === 'closed') return
 				analyserNode.getFloatTimeDomainData(pcmData)
 				let sumSquares = 0.0
 				for (const amplitude of pcmData) {
@@ -75,13 +84,13 @@ export default function monitorAudioLevel({
 		tick()
 
 		return () => {
+			audioContext.removeEventListener('statechange', onStateChange)
 			mediaStreamAudioSourceNode.disconnect()
 			analyserNode.disconnect()
 			clearInterval(interval)
 			clearTimeout(timeout)
 			stream.removeTrack(mediaStreamTrack)
-		}
-	} catch (error) {
+		}	} catch (error) {
 		console.error('❌ Failed to create audio monitoring pipeline:', error)
 		return () => {}
 	}

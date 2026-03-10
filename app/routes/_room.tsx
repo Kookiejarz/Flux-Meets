@@ -375,8 +375,8 @@ function Room({ room, userMedia }: RoomProps) {
 	const resetPartyTracksSession = useCallback(
 		(reason: string) => {
 			const now = Date.now()
-			const windowMs = 15_000
-			const maxResetsPerWindow = 3
+			const windowMs = 30_000
+			const maxResetsPerWindow = 5
 			const state = partyTracksResetRef.current
 			if (now - state.windowStart > windowMs) {
 				state.windowStart = now
@@ -384,21 +384,20 @@ function Room({ room, userMedia }: RoomProps) {
 			}
 			if (state.resets >= maxResetsPerWindow) {
 				console.error(
-					'[PartyTracks] session reset suppressed after repeated failures',
-					reason
+					`🛑 [PartyTracks] Session reset suppressed after ${state.resets} failures in ${windowMs}ms. Reason: ${reason}`
 				)
 				return
 			}
 			state.resets += 1
-			console.warn('[PartyTracks] resetting session', {
-				reason,
-				attempt: state.resets,
-			})
+			console.warn(
+				`🔄 [PartyTracks] Resetting session (attempt ${state.resets}). Reason: ${reason}`
+			)
 			setPartyTracksGeneration((prev) => prev + 1)
 			lastSessionErrorRef.current = undefined
 		},
 		[setPartyTracksGeneration]
 	)
+
 	const { partyTracks, iceConnectionState } = usePeerConnection({
 		maxApiHistory,
 		apiExtraParams: params.toString(),

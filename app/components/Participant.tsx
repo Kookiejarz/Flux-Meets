@@ -127,7 +127,7 @@ export const Participant = forwardRef<
 		shouldPullVideo ? user.tracks.video : undefined,
 		preferredRid
 	)
-	const audioTrack = isSelf ? userMedia.audioStreamTrack : pulledAudioTrack
+	const audioTrack = isSelf ? userMedia.audioMonitorStreamTrack : pulledAudioTrack
 	const videoTrack =
 		isSelf && !isScreenShare ? userMedia.videoStreamTrack : pulledVideoTrack
 

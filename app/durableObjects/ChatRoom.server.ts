@@ -55,6 +55,9 @@ export class ChatRoom extends Server<Env> {
 	// 动态语言池：追踪房间内用户需要的语言
 	roomLanguages: Set<string> = new Set()
 	userLanguageMap: Map<string, Set<string>> = new Map()
+	// 翻译节流管理
+	lastTranslatedTextMap: Map<string, string> = new Map()
+	lastTranslationTimeMap: Map<string, number> = new Map()
 	// Assembly AI 流式会话管理
 	assemblyAiSessions: Map<string, AssemblyAiStreamingSession> = new Map()
 
@@ -585,15 +588,12 @@ export class ChatRoom extends Server<Env> {
 
 					this.broadcastMessage(captionMessage)
 
-					// 如果是最终结果，触发持久化和翻译
-					if (result.isFinal) {
-						console.log('[Assembly AI] Final result, triggering translation')
-						this.handleCaption(connection, captionMessage).catch((err) => {
-							console.error('Assembly AI caption handler error:', err)
-						})
-					}
+					// Always pass to handleCaption; its internal throttle logic
+					// will decide if it's time to translate partials or save finals.
+					this.handleCaption(connection, captionMessage).catch((err) => {
+						console.error('Assembly AI caption handler error:', err)
+					})
 				})
-
 				// 连接到 Assembly AI
 				await session.connect()
 				this.assemblyAiSessions.set(connection.id, session)
@@ -646,34 +646,49 @@ export class ChatRoom extends Server<Env> {
 			const targetLangs = this.getTargetLanguages()
 
 			if (targetLangs.length > 0) {
-				console.log(
-					'[Translation] Starting parallel translation for text:',
-					data.text,
-					'Targets:',
-					targetLangs
-				)
+				const now = Date.now()
+				const lastText = this.lastTranslatedTextMap.get(connection.id) || ''
+				const lastTime = this.lastTranslationTimeMap.get(connection.id) || 0
+				const currentText = data.text.trim()
 
-				// 并行发起翻译，每种语言完成后立即广播，不互相等待
-				targetLangs.forEach(async (lang) => {
-					try {
-						const translations = await translate(this.env, data.text, [lang])
-						for (const translation of translations) {
-							console.log(
-								`[Translation] Broadcasting: [${translation.language}] ${translation.text}`
-							)
-							this.broadcastMessage({
-								type: 'caption',
-								userId: connection.id,
-								text: `[${translation.language.toUpperCase()}] ${translation.text}`,
-								isFinal: true,
-							})
+				// 策略：
+				// 1. 如果是 Final，必须翻译
+				// 2. 如果是中间结果，距离上次翻译需超过 2.5 秒且内容有显著增长（至少增加 10 个字符）
+				const isSignificantChange = currentText.length > lastText.length + 6
+				const isCooldownOver = now - lastTime > 1000
+
+				if (data.isFinal || (isCooldownOver && isSignificantChange)) {
+					console.log(
+						`[Translation] ${data.isFinal ? 'Final' : 'Partial'} translation trigger:`,
+						currentText
+					)
+
+					this.lastTranslatedTextMap.set(connection.id, currentText)
+					this.lastTranslationTimeMap.set(connection.id, now)
+
+					// 并行发起翻译，每种语言完成后立即广播，不互相等待
+					targetLangs.forEach(async (lang) => {
+						try {
+							const translations = await translate(this.env, currentText, [
+								lang,
+							])
+							for (const translation of translations) {
+								// 如果是中间结果的翻译，标记 isFinal 为 false 以便客户端平滑更新
+								this.broadcastMessage({
+									type: 'caption',
+									userId: connection.id,
+									text: `[${translation.language.toUpperCase()}] ${translation.text}`,
+									isFinal: data.isFinal,
+								})
+							}
+						} catch (e) {
+							console.error(`[Translation] Error for ${lang}:`, e)
 						}
-					} catch (e) {
-						console.error(`[Translation] Error for ${lang}:`, e)
-					}
-				})
+					})
+				}
 			}
-		}	}
+		}
+	}
 
 	async onMessage(
 		connection: Connection<User>,
@@ -1034,13 +1049,6 @@ export class ChatRoom extends Server<Env> {
 				error,
 			})
 			assertError(error)
-			// TODO: should this even be here?
-			// Report any exceptions directly back to the client. As with our handleErrors() this
-			// probably isn't what you'd want to do in production, but it's convenient when testing.
-			this.sendMessage(connection, {
-				type: 'error',
-				error: error.stack,
-			} satisfies ServerMessage)
 		}
 	}
 
