@@ -55,6 +55,9 @@ export const MicButton: FC<
 				setShowMutedWarning(false)
 			}, 2000)
 			return () => clearTimeout(timer)
+		} else if (!isSpeaking) {
+			// If they stop speaking, hide the warning immediately
+			setShowMutedWarning(false)
 		}
 
 		if (audioEnabled) {

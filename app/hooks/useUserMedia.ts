@@ -325,6 +325,15 @@ class NativeMediaDevice {
 			enabled: this.currentTrack.enabled,
 		})
 		this.broadcastTrack$.next(undefined)
+		// We shouldn't receive monitor audio when muted to avoid "speaking while muted" warnings constantly.
+		// However, we still want to monitor the audio to know if the user is speaking while muted, so we
+		// leave the original track enabled and only omit it from localMonitorTrack$. No, the bug is exactly
+		// that localMonitorTrack$ still gets audio. Wait, useIsSpeaking uses localMonitorTrack$.
+		// Let's just pass `undefined` to localMonitorTrack$ so `useIsSpeaking` stops running.
+		// ACTUALLY, we WANT `useIsSpeaking` to know when we speak while muted. 
+		// Oh, the bug is that "Talking while muted" appears, but it shouldn't be constant.
+		// Ah! We *want* the warning, but the user complained it "won't disappear".
+		// Let's check `app/components/MicButton.tsx` again.
 		this.isBroadcasting$.next(false)
 	}
 
