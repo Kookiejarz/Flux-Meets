@@ -524,12 +524,16 @@ export function useE2EE({
 		if (!enabled || !joined || !audioWorker || !videoWorker) return
 
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
-			const shouldHandleSender =
-				transceiver.direction === 'sendonly' ||
-				transceiver.direction === 'sendrecv'
-			if (!shouldHandleSender) return
+			console.log('[E2EE] Sender transceiver check:', {
+				direction: transceiver.direction,
+				currentDirection: transceiver.currentDirection,
+				kind: transceiver.sender.track?.kind,
+				mid: transceiver.mid
+			})
+			
+			if (!transceiver.sender || !transceiver.sender.track) return
 
-			const kind = transceiver.sender.track?.kind
+			const kind = transceiver.sender.track.kind
 			if (kind !== 'audio' && kind !== 'video') return
 			const senderKey = getTransceiverKey(transceiver, 'sender')
 			const worker = kind === 'audio' ? audioWorker : videoWorker
@@ -611,12 +615,18 @@ export function useE2EE({
 	useEffect(() => {
 		if (!enabled || !joined || !audioWorker || !videoWorker) return
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
-			const shouldHandleReceiver =
-				transceiver.direction === 'recvonly' ||
-				transceiver.direction === 'sendrecv'
-			if (!shouldHandleReceiver) return
+			console.log('[E2EE] Receiver transceiver check:', {
+				direction: transceiver.direction,
+				currentDirection: transceiver.currentDirection,
+				kind: transceiver.receiver.track?.kind,
+				mid: transceiver.mid
+			})
+			
+			// We want to handle any receiver that might produce data.
+			// Safari might have quirky direction states initially, so if the receiver exists, attach it.
+			if (!transceiver.receiver || !transceiver.receiver.track) return
 
-			const kind = transceiver.receiver.track?.kind
+			const kind = transceiver.receiver.track.kind
 			if (kind !== 'audio' && kind !== 'video') return
 			const receiverKey = getTransceiverKey(transceiver, 'receiver')
 			const worker = kind === 'audio' ? audioWorker : videoWorker
