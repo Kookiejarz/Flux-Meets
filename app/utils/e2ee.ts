@@ -143,12 +143,32 @@ export class EncryptionWorker {
 		this.worker.terminate()
 	}
 
-	initialize() {
+	initialize(): Promise<void> {
+		const ready = new Promise<void>((res) => {
+			const handler = (event: MessageEvent) => {
+				if (event.data.type === 'workerReady') {
+					res()
+					this.worker.removeEventListener('message', handler)
+				}
+			}
+			this.worker.addEventListener('message', handler)
+		})
 		this.worker.postMessage({ type: 'initialize', id: this.id })
+		return ready
 	}
 
-	initializeAndCreateGroup() {
+	initializeAndCreateGroup(): Promise<void> {
+		const ready = new Promise<void>((res) => {
+			const handler = (event: MessageEvent) => {
+				if (event.data.type === 'workerReady') {
+					res()
+					this.worker.removeEventListener('message', handler)
+				}
+			}
+			this.worker.addEventListener('message', handler)
+		})
 		this.worker.postMessage({ type: 'initializeAndCreateGroup', id: this.id })
+		return ready
 	}
 
 	userJoined(keyPkg: Uint8Array) {
@@ -716,14 +736,21 @@ export function useE2EE({
 		room.websocket.addEventListener('message', handler)
 
 		if (firstUser) {
-			audioWorker.initializeAndCreateGroup()
-			videoWorker.initializeAndCreateGroup()
+			Promise.all([
+				audioWorker.initializeAndCreateGroup(),
+				videoWorker.initializeAndCreateGroup(),
+			]).then(() => {
+				setAudioWorkerInitialized(true)
+				setVideoWorkerInitialized(true)
+			})
 		} else {
-			audioWorker.initialize()
-			videoWorker.initialize()
+			Promise.all([audioWorker.initialize(), videoWorker.initialize()]).then(
+				() => {
+					setAudioWorkerInitialized(true)
+					setVideoWorkerInitialized(true)
+				}
+			)
 		}
-		setAudioWorkerInitialized(true)
-		setVideoWorkerInitialized(true)
 
 		return () => {
 			room.websocket.removeEventListener('message', handler)

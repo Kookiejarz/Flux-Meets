@@ -654,19 +654,26 @@ export class ChatRoom extends Server<Env> {
 				const currentText = data.text.trim()
 
 				// 策略：
-				// 1. 如果是 Final，必须翻译
-				// 2. 如果是中间结果，距离上次翻译需超过 2.5 秒且内容有显著增长（至少增加 10 个字符）
-				const isSignificantChange = currentText.length > lastText.length + 6
-				const isCooldownOver = now - lastTime > 1000
+				// 1. 如果是 Final，必须翻译，并清除历史追踪
+				// 2. 如果是中间结果，距离上次翻译需超过 2.5 秒且内容有显著增长（至少增加 8 个字符）
+				// 3. 特殊情况：如果是该句子的第一次翻译（lastText 为空），只要长度超过 4 个字符就触发，保证起步快
+				const isFirstTranslation = lastText === '' && currentText.length > 4
+				const isSignificantChange = currentText.length > lastText.length + 8
+				const isCooldownOver = now - lastTime > 2500
 
-				if (data.isFinal || (isCooldownOver && isSignificantChange)) {
+				if (data.isFinal || isFirstTranslation || (isCooldownOver && isSignificantChange)) {
+					if (data.isFinal) {
+						this.lastTranslatedTextMap.delete(connection.id)
+						this.lastTranslationTimeMap.delete(connection.id)
+					} else {
+						this.lastTranslatedTextMap.set(connection.id, currentText)
+						this.lastTranslationTimeMap.set(connection.id, now)
+					}
+
 					console.log(
-						`[Translation] ${data.isFinal ? 'Final' : 'Partial'} translation trigger:`,
+						`[Translation] ${data.isFinal ? 'Final' : 'Partial'} trigger:`,
 						currentText
 					)
-
-					this.lastTranslatedTextMap.set(connection.id, currentText)
-					this.lastTranslationTimeMap.set(connection.id, now)
 
 					// 并行发起翻译，每种语言完成后立即广播，不互相等待
 					targetLangs.forEach(async (lang) => {

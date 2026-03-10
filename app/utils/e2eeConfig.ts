@@ -11,9 +11,12 @@ export function resolveE2EEConfig(
 	currentMode: Mode = mode
 ): { enabled: boolean; state: E2EEConfigState } {
 	const rawValue = env?.E2EE_ENABLED?.trim().toLowerCase()
-	const explicitlyDisabled = rawValue === 'false'
+	
+	const enabled = currentMode === 'production' 
+		? rawValue !== 'false' 
+		: rawValue === 'true'
 
-	if (!explicitlyDisabled) {
+	if (enabled) {
 		return {
 			enabled: true,
 			state: 'enabled',

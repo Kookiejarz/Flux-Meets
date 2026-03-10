@@ -332,8 +332,8 @@ function Room({ room, userMedia }: RoomProps) {
 		maxWebcamQualityLevel = 1080,
 		maxApiHistory = 100,
 		simulcastEnabled,
-		e2eeEnabled = true,
-		e2eeConfigState = 'enabled',
+		e2eeEnabled,
+		e2eeConfigState,
 		aiEnabled,
 	} = useLoaderData<RoomLoaderData>()
 

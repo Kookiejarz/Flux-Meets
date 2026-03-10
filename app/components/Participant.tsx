@@ -279,6 +279,12 @@ export const Participant = forwardRef<
 
 	const isSimilarCaptionText = useCallback(
 		(a: string, b: string) => {
+			const langA = a.match(langTagRegex)?.[1] || 'original'
+			const langB = b.match(langTagRegex)?.[1] || 'original'
+
+			// 不同语言的字幕永不判定为“相似”，防止互相吞没
+			if (langA !== langB) return false
+
 			const na = normalizeCaptionText(a)
 			const nb = normalizeCaptionText(b)
 			if (!na || !nb) return false
@@ -336,72 +342,58 @@ export const Participant = forwardRef<
 						const incomingText = String(data.text ?? '').trim()
 						if (!incomingText) return prev
 
-						let lastUnfinishedIndex = -1
+						// 提取语言标签（如果有）
+						const incomingLangMatch = incomingText.match(langTagRegex)
+						const incomingLang = incomingLangMatch ? incomingLangMatch[1] : 'original'
+
+						// 寻找属于同一种语言且未完成的字幕
+						let lastMatchIndex = -1
 						for (let i = prev.length - 1; i >= 0; i--) {
-							if (!prev[i].isFinal) {
-								lastUnfinishedIndex = i
+							const existingText = prev[i].text
+							const existingLangMatch = existingText.match(langTagRegex)
+							const existingLang = existingLangMatch ? existingLangMatch[1] : 'original'
+
+							if (!prev[i].isFinal && existingLang === incomingLang) {
+								lastMatchIndex = i
 								break
 							}
 						}
 
-						// 有未完成字幕时：
-						// - partial 一定更新它
-						// - final 只有文本相似才收口，避免把下一句正在生成的字幕误改掉
-						if (lastUnfinishedIndex !== -1) {
-							const activeUnfinished = prev[lastUnfinishedIndex]
+						// 找到了同语言的未完成字幕：更新它
+						if (lastMatchIndex !== -1) {
+							const activeUnfinished = prev[lastMatchIndex]
 
-							if (
-								!data.isFinal ||
-								isSimilarCaptionText(activeUnfinished.text, incomingText)
-							) {
-								const updated = [...prev]
-								updated[lastUnfinishedIndex] = {
-									...activeUnfinished,
-									text: incomingText,
-									isFinal: data.isFinal,
-									timestamp: now,
-								}
-
-								if (lastUnfinishedIndex !== updated.length - 1) {
-									const [unfinished] = updated.splice(lastUnfinishedIndex, 1)
-									updated.push(unfinished)
-								}
-
-								return updated.length > 2 ? updated.slice(-2) : updated
+							// 如果是 final，只有内容相似（或同一个语言轨道）才收口
+							// 对于翻译，因为 ASR 可能不断微调原文，这里放宽一点限制
+							const updated = [...prev]
+							updated[lastMatchIndex] = {
+								...activeUnfinished,
+								text: incomingText,
+								isFinal: data.isFinal,
+								timestamp: now,
 							}
 
-							// final 与当前 unfinished 不相似：视为迟到包，忽略，保持当前生成字幕在底部
-							if (data.isFinal) {
-								const lastFinal = [...prev].reverse().find((c) => c.isFinal)
-								if (
-									lastFinal &&
-									isSimilarCaptionText(lastFinal.text, incomingText)
-								) {
-									return prev
-								}
+							// 始终确保最新的更新排在最后（针对当前语言轨道）
+							if (lastMatchIndex !== updated.length - 1) {
+								const [item] = updated.splice(lastMatchIndex, 1)
+								updated.push(item)
+							}
+
+							return updated.length > 3 ? updated.slice(-3) : updated
+						}
+
+						// 处理 Final 的重复/迟到包逻辑
+						if (data.isFinal) {
+							const lastFinal = [...prev].reverse().find((c) => c.isFinal)
+							if (
+								lastFinal &&
+								isSimilarCaptionText(lastFinal.text, incomingText)
+							) {
 								return prev
 							}
 						}
 
-						const lastCaption = prev[prev.length - 1]
-						if (
-							data.isFinal &&
-							lastCaption?.isFinal &&
-							isSimilarCaptionText(lastCaption.text, incomingText)
-						) {
-							const updated = [...prev]
-							updated[updated.length - 1] = {
-								...lastCaption,
-								text:
-									incomingText.length >= lastCaption.text.length
-										? incomingText
-										: lastCaption.text,
-								timestamp: now,
-							}
-							return updated
-						}
-
-						// 完成字幕或第一条未完成字幕：添加新字幕
+						// 没有找到匹配的未完成字幕，或者是一段全新的内容：添加新行
 						const newCaption = {
 							id: `${id}-${now}-${Math.random()}`,
 							text: incomingText,
@@ -410,7 +402,8 @@ export const Participant = forwardRef<
 						}
 
 						const updated = [...prev, newCaption]
-						return updated.length > 2 ? updated.slice(-2) : updated
+						// 增加显示行数到 3 行，以防翻译和原文重叠
+						return updated.length > 3 ? updated.slice(-3) : updated
 					})
 				}
 			}
