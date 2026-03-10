@@ -294,6 +294,11 @@ export default function MeetingSummary() {
 					<h1 className="text-2xl font-black tracking-tight mb-1.5">
 						Meeting Over
 					</h1>
+					{meetingId && (
+						<p className="text-[10px] font-mono text-zinc-600 mb-1.5">
+							ID: {meetingId}
+						</p>
+					)}
 					<p className="text-zinc-500 text-xs font-medium">
 						Session details and assets
 					</p>

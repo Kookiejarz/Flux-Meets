@@ -8,6 +8,7 @@ import type useRoom from './useRoom'
 import type { useRoomHistory } from './useRoomHistory'
 
 export type RoomContextType = {
+	username: string | null
 	traceLink?: string
 	feedbackEnabled: boolean
 	userDirectoryUrl?: string

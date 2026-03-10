@@ -76,7 +76,13 @@ export default function Lobby() {
 		if (e2eeInitRef.current) return
 		if (!e2eeStatus.enabled) return
 		if (!room.isConnected || !room.identity) return
-		e2eeOnJoin(room.otherUsers.length === 0)
+
+		// If meetingId exists in room state, someone already created the group.
+		// We only start a group if there's no meetingId or we are the only one.
+		const isFirstUser = !room.roomState.meetingId || room.otherUsers.length === 0
+		
+		console.log('[E2EE] Joining room. isFirstUser:', isFirstUser, 'meetingId:', room.roomState.meetingId)
+		e2eeOnJoin(isFirstUser)
 		e2eeInitRef.current = true
 	}, [
 		e2eeOnJoin,
@@ -84,6 +90,7 @@ export default function Lobby() {
 		room.otherUsers.length,
 		room.isConnected,
 		room.identity,
+		room.roomState.meetingId,
 	])
 
 	const roomUrl = useRoomUrl()

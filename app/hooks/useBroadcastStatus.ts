@@ -13,6 +13,7 @@ interface Config {
 	userMedia: UserMedia
 	partyTracks: PartyTracks
 	identity?: User
+	username: string | null
 	websocket: PartySocket
 	pushedTracks: RoomContextType['pushedTracks']
 	raisedHand: boolean
@@ -22,6 +23,7 @@ interface Config {
 export default function useBroadcastStatus({
 	userMedia,
 	identity,
+	username,
 	websocket,
 	partyTracks,
 	pushedTracks,
@@ -39,7 +41,7 @@ export default function useBroadcastStatus({
 	const audioUnavailable = audioUnavailableReason !== undefined
 
 	const id = identity?.id
-	const name = identity?.name
+	const name = username || identity?.name
 	useEffect(() => {
 		if (id && name) {
 			const user: User = {

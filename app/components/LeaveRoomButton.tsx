@@ -26,7 +26,8 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 		},
 	} = useRoomContext()
 
-	const effectiveRoomName = roomNameParam || roomStateName
+	// Try multiple sources for room name
+	const effectiveRoomName = roomNameParam || roomStateName || 'Private'
 
 	const participantSnapshot = Array.from(
 		new Map(
@@ -52,18 +53,12 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 				className={className}
 				onClick={() => {
 					const endedAt = Date.now()
-					console.log(
-						'Leave Button Clicked - meetingId:',
-						meetingId,
-						'hasDb:',
-						navigateToFeedbackPage
-					)
+					
 					// Stop all media devices before leaving
 					console.log('📴 Stopping all media devices...')
 					mic.stopBroadcasting()
 					camera.stopBroadcasting()
 					screenshare.stopBroadcasting()
-					console.log('📴 All media devices stopped')
 
 					const params = new URLSearchParams()
 					if (meetingId) {
@@ -74,21 +69,21 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 							body,
 							keepalive: true,
 						}).catch(() => {})
+						
 						params.set('meetingId', meetingId)
+						
 						if (participantSnapshot.length > 0) {
 							params.set('participants', JSON.stringify(participantSnapshot))
 						}
-						if (effectiveRoomName) {
-							params.set('roomName', effectiveRoomName)
-						}
-						if (typeof startTime === 'number') {
-							params.set('startedAt', String(startTime))
-						} else {
-							// fallback to current time if start time is missing
-							params.set('startedAt', String(Date.now()))
-						}
+						
+						params.set('roomName', effectiveRoomName)
+						
+						const finalStartedAt = typeof startTime === 'number' ? startTime : Date.now()
+						params.set('startedAt', String(finalStartedAt))
 						params.set('endedAt', String(endedAt))
 						params.set('userCount', String(participantSnapshot.length))
+						
+						console.log('[Leave] Navigating to summary with:', Object.fromEntries(params.entries()))
 						navigate(`/summary?${params}`)
 					} else {
 						console.warn('No meetingId found, redirecting to home')

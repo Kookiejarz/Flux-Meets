@@ -95,6 +95,10 @@ export class ChatRoom extends Server<Env> {
 		try {
 			const url = new URL(request.url)
 			if (url.pathname === '/exists') {
+				const roomName = request.headers.get('x-partykit-room')
+				if (roomName) {
+					await this.ctx.storage.put('roomName', roomName)
+				}
 				const meetingId = await this.ctx.storage.get<string>('meetingId')
 				if (meetingId) {
 					return new Response('OK', { status: 200 })
@@ -103,9 +107,12 @@ export class ChatRoom extends Server<Env> {
 			}
 			if (url.pathname === '/create' && request.method === 'POST') {
 				let meetingId = await this.ctx.storage.get<string>('meetingId')
+				const roomName =
+					request.headers.get('x-partykit-room') || this.ctx.id.toString()
+				if (roomName) {
+					await this.ctx.storage.put('roomName', roomName)
+				}
 				if (!meetingId) {
-					const roomName =
-						request.headers.get('x-partykit-room') || this.ctx.id.toString()
 					meetingId = await this.createMeeting(roomName)
 				}
 				return new Response(JSON.stringify({ meetingId }), {
@@ -212,7 +219,8 @@ export class ChatRoom extends Server<Env> {
 	async trackPeakUserCount() {
 		let meetingId = await this.getMeetingId()
 		if (!meetingId) {
-			meetingId = await this.createMeeting()
+			const roomName = await this.ctx.storage.get<string>('roomName')
+			meetingId = await this.createMeeting(roomName)
 		}
 		const meeting = await this.getMeeting(meetingId)
 

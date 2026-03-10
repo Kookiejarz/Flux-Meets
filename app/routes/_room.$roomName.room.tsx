@@ -92,6 +92,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	const { hasDb, hasAiCredentials, dashboardDebugLogsBaseUrl } =
 		useLoaderData<typeof loader>()
 	const {
+		username,
 		userMedia,
 		partyTracks,
 		pushedTracks,
@@ -194,6 +195,7 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 		partyTracks,
 		websocket,
 		identity,
+		username,
 		pushedTracks,
 		raisedHand,
 		speaking,

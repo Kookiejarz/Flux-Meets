@@ -34,6 +34,7 @@ import type { TrackObject } from '~/utils/callsTypes'
 import { useE2EE } from '~/utils/e2ee'
 import type { E2EEConfigState } from '~/utils/e2eeConfig'
 import { resolveE2EEConfig } from '~/utils/e2eeConfig'
+import getUsername from '~/utils/getUsername.server'
 import { getIceServers } from '~/utils/getIceServers.server'
 import { mode } from '~/utils/mode'
 
@@ -63,6 +64,7 @@ function trackObjectToString(trackObject?: TrackObject) {
 }
 
 type RoomLoaderData = {
+	username: string | null
 	userDirectoryUrl: string | undefined
 	traceLink: string | undefined
 	apiExtraParams: string | undefined
@@ -91,12 +93,13 @@ type RoomLoaderData = {
 	e2eeConfigState: E2EEConfigState
 	aiEnabled: boolean
 }
-
-export const loader = async ({ context, params }: LoaderFunctionArgs) => {
+export const loader = async ({ request, context, params }: LoaderFunctionArgs) => {
 	const { roomName } = params
 	if (!roomName) {
 		throw redirect('/')
 	}
+
+	const username = await getUsername(request)
 
 	try {
 		const rooms = context.env?.rooms ?? (context as any).rooms
@@ -154,6 +157,7 @@ export const loader = async ({ context, params }: LoaderFunctionArgs) => {
 		resolveE2EEConfig(env)
 
 	return data({
+		username,
 		userDirectoryUrl: env.USER_DIRECTORY_URL,
 		traceLink: TRACE_LINK,
 		apiExtraParams: API_EXTRA_PARAMS,
@@ -308,6 +312,7 @@ function Room({ room, userMedia }: RoomProps) {
 	invariant(roomName)
 
 	const {
+		username,
 		userDirectoryUrl,
 		traceLink,
 		feedbackEnabled,
@@ -1338,6 +1343,7 @@ function Room({ room, userMedia }: RoomProps) {
 		maxWebcamFramerate: number
 		maxWebcamQualityLevel: number
 	} = {
+		username,
 		joined,
 		setJoined,
 		pinnedTileIds,
