@@ -304,10 +304,8 @@ async fn process_stream<F>(
             // Fallback for frame-like objects where constructor checks fail.
             let frame_type = obj_get(&frame, &"type".into()).unwrap_or(JsValue::UNDEFINED);
             if let Some(t) = frame_type.as_string() {
-                if t == "key" {
-                    10
-                } else if t == "delta" {
-                    3
+                if t == "key" || t == "delta" {
+                    infer_unencrypted_prefix_size(&frame_data)
                 } else {
                     1
                 }
