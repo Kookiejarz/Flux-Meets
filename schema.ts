@@ -54,9 +54,10 @@ export const Transcripts = sqliteTable('Transcripts', {
 	language: text('language'),
 })
 
-export function getDb(context: { env: Env }) {
-	if (!context.env.DB) {
+export function getDb(context: any) {
+	const env = context?.env || context
+	if (!env?.DB) {
 		return null
 	}
-	return drizzle(context.env.DB)
+	return drizzle(env.DB)
 }

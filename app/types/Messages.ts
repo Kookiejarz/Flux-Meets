@@ -21,6 +21,7 @@ export type User = {
 
 export type RoomState = {
 	meetingId?: string
+	roomName?: string
 	startTime?: number
 	users: User[]
 	ai: {

@@ -19,12 +19,14 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 	className,
 }) => {
 	const navigate = useNavigate()
-	const { roomName } = useParams()
+	const { roomName: roomNameParam } = useParams()
 	const {
 		room: {
-			roomState: { startTime, users },
+			roomState: { startTime, users, roomName: roomStateName },
 		},
 	} = useRoomContext()
+
+	const effectiveRoomName = roomNameParam || roomStateName
 
 	const participantSnapshot = Array.from(
 		new Map(
@@ -76,11 +78,14 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 						if (participantSnapshot.length > 0) {
 							params.set('participants', JSON.stringify(participantSnapshot))
 						}
-						if (roomName) {
-							params.set('roomName', roomName)
+						if (effectiveRoomName) {
+							params.set('roomName', effectiveRoomName)
 						}
 						if (typeof startTime === 'number') {
 							params.set('startedAt', String(startTime))
+						} else {
+							// fallback to current time if start time is missing
+							params.set('startedAt', String(Date.now()))
 						}
 						params.set('endedAt', String(endedAt))
 						params.set('userCount', String(participantSnapshot.length))

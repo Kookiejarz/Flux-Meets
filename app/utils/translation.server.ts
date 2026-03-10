@@ -366,7 +366,7 @@ export async function translateWithInception(
 										content: text,
 									},
 								],
-								reasoning_effort: 'low',
+								reasoning_effort: 'instant',
 								temperature: 0.75,
 							}),
 						}

@@ -335,6 +335,7 @@ export class ChatRoom extends Server<Env> {
 	async broadcastRoomState() {
 		const meetingId = await this.getMeetingId()
 		const startTime = await this.ctx.storage.get<number>('startTime')
+		const roomName = await this.ctx.storage.get<string>('roomName')
 		const aiEnabled =
 			(await this.ctx.storage.get<boolean>('ai:enabled')) ?? false
 		const aiSessionId =
@@ -354,6 +355,7 @@ export class ChatRoom extends Server<Env> {
 					error: await this.ctx.storage.get<string>('ai:error'),
 				},
 				meetingId,
+				roomName,
 				startTime,
 				users: [
 					...(await this.getUsers()).values(),
