@@ -922,15 +922,16 @@ function Room({ room, userMedia }: RoomProps) {
 		) => {
 			const params = sender.getParameters()
 			if (!params.encodings || params.encodings.length === 0) return
-			const nextEncodings = params.encodings.map((enc) => {
+			let changed = false
+			for (const enc of params.encodings) {
 				const base = {
 					maxBitrate: Math.min(target.bitrate, maxWebcamBitrate),
 					maxFramerate: Math.min(target.framerate, maxWebcamFramerate),
 					scaleResolutionDownBy: Math.max(target.scale, 1),
 				}
+				let next: any
 				if (enc.rid === 'b') {
-					return {
-						...enc,
+					next = {
 						maxBitrate: Math.max(
 							400_000,
 							Math.min(target.bitrate / 2, maxWebcamBitrate)
@@ -938,16 +939,22 @@ function Room({ room, userMedia }: RoomProps) {
 						maxFramerate: Math.min(target.framerate, maxWebcamFramerate),
 						scaleResolutionDownBy: Math.max(target.scale * 1.4, 1.5),
 					}
+				} else {
+					next = base
 				}
-				if (enc.rid === 'a') {
-					return { ...enc, ...base }
+
+				if (
+					enc.maxBitrate !== next.maxBitrate ||
+					enc.maxFramerate !== next.maxFramerate ||
+					enc.scaleResolutionDownBy !== next.scaleResolutionDownBy
+				) {
+					enc.maxBitrate = next.maxBitrate
+					enc.maxFramerate = next.maxFramerate
+					enc.scaleResolutionDownBy = next.scaleResolutionDownBy
+					changed = true
 				}
-				return { ...enc, ...base }
-			})
-			const changed =
-				JSON.stringify(params.encodings) !== JSON.stringify(nextEncodings)
+			}
 			if (!changed) return
-			params.encodings = nextEncodings
 			try {
 				await sender.setParameters(params)
 			} catch (err) {
@@ -1075,18 +1082,17 @@ function Room({ room, userMedia }: RoomProps) {
 				params.encodings && params.encodings.length > 0
 					? params.encodings
 					: [{} as RTCRtpEncodingParameters]
-			const nextEncodings = encodings.map((enc) => ({
-				...enc,
-				maxBitrate: targetBitrate,
-			}))
-			const changed = nextEncodings.some(
-				(enc, index) => encodings[index]?.maxBitrate !== enc.maxBitrate
-			)
+			let changed = false
+			for (const enc of encodings) {
+				if (enc.maxBitrate !== targetBitrate) {
+					enc.maxBitrate = targetBitrate
+					changed = true
+				}
+			}
 			if (!changed) {
 				currentTier = tier
 				return true
 			}
-			params.encodings = nextEncodings
 			try {
 				await sender.setParameters(params)
 				currentTier = tier

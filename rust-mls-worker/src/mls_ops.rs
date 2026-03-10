@@ -88,6 +88,8 @@ struct WorkerState {
     pending_adds: Vec<KeyPackage>,
     /// The set of UIDs of room members who have not yet been removed from the MLS group
     pending_removes: Vec<Vec<u8>>,
+    /// Commits that arrived before we joined the group
+    pending_commits_from_others: Vec<(MlsMessageIn, String)>,
     /// Counter for NoGroup errors to reduce excessive logging during initialization
     no_group_error_count: u32,
 }
@@ -98,6 +100,7 @@ impl WorkerState {
     /// This MUST be executed before anything else in this module.
     fn new(uid: Vec<u8>) -> (WorkerState, KeyPackageBundle) {
         let mut state = WorkerState::default();
+        state.pending_commits_from_others = Vec::new();
         let credential = BasicCredential::new(uid);
 
         // Generate new signing keys
@@ -274,6 +277,12 @@ impl WorkerState {
             info!("Successfully joined MLS group");
         }
 
+        // Catch up on any pending commits that arrived before the Welcome
+        let pending_commits = std::mem::take(&mut self.pending_commits_from_others);
+        for (commit, sender) in pending_commits {
+            self.handle_commit(commit, &sender);
+        }
+
         // Return the new safety number
         WorkerResponse {
             new_safety_number: Some(self.safety_number()),
@@ -285,6 +294,11 @@ impl WorkerState {
     /// If not, this does nothing.
     fn process_pendings(&mut self) -> WorkerResponse {
         if !self.is_designated_committer() {
+            return WorkerResponse::default();
+        }
+
+        // If we don't have a group yet, we certainly can't process pendings
+        if self.mls_group.is_none() {
             return WorkerResponse::default();
         }
 
@@ -444,9 +458,16 @@ impl WorkerState {
     }
 
     /// Applies the given MLS commit to the group state
-    fn handle_commit(&mut self, msg: MlsMessageIn) -> WorkerResponse {
-        // If we haven't been welcomed, just ignore this message
+    fn handle_commit(&mut self, msg: MlsMessageIn, sender_uid: &str) -> WorkerResponse {
+        // A user cannot process a commit created by themselves. Ignore
+        if self.uid() == sender_uid.as_bytes() {
+            return WorkerResponse::default();
+        }
+
+        // If we haven't been welcomed, buffer this message for later
         let Some(group) = self.mls_group.as_mut() else {
+            self.pending_commits_from_others
+                .push((msg, sender_uid.to_string()));
             return WorkerResponse::default();
         };
 
@@ -768,7 +789,6 @@ pub fn join_group(serialized_welcome: &[u8], serialized_rtree: &[u8]) -> WorkerR
 
 /// Acquires the global state and processes the given Commit message from the given sender
 pub fn handle_commit(serialized_commit: &[u8], sender_uid: &str) -> WorkerResponse {
-    let uid_bytes = sender_uid.as_bytes().to_vec();
     let Ok(commit) = MlsMessageIn::tls_deserialize_exact_bytes(serialized_commit) else {
         info!("ignore malformed commit message");
         return WorkerResponse::default();
@@ -780,12 +800,7 @@ pub fn handle_commit(serialized_commit: &[u8], sender_uid: &str) -> WorkerRespon
                 info!("skip handle_commit due to busy state borrow");
                 return WorkerResponse::default();
             };
-            // A user cannot process a commit created by themselves. Ignore
-            if state.uid() == uid_bytes {
-                WorkerResponse::default()
-            } else {
-                state.handle_commit(commit)
-            }
+            state.handle_commit(commit, sender_uid)
         })
         .unwrap_or_default()
 }
@@ -887,7 +902,7 @@ mod tests {
     enum Msg {
         UserJoined(KeyPackageBundle),
         UserLeft(usize),
-        AddRemove(MlsMessageOut),
+        AddRemove(MlsMessageOut, String),
         Welcome(WelcomePackageOut),
     }
 
@@ -934,14 +949,19 @@ mod tests {
         /// Unpacks the given worker response and adds it to the message queue. Ordering is
         /// (welcome, add), (welcome, add), ..., remove
         fn queue_response(&mut self, resp: WorkerResponse) {
-            let WorkerResponse { adds, remove, .. } = resp;
+            let WorkerResponse {
+                adds,
+                remove,
+                sender_id,
+                ..
+            } = resp;
 
             for (wp, add) in adds {
                 self.messages.push(Msg::Welcome(wp));
-                self.messages.push(Msg::AddRemove(add));
+                self.messages.push(Msg::AddRemove(add, sender_id.clone().unwrap()));
             }
             if let Some(r) = remove {
-                self.messages.push(Msg::AddRemove(r));
+                self.messages.push(Msg::AddRemove(r, sender_id.unwrap()));
             }
         }
 
@@ -1041,8 +1061,8 @@ mod tests {
                                 None
                             }
                             // Process a commit if possible
-                            Msg::AddRemove(commit) => {
-                                s.handle_commit(msg_out_to_in(commit));
+                            Msg::AddRemove(commit, sender) => {
+                                s.handle_commit(msg_out_to_in(commit), sender);
                                 None
                             }
                             Msg::UserJoined(kp) => {
