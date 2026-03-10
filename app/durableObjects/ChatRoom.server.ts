@@ -616,7 +616,7 @@ export class ChatRoom extends Server<Env> {
 			translate: data.translate,
 		})
 
-		if (!data.isFinal) return
+		if (!data.isFinal && !data.translate) return
 
 		// 1) 持久化字幕（失败不影响后续翻译）
 		if (this.db) {
@@ -643,37 +643,37 @@ export class ChatRoom extends Server<Env> {
 
 		// 2) 自动翻译（不依赖 DB）
 		if (data.translate) {
-			try {
-				console.log('[Translation] Starting translation for text:', data.text)
-				const targetLangs = this.getTargetLanguages()
-				console.log('[Translation] Target languages:', targetLangs)
+			const targetLangs = this.getTargetLanguages()
 
-				if (targetLangs.length === 0) {
-					console.warn(
-						'[Translation] No target languages configured, skipping translation'
-					)
-					return
-				}
+			if (targetLangs.length > 0) {
+				console.log(
+					'[Translation] Starting parallel translation for text:',
+					data.text,
+					'Targets:',
+					targetLangs
+				)
 
-				const translations = await translate(this.env, data.text, targetLangs)
-				console.log('[Translation] Received translations:', translations.length)
-
-				for (const translation of translations) {
-					console.log(
-						`[Translation] Broadcasting: [${translation.language}] ${translation.text}`
-					)
-					this.broadcastMessage({
-						type: 'caption',
-						userId: connection.id,
-						text: `[${translation.language.toUpperCase()}] ${translation.text}`,
-						isFinal: true,
-					})
-				}
-			} catch (e) {
-				console.error('[Translation] Error:', e)
+				// 并行发起翻译，每种语言完成后立即广播，不互相等待
+				targetLangs.forEach(async (lang) => {
+					try {
+						const translations = await translate(this.env, data.text, [lang])
+						for (const translation of translations) {
+							console.log(
+								`[Translation] Broadcasting: [${translation.language}] ${translation.text}`
+							)
+							this.broadcastMessage({
+								type: 'caption',
+								userId: connection.id,
+								text: `[${translation.language.toUpperCase()}] ${translation.text}`,
+								isFinal: true,
+							})
+						}
+					} catch (e) {
+						console.error(`[Translation] Error for ${lang}:`, e)
+					}
+				})
 			}
-		}
-	}
+		}	}
 
 	async onMessage(
 		connection: Connection<User>,

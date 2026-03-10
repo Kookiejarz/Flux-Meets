@@ -366,11 +366,11 @@ export async function translateWithInception(
 										content: text,
 									},
 								],
-								reasoning_effort: 'high',
+								reasoning_effort: 'low',
 								temperature: 0.75,
-								}),
-								}
-								)
+							}),
+						}
+					)
 					if (response.ok) {
 						const result: any = await response.json()
 						const translatedText =

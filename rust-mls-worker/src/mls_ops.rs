@@ -24,10 +24,10 @@ const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA2
 const PROT_VERSION: ProtocolVersion = ProtocolVersion::Mls10;
 const MLS_FRAME_MARKER: [u8; 4] = *b"OMLS";
 // Permit decryption of messages that are up to 500 messages old (for that sender)
-const OUT_OF_ORDER_TOLERANCE: u32 = 500;
+const OUT_OF_ORDER_TOLERANCE: u32 = 2000;
 // Permit decryption of messages from up to 1000 messages in the future (for that sender). 1000 is
 // the default.
-const MAX_MESSAGE_SEQ_JUMP: u32 = 1000;
+const MAX_MESSAGE_SEQ_JUMP: u32 = 5000;
 
 type SafetyNumber = [u8; 32];
 
