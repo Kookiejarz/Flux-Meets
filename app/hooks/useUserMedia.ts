@@ -272,6 +272,7 @@ class NativeMediaDevice {
 				console.warn(
 					`⚠️ ${this.kind} track ended - device disconnected or permission lost`
 				)
+				this.stopBroadcasting()
 			})
 
 			let processedTrack: MediaStreamTrack = track

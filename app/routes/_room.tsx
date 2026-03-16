@@ -249,7 +249,7 @@ function RoomPreparation(props: {
 	}, [room.roomState.meetingId])
 
 	if (room.roomState.meetingId) {
-		return <Room room={room} userMedia={userMedia} />
+		return <Room key={room.roomState.meetingId} room={room} userMedia={userMedia} />
 	}
 
 	return (

@@ -96,9 +96,9 @@ pub async fn processEvent(event: Object) -> JsValue {
             let writer = out_field.get_writer().unwrap();
 
             if ty == "encryptStream" {
-                process_stream(reader, writer, encrypt_msg).await;
+                wasm_bindgen_futures::spawn_local(process_stream(reader, writer, encrypt_msg));
             } else {
-                process_stream(reader, writer, decrypt_msg).await;
+                wasm_bindgen_futures::spawn_local(process_stream(reader, writer, decrypt_msg));
             }
 
             None
@@ -257,7 +257,7 @@ async fn process_stream<F>(
     writer: WritableStreamDefaultWriter,
     f: F,
 ) where
-    F: Fn(&[u8], usize) -> Vec<u8>,
+    F: Fn(&[u8], usize) -> Vec<u8> + 'static,
 {
     loop {
         let promise = reader.read();

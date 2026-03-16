@@ -17,6 +17,14 @@ export default function useRoom({
 	})
 	const [isConnected, setIsConnected] = useState(false)
 
+	useEffect(() => {
+		setRoomState({
+			users: [],
+			ai: { enabled: false },
+		})
+		setIsConnected(false)
+	}, [roomName])
+
 	const userLeftFunctionRef = useRef(() => {})
 
 	useEffect(() => {
