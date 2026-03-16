@@ -70,20 +70,22 @@ export default function Lobby() {
 	const joinedUsers = new Set(
 		room.otherUsers.filter((u) => u.tracks.audio).map((u) => u.name)
 	).size
-	const e2eeInitRef = useRef(false)
+	const lastE2eeMeetingIdRef = useRef<string | null>(null)
 
 	useEffect(() => {
-		if (e2eeInitRef.current) return
 		if (!e2eeStatus.enabled) return
-		if (!room.isConnected || !room.identity) return
+		if (!room.isConnected || !room.identity || !room.roomState.meetingId) return
+
+		// If we already initialized for this specific meetingId, don't do it again
+		if (lastE2eeMeetingIdRef.current === room.roomState.meetingId) return
 
 		// If meetingId exists in room state, someone already created the group.
 		// We only start a group if there's no meetingId or we are the only one.
-		const isFirstUser = !room.roomState.meetingId || room.otherUsers.length === 0
+		const isFirstUser = room.otherUsers.length === 0
 		
 		console.log('[E2EE] Joining room. isFirstUser:', isFirstUser, 'meetingId:', room.roomState.meetingId)
 		e2eeOnJoin(isFirstUser)
-		e2eeInitRef.current = true
+		lastE2eeMeetingIdRef.current = room.roomState.meetingId
 	}, [
 		e2eeOnJoin,
 		e2eeStatus.enabled,

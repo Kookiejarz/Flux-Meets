@@ -1417,5 +1417,5 @@ function Room({ room, userMedia }: RoomProps) {
 		},
 	}
 
-	return <Outlet context={context} />
+	return <Outlet key={room.roomState.meetingId} context={context} />
 }

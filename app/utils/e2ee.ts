@@ -424,7 +424,7 @@ export function useE2EE({
 						id: `${room.websocket.id}-audio`,
 					})
 				: null,
-		[enabled, room.websocket.id]
+		[enabled, room.websocket.id, room.roomState.meetingId]
 	)
 
 	const videoWorker = useMemo(
@@ -434,7 +434,7 @@ export function useE2EE({
 						id: `${room.websocket.id}-video`,
 					})
 				: null,
-		[enabled, room.websocket.id]
+		[enabled, room.websocket.id, room.roomState.meetingId]
 	)
 
 	const getTransceiverKey = useCallback(
