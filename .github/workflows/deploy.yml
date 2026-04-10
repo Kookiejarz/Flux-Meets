@@ -33,6 +33,18 @@ jobs:
         # 使用 ci 代替 install，增加 --prefer-offline 减少网络请求
         run: npm ci --legacy-peer-deps --prefer-offline --no-audit
 
+      - name: Verify D1 Access (Production)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler d1 list -c wrangler.production.toml
+
+      - name: Apply D1 Migrations (Production)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run db:migrate:production
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -94,15 +106,3 @@ jobs:
           fi
 
           echo "Cache purge completed for host ${PURGE_HOST}."
-
-      - name: Verify D1 Access (Production)
-        env:
-          CLOUDFLARE_ACCOUNT_ID: 7829299e6cefc232ded8635f50b53462
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npx wrangler d1 list -c wrangler.production.toml
-
-      - name: Apply D1 Migrations (Production)
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npm run db:migrate:production
