@@ -255,30 +255,6 @@ export default function MeetingSummary() {
 	const [params] = useSearchParams()
 	const meetingId = params.get('meetingId')
 
-	// 只在没有 meetingId 时显示错误（数据库查询失败优雅降级）
-	if (!meetingId) {
-		return (
-			<div className="min-h-[100dvh] bg-zinc-950 flex items-center justify-center p-6">
-				<div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-xs w-full text-center">
-					<Icon
-						type="ExclamationCircleIcon"
-						className="w-10 h-10 text-red-500 mx-auto mb-3"
-					/>
-					<h1 className="text-lg font-bold text-zinc-100 mb-1">
-						Summary Unavailable
-					</h1>
-					<p className="text-zinc-500 text-xs mb-5">Meeting not found</p>
-					<Link
-						to="/"
-						className="inline-block w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
-					>
-						Return Home
-					</Link>
-				</div>
-			</div>
-		)
-	}
-
 	return (
 		<div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 selection:bg-orange-500/30 font-sans">
 			{/* Ambient Background Glow - Subtle */}
@@ -360,35 +336,47 @@ export default function MeetingSummary() {
 						</div>
 					)}
 
-					{/* Download Card - Compact */}
-					<div className="group relative bg-orange-500 rounded-xl p-4 overflow-hidden transition-all active:scale-[0.99] border border-orange-400/20 shadow-lg shadow-orange-500/10">
-						<div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600" />
-						<div className="absolute -top-2 -right-2 p-2 opacity-10 group-hover:scale-110 transition-transform">
-							<Icon
-								type="ArrowDownOnSquareIcon"
-								className="w-12 h-12 text-white"
-							/>
-						</div>
-						<div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-							<div className="max-w-[240px]">
-								<h2 className="text-base font-black text-white mb-0.5 uppercase tracking-tight">
-									Full Transcript
-								</h2>
-								<p className="text-orange-100 text-[10px] font-medium leading-tight">
-									Complete record of the meeting conversation is ready for
-									download.
-								</p>
+					{meetingId ? (
+						<div className="group relative bg-orange-500 rounded-xl p-4 overflow-hidden transition-all active:scale-[0.99] border border-orange-400/20 shadow-lg shadow-orange-500/10">
+							<div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600" />
+							<div className="absolute -top-2 -right-2 p-2 opacity-10 group-hover:scale-110 transition-transform">
+								<Icon
+									type="ArrowDownOnSquareIcon"
+									className="w-12 h-12 text-white"
+								/>
 							</div>
-							<button
-								onClick={() =>
-									window.open(`/api/transcript/${meetingId}`, '_blank')
-								}
-								className="bg-white text-orange-600 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-lg self-start sm:self-center"
-							>
-								Download TXT
-							</button>
+							<div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+								<div className="max-w-[240px]">
+									<h2 className="text-base font-black text-white mb-0.5 uppercase tracking-tight">
+										Full Transcript
+									</h2>
+									<p className="text-orange-100 text-[10px] font-medium leading-tight">
+										Complete record of the meeting conversation is ready for
+										download.
+									</p>
+								</div>
+								<button
+									onClick={() =>
+										window.open(`/api/transcript/${meetingId}`, '_blank')
+									}
+									className="bg-white text-orange-600 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-lg self-start sm:self-center"
+								>
+									Download TXT
+								</button>
+							</div>
 						</div>
-					</div>
+					) : (
+						<div className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl">
+							<h2 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
+								Summary Snapshot
+							</h2>
+							<p className="text-xs text-zinc-300 leading-relaxed">
+								This summary is based on client-side room data captured when you
+								left. A transcript download is unavailable because the meeting ID
+								was not present.
+							</p>
+						</div>
+					)}
 				</div>
 
 				<div className="text-center mt-6">

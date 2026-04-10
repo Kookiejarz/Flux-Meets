@@ -27,6 +27,16 @@ export type E2EEVerificationStatus = {
 	peerExchangeRequired: boolean
 	peerExchangeCompleted: boolean
 	peerExchangeParticipants: number
+	mediaReadiness: {
+		audio: {
+			safetyNumberReady: boolean
+			peerExchangeCompleted: boolean
+		}
+		video: {
+			safetyNumberReady: boolean
+			peerExchangeCompleted: boolean
+		}
+	}
 	senderTransforms: TransformCoverage
 	receiverTransforms: TransformCoverage
 	strictReady: boolean
@@ -352,14 +362,18 @@ export function useE2EE({
 	partyTracks: PartyTracks
 	room: ReturnType<typeof useRoom>
 }) {
-	const [safetyNumber, setSafetyNumber] = useState<string>()
+	const [audioSafetyNumber, setAudioSafetyNumber] = useState<string>()
+	const [videoSafetyNumber, setVideoSafetyNumber] = useState<string>()
 	const [joined, setJoined] = useState(false)
 	const [firstUser, setFirstUser] = useState(false)
 	const [audioWorkerInitialized, setAudioWorkerInitialized] = useState(false)
 	const [videoWorkerInitialized, setVideoWorkerInitialized] = useState(false)
 	const workerInitialized = audioWorkerInitialized && videoWorkerInitialized
 	const [peerExchangeParticipants, setPeerExchangeParticipants] = useState(0)
-	const [peerExchangeCompleted, setPeerExchangeCompleted] = useState(false)
+	const [audioPeerExchangeCompleted, setAudioPeerExchangeCompleted] =
+		useState(false)
+	const [videoPeerExchangeCompleted, setVideoPeerExchangeCompleted] =
+		useState(false)
 	const [lastError, setLastError] = useState<string>()
 	const [senderKeys, setSenderKeys] = useState<Set<string>>(new Set())
 	const [boundSenderKeys, setBoundSenderKeys] = useState<Set<string>>(new Set())
@@ -389,7 +403,10 @@ export function useE2EE({
 		room.roomState.users,
 		room.websocket.id
 	)
-	const safetyNumberReady = Boolean(safetyNumber)
+	const safetyNumberReady = Boolean(audioSafetyNumber && videoSafetyNumber)
+	const peerExchangeCompleted = peerExchangeRequired
+		? audioPeerExchangeCompleted && videoPeerExchangeCompleted
+		: true
 	const transformsReady =
 		senderTransforms.required === senderTransforms.bound &&
 		receiverTransforms.required === receiverTransforms.bound
@@ -397,13 +414,13 @@ export function useE2EE({
 	const coreReady = enabled
 		? joined &&
 			workerInitialized &&
-			safetyNumberReady &&
-			(!peerExchangeRequired || peerExchangeCompleted) &&
+			// Safety number only required when peers are present (verifies the shared group key)
+			(safetyNumberReady || !peerExchangeRequired) &&
 			!lastError
 		: true
 
 	const strictReady = enabled
-		? coreReady && transformsReady
+		? coreReady && transformsReady && (!peerExchangeRequired || peerExchangeCompleted)
 		: true
 
 	const e2eeStatus: E2EEVerificationStatus = {
@@ -414,6 +431,16 @@ export function useE2EE({
 		peerExchangeRequired,
 		peerExchangeCompleted,
 		peerExchangeParticipants,
+		mediaReadiness: {
+			audio: {
+				safetyNumberReady: Boolean(audioSafetyNumber),
+				peerExchangeCompleted: audioPeerExchangeCompleted,
+			},
+			video: {
+				safetyNumberReady: Boolean(videoSafetyNumber),
+				peerExchangeCompleted: videoPeerExchangeCompleted,
+			},
+		},
 		senderTransforms,
 		receiverTransforms,
 		strictReady,
@@ -499,12 +526,14 @@ export function useE2EE({
 	)
 
 	const resetVerificationState = useCallback(() => {
-		setSafetyNumber(undefined)
+		setAudioSafetyNumber(undefined)
+		setVideoSafetyNumber(undefined)
 		setAudioWorkerInitialized(false)
 		setVideoWorkerInitialized(false)
 		setLastError(undefined)
 		setPeerExchangeParticipants(0)
-		setPeerExchangeCompleted(false)
+		setAudioPeerExchangeCompleted(false)
+		setVideoPeerExchangeCompleted(false)
 		setSenderKeys(new Set())
 		setBoundSenderKeys(new Set())
 		setReceiverKeys(new Set())
@@ -690,10 +719,17 @@ export function useE2EE({
 				const nextSafetyNumber = arrayBufferToDecimal(
 					buffer as unknown as ArrayBuffer
 				)
-				setSafetyNumber((prev) => {
-					if (prev === nextSafetyNumber) return prev
-					return nextSafetyNumber
-				})
+				if (type === 'audio') {
+					setAudioSafetyNumber((prev) => {
+						if (prev === nextSafetyNumber) return prev
+						return nextSafetyNumber
+					})
+				} else {
+					setVideoSafetyNumber((prev) => {
+						if (prev === nextSafetyNumber) return prev
+						return nextSafetyNumber
+					})
+				}
 			})
 			worker.handleOutgoingEvents((data) => {
 				room.websocket.send(
@@ -713,7 +749,6 @@ export function useE2EE({
 			const message = JSON.parse(event.data)
 			if (message.type === 'e2eeMlsMessage') {
 				const mediaType = message.mediaType as 'audio' | 'video' | undefined
-				setPeerExchangeCompleted(true)
 				try {
 					const payload = JSON.parse(message.payload) as { senderId?: string }
 					if (payload.senderId) {
@@ -731,12 +766,16 @@ export function useE2EE({
 					}
 				}
 				if (mediaType === 'audio') {
+					setAudioPeerExchangeCompleted(true)
 					audioWorker.handleIncomingEvent(message.payload)
 				} else if (mediaType === 'video') {
+					setVideoPeerExchangeCompleted(true)
 					videoWorker.handleIncomingEvent(message.payload)
 				} else {
 					// Backward compatibility: old relays/clients may omit mediaType.
 					// Feed both workers so MLS handshakes can still converge.
+					setAudioPeerExchangeCompleted(true)
+					setVideoPeerExchangeCompleted(true)
 					audioWorker.handleIncomingEvent(message.payload)
 					videoWorker.handleIncomingEvent(message.payload)
 				}
@@ -772,7 +811,11 @@ export function useE2EE({
 	}, [audioWorker, videoWorker, firstUser, joined, room.websocket])
 
 	return {
-		e2eeSafetyNumber: enabled ? safetyNumber : undefined,
+		e2eeSafetyNumber: enabled
+			? audioSafetyNumber && videoSafetyNumber
+				? `${audioSafetyNumber}-${videoSafetyNumber}`
+				: audioSafetyNumber || videoSafetyNumber
+			: undefined,
 		e2eeStatus,
 		onJoin,
 	}

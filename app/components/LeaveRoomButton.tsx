@@ -22,12 +22,18 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 	const { roomName: roomNameParam } = useParams()
 	const {
 		room: {
-			roomState: { startTime, users, roomName: roomStateName },
+			roomState: {
+				startTime,
+				users,
+				roomName: roomStateName,
+				meetingId: roomStateMeetingId,
+			},
 		},
 	} = useRoomContext()
 
 	// Try multiple sources for room name
 	const effectiveRoomName = roomNameParam || roomStateName || 'Private'
+	const effectiveMeetingId = meetingId || roomStateMeetingId
 
 	const participantSnapshot = Array.from(
 		new Map(
@@ -53,7 +59,7 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 				className={className}
 				onClick={() => {
 					const endedAt = Date.now()
-					
+
 					// Stop all media devices before leaving
 					console.log('📴 Stopping all media devices...')
 					mic.stopBroadcasting()
@@ -61,34 +67,37 @@ export const LeaveRoomButton: FC<LeaveRoomButtonProps> = ({
 					screenshare.stopBroadcasting()
 
 					const params = new URLSearchParams()
-					if (meetingId) {
+					if (participantSnapshot.length > 0) {
+						params.set('participants', JSON.stringify(participantSnapshot))
+					}
+
+					params.set('roomName', effectiveRoomName)
+
+					const finalStartedAt =
+						typeof startTime === 'number' ? startTime : Date.now()
+					params.set('startedAt', String(finalStartedAt))
+					params.set('endedAt', String(endedAt))
+					params.set('userCount', String(participantSnapshot.length))
+
+					if (effectiveMeetingId) {
 						// best-effort mark meeting ended using client timestamp
-						const body = new URLSearchParams({ meetingId })
+						const body = new URLSearchParams({ meetingId: effectiveMeetingId })
 						fetch('/api/meeting-end', {
 							method: 'POST',
 							body,
 							keepalive: true,
 						}).catch(() => {})
-						
-						params.set('meetingId', meetingId)
-						
-						if (participantSnapshot.length > 0) {
-							params.set('participants', JSON.stringify(participantSnapshot))
-						}
-						
-						params.set('roomName', effectiveRoomName)
-						
-						const finalStartedAt = typeof startTime === 'number' ? startTime : Date.now()
-						params.set('startedAt', String(finalStartedAt))
-						params.set('endedAt', String(endedAt))
-						params.set('userCount', String(participantSnapshot.length))
-						
+
+						params.set('meetingId', effectiveMeetingId)
+
 						console.log('[Leave] Navigating to summary with:', Object.fromEntries(params.entries()))
-						navigate(`/summary?${params}`)
 					} else {
-						console.warn('No meetingId found, redirecting to home')
-						navigate('/')
+						console.warn(
+							'No meetingId found, navigating to summary with client snapshot only'
+						)
 					}
+
+					navigate(`/summary?${params}`)
 				}}
 			>
 				<VisuallyHidden>Leave</VisuallyHidden>

@@ -1150,6 +1150,31 @@ export class ChatRoom extends Server<Env> {
 		})
 	}
 
+	private async clearActiveRoomState() {
+		await Promise.all([
+			this.ctx.storage.delete('meetingId'),
+			this.ctx.storage.delete('startTime'),
+		])
+
+		await this.ctx.storage
+			.list({
+				prefix: 'ai:',
+			})
+			.then((map) =>
+				Promise.all(Array.from(map.keys()).map((key) => this.ctx.storage.delete(key)))
+			)
+
+		this.roomLanguages.clear()
+		this.userLanguageMap.clear()
+		this.lastTranslatedTextMap.clear()
+		this.lastTranslationTimeMap.clear()
+
+		for (const session of this.assemblyAiSessions.values()) {
+			session.disconnect()
+		}
+		this.assemblyAiSessions.clear()
+	}
+
 	async endMeeting(meetingId: string) {
 		log({ eventName: 'endingMeeting', meetingId })
 		if (this.db) {
@@ -1164,6 +1189,8 @@ export class ChatRoom extends Server<Env> {
 
 			await this.cleanupEndedMeetingsIfNeeded({ force: true })
 		}
+
+		await this.clearActiveRoomState()
 	}
 
 	userLeftNotification(id: string) {
