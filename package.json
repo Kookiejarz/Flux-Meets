@@ -107,7 +107,7 @@
 			"typescript": "$typescript"
 		},
 		"pretty-format": "29.7.0",
-		"esbuild": "^0.23.0"
+		"esbuild": "^0.27.0"
 	},
 	"engines": {
 		"node": ">=16.13"
