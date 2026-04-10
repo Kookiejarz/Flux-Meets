@@ -100,7 +100,7 @@
 		"tailwindcss": "^3.4.17",
 		"typescript": "5.9.3",
 		"vitest": "4.0.18",
-		"wrangler": "^4.71.0"
+		"wrangler": "^4.81.1"
 	},
 	"overrides": {
 		"msw": {

@@ -23,6 +23,7 @@ export default function handleRequest(
 		`
 		)
 		responseHeaders.set('Content-Type', 'text/html; charset=utf-8')
+		responseHeaders.set('Cache-Control', 'no-cache')
 		return new Response('<!DOCTYPE html>' + markup, {
 			status: responseStatusCode,
 			headers: responseHeaders,
