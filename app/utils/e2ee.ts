@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import invariant from 'tiny-invariant'
 import type useRoom from '~/hooks/useRoom'
 import { RELEASE } from '~/utils/constants'
+import { hasOtherConnectedUsers } from '~/utils/e2eePeers'
 import type { ServerMessage } from '~/types/Messages'
 
 function getE2eeWorkerUrl() {
@@ -384,7 +385,10 @@ export function useE2EE({
 		bound: boundReceiverKeys.size,
 	}
 
-	const peerExchangeRequired = room.otherUsers.length > 0
+	const peerExchangeRequired = hasOtherConnectedUsers(
+		room.roomState.users,
+		room.websocket.id
+	)
 	const safetyNumberReady = Boolean(safetyNumber)
 	const transformsReady =
 		senderTransforms.required === senderTransforms.bound &&

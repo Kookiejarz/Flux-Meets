@@ -20,6 +20,7 @@ import { Spinner } from '~/components/Spinner'
 import { Tooltip } from '~/components/Tooltip'
 import { useRoomContext } from '~/hooks/useRoomContext'
 import { useRoomUrl } from '~/hooks/useRoomUrl'
+import { shouldCreateE2EEGroup } from '~/utils/e2eePeers'
 import getUsername from '~/utils/getUsername.server'
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
@@ -79,20 +80,24 @@ export default function Lobby() {
 		// If we already initialized for this specific meetingId, don't do it again
 		if (lastE2eeMeetingIdRef.current === room.roomState.meetingId) return
 
-		// If meetingId exists in room state, someone already created the group.
-		// We only start a group if there's no meetingId or we are the only one.
-		const isFirstUser = room.otherUsers.length === 0
-		
+		// E2EE starts in the lobby, so we must look at all connected sessions,
+		// not only users that have already clicked Join.
+		const isFirstUser = shouldCreateE2EEGroup(
+			room.roomState.users,
+			room.websocket.id
+		)
+
 		console.log('[E2EE] Joining room. isFirstUser:', isFirstUser, 'meetingId:', room.roomState.meetingId)
 		e2eeOnJoin(isFirstUser)
 		lastE2eeMeetingIdRef.current = room.roomState.meetingId
 	}, [
 		e2eeOnJoin,
 		e2eeStatus.enabled,
-		room.otherUsers.length,
 		room.isConnected,
 		room.identity,
 		room.roomState.meetingId,
+		room.roomState.users,
+		room.websocket.id,
 	])
 
 	const roomUrl = useRoomUrl()

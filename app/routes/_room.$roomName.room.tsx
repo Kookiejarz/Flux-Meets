@@ -36,6 +36,7 @@ import { useUserJoinLeaveToasts } from '~/hooks/useUserJoinLeaveToasts'
 import type { User } from '~/types/Messages'
 import { decryptChat } from '~/utils/chatEncryption'
 import { dashboardLogsLink } from '~/utils/dashboardLogsLink'
+import { shouldCreateE2EEGroup } from '~/utils/e2eePeers'
 import getUsername from '~/utils/getUsername.server'
 import { isMobile } from '~/utils/isMobile'
 import isNonNullable from '~/utils/isNonNullable'
@@ -126,8 +127,11 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	)
 	// 初始化端到端加密（仅在组件挂载时执行一次）
 	useMount(() => {
-		// 判断是否是第一个用户（房间中没有其他用户）
-		const isFirstUser = otherUsers.length === 0
+		// Fallback for direct room entry: count all connected sessions, not just joined users.
+		const isFirstUser = shouldCreateE2EEGroup(
+			room.roomState.users,
+			room.websocket.id
+		)
 		e2eeOnJoin(isFirstUser)
 	})
 
