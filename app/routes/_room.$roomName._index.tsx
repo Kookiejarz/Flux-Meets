@@ -72,6 +72,7 @@ export default function Lobby() {
 		room.otherUsers.filter((u) => u.tracks.audio).map((u) => u.name)
 	).size
 	const lastE2eeMeetingIdRef = useRef<string | null>(null)
+	const e2eeJoinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	useEffect(() => {
 		if (!e2eeStatus.enabled) return
@@ -80,16 +81,36 @@ export default function Lobby() {
 		// If we already initialized for this specific meetingId, don't do it again
 		if (lastE2eeMeetingIdRef.current === room.roomState.meetingId) return
 
-		// E2EE starts in the lobby, so we must look at all connected sessions,
-		// not only users that have already clicked Join.
-		const isFirstUser = shouldCreateE2EEGroup(
-			room.roomState.users,
-			room.websocket.id
-		)
+		const meetingId = room.roomState.meetingId
+		const users = room.roomState.users
+		const selfId = room.websocket.id
 
-		console.log('[E2EE] Joining room. isFirstUser:', isFirstUser, 'meetingId:', room.roomState.meetingId)
-		e2eeOnJoin(isFirstUser)
-		lastE2eeMeetingIdRef.current = room.roomState.meetingId
+		// Clear any pending timer so we restart the debounce whenever users changes.
+		// This gives room state ~500 ms to stabilize before we decide isFirstUser,
+		// which prevents both simultaneous-join users from each thinking they are first.
+		if (e2eeJoinTimerRef.current !== null) {
+			clearTimeout(e2eeJoinTimerRef.current)
+		}
+
+		e2eeJoinTimerRef.current = setTimeout(() => {
+			e2eeJoinTimerRef.current = null
+			if (lastE2eeMeetingIdRef.current === meetingId) return
+
+			// E2EE starts in the lobby, so we must look at all connected sessions,
+			// not only users that have already clicked Join.
+			const isFirstUser = shouldCreateE2EEGroup(users, selfId)
+
+			console.log('[E2EE] Joining room. isFirstUser:', isFirstUser, 'meetingId:', meetingId, 'users:', users.length)
+			e2eeOnJoin(isFirstUser)
+			lastE2eeMeetingIdRef.current = meetingId
+		}, 500)
+
+		return () => {
+			if (e2eeJoinTimerRef.current !== null) {
+				clearTimeout(e2eeJoinTimerRef.current)
+				e2eeJoinTimerRef.current = null
+			}
+		}
 	}, [
 		e2eeOnJoin,
 		e2eeStatus.enabled,

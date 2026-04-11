@@ -40,3 +40,24 @@ describe('e2ee peer detection', () => {
 		expect(shouldCreateE2EEGroup(users, 'self')).toBe(false)
 	})
 })
+
+describe('leader election for simultaneous joins', () => {
+	test('user with lexicographically smallest id creates the group', () => {
+		// 'aaa' < 'zzz', so 'aaa' is the leader
+		const users = [makeUser('aaa'), makeUser('zzz')]
+		expect(shouldCreateE2EEGroup(users, 'aaa')).toBe(true)
+		expect(shouldCreateE2EEGroup(users, 'zzz')).toBe(false)
+	})
+
+	test('leader election works across three users', () => {
+		const users = [makeUser('b'), makeUser('a'), makeUser('c')]
+		expect(shouldCreateE2EEGroup(users, 'a')).toBe(true)
+		expect(shouldCreateE2EEGroup(users, 'b')).toBe(false)
+		expect(shouldCreateE2EEGroup(users, 'c')).toBe(false)
+	})
+
+	test('still creates group when alone even if own id sorts last', () => {
+		const users = [makeUser('zzz')]
+		expect(shouldCreateE2EEGroup(users, 'zzz')).toBe(true)
+	})
+})
