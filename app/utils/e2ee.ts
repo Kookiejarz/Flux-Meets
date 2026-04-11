@@ -176,12 +176,25 @@ export class EncryptionWorker {
 	}
 
 	_worker: Worker | null = null
+	_ready: Promise<void>
 	safetyNumber: number = -1
 	id: string
 
 	constructor(config: { id: string }) {
 		this.id = config.id
 		this._worker = new Worker(getE2eeWorkerUrl())
+		// Capture the workerReady message immediately so it is never missed,
+		// regardless of how much later initialize() / initializeAndCreateGroup()
+		// is called (e.g. after a debounce delay).
+		this._ready = new Promise<void>((res) => {
+			const handler = (event: MessageEvent) => {
+				if (event.data.type === 'workerReady') {
+					res()
+					this._worker!.removeEventListener('message', handler)
+				}
+			}
+			this._worker!.addEventListener('message', handler)
+		})
 	}
 
 	dispose() {
@@ -189,31 +202,13 @@ export class EncryptionWorker {
 	}
 
 	initialize(): Promise<void> {
-		const ready = new Promise<void>((res) => {
-			const handler = (event: MessageEvent) => {
-				if (event.data.type === 'workerReady') {
-					res()
-					this.worker.removeEventListener('message', handler)
-				}
-			}
-			this.worker.addEventListener('message', handler)
-		})
 		this.worker.postMessage({ type: 'initialize', id: this.id })
-		return ready
+		return this._ready
 	}
 
 	initializeAndCreateGroup(): Promise<void> {
-		const ready = new Promise<void>((res) => {
-			const handler = (event: MessageEvent) => {
-				if (event.data.type === 'workerReady') {
-					res()
-					this.worker.removeEventListener('message', handler)
-				}
-			}
-			this.worker.addEventListener('message', handler)
-		})
 		this.worker.postMessage({ type: 'initializeAndCreateGroup', id: this.id })
-		return ready
+		return this._ready
 	}
 
 	userJoined(keyPkg: Uint8Array) {
