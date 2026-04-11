@@ -98,7 +98,11 @@ export default function Lobby() {
 
 			// E2EE starts in the lobby, so we must look at all connected sessions,
 			// not only users that have already clicked Join.
-			const isFirstUser = shouldCreateE2EEGroup(users, selfId)
+			// If the server already has an established E2EE group for this meeting,
+			// always join as a member rather than creating a new separate group.
+			const isFirstUser = room.roomState.e2eeGroupEstablished
+				? false
+				: shouldCreateE2EEGroup(users, selfId)
 
 			console.log('[E2EE] Joining room. isFirstUser:', isFirstUser, 'meetingId:', meetingId, 'users:', users.length)
 			e2eeOnJoin(isFirstUser)
@@ -118,6 +122,7 @@ export default function Lobby() {
 		room.identity,
 		room.roomState.meetingId,
 		room.roomState.users,
+		room.roomState.e2eeGroupEstablished,
 		room.websocket.id,
 	])
 

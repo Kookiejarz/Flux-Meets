@@ -350,6 +350,8 @@ export class ChatRoom extends Server<Env> {
 			(await this.ctx.storage.get<string>('ai:sessionId')) ?? undefined
 		const aiAudioTrack =
 			(await this.ctx.storage.get<string>('ai:trackName')) ?? undefined
+		const e2eeGroupEstablished =
+			(await this.ctx.storage.get<boolean>('e2ee:groupEstablished')) ?? false
 		const roomState = {
 			type: 'roomState',
 			state: {
@@ -365,6 +367,7 @@ export class ChatRoom extends Server<Env> {
 				meetingId,
 				roomName,
 				startTime,
+				e2eeGroupEstablished: e2eeGroupEstablished || undefined,
 				users: [
 					...(await this.getUsers()).values(),
 					...(aiEnabled
@@ -886,6 +889,11 @@ export class ChatRoom extends Server<Env> {
 					this.broadcastMessage(data, connection)
 					break
 				}
+				case 'setE2eeGroupEstablished': {
+					await this.ctx.storage.put('e2ee:groupEstablished', true)
+					await this.broadcastRoomState()
+					break
+				}
 				case 'heartbeat': {
 					await this.ctx.storage.put(`heartbeat-${connection.id}`, Date.now())
 					break
@@ -1154,6 +1162,7 @@ export class ChatRoom extends Server<Env> {
 		await Promise.all([
 			this.ctx.storage.delete('meetingId'),
 			this.ctx.storage.delete('startTime'),
+			this.ctx.storage.delete('e2ee:groupEstablished'),
 		])
 
 		await this.ctx.storage

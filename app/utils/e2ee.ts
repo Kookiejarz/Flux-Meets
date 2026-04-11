@@ -4,7 +4,7 @@ import invariant from 'tiny-invariant'
 import type useRoom from '~/hooks/useRoom'
 import { RELEASE } from '~/utils/constants'
 import { hasOtherConnectedUsers } from '~/utils/e2eePeers'
-import type { ServerMessage } from '~/types/Messages'
+import type { ClientMessage, ServerMessage } from '~/types/Messages'
 
 function getE2eeWorkerUrl() {
 	const runtimeRelease =
@@ -810,6 +810,11 @@ export function useE2EE({
 			]).then(() => {
 				setAudioWorkerInitialized(true)
 				setVideoWorkerInitialized(true)
+				room.websocket.send(
+					JSON.stringify({
+						type: 'setE2eeGroupEstablished',
+					} satisfies ClientMessage)
+				)
 			})
 		} else {
 			Promise.all([audioWorker.initialize(), videoWorker.initialize()]).then(

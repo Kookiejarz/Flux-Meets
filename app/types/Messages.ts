@@ -24,6 +24,7 @@ export type RoomState = {
 	roomName?: string
 	startTime?: number
 	users: User[]
+	e2eeGroupEstablished?: boolean
 	ai: {
 		enabled: boolean
 		controllingUser?: string
@@ -149,4 +150,7 @@ export type ClientMessage =
 	| {
 			type: 'setLanguage'
 			languages: string[]
+	  }
+	| {
+			type: 'setE2eeGroupEstablished'
 	  }
