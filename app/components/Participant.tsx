@@ -127,6 +127,10 @@ export const Participant = forwardRef<
 		shouldPullVideo ? user.tracks.video : undefined,
 		preferredRid
 	)
+	useEffect(() => {
+		if (isSelf) return
+		console.log(`[VideoDebug] Participant "${user.name}": tracks.video=${user.tracks.video}, pulledVideoTrack=${pulledVideoTrack?.id ?? 'null'}, videoEnabled=${user.tracks.videoEnabled}`)
+	}, [isSelf, user.name, user.tracks.video, user.tracks.videoEnabled, pulledVideoTrack])
 	const audioTrack = isSelf ? userMedia.audioMonitorStreamTrack : pulledAudioTrack
 	const videoTrack =
 		isSelf && !isScreenShare ? userMedia.videoStreamTrack : pulledVideoTrack

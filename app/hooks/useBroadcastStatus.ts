@@ -62,15 +62,7 @@ export default function useBroadcastStatus({
 				},
 			}
 
-			// Debug: Log track status
-			if (
-				mode !== 'production' &&
-				videoEnabled &&
-				!video &&
-				sessionId
-			) {
-				// Silent in production or when E2EE might be holding the track
-			}
+			console.log('[VideoDebug] Broadcasting userUpdate:', { name, videoEnabled, video, sessionId })
 
 			function sendUserUpdate() {
 				websocket.send(

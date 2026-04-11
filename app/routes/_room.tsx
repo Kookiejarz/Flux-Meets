@@ -510,6 +510,18 @@ function Room({ room, userMedia }: RoomProps) {
 
 	const pushedVideoTrack = useObservableAsValue(pushedVideoTrack$)
 	useEffect(() => {
+		console.log('[VideoDebug] e2eeMediaGateOpen changed:', e2eeMediaGateOpen, {
+			coreReady: e2eeStatus.coreReady,
+			joined: e2eeStatus.joined,
+			workerInitialized: e2eeStatus.workerInitialized,
+			safetyNumberReady: e2eeStatus.safetyNumberReady,
+			peerExchangeRequired: e2eeStatus.peerExchangeRequired,
+		})
+	}, [e2eeMediaGateOpen, e2eeStatus])
+	useEffect(() => {
+		console.log('[VideoDebug] pushedVideoTrack changed:', pushedVideoTrack)
+	}, [pushedVideoTrack])
+	useEffect(() => {
 		const subscription = pushedVideoTrack$.subscribe({
 			error: (error) => {
 				const message =

@@ -132,6 +132,40 @@ type MessagesFromWorker =
 	  }
 	| { type: 'newSafetyNumber'; hash: Uint8Array }
 
+const preferredVideoCodecOrder = [
+	'VIDEO/H264',
+	'VIDEO/VP8',
+	'VIDEO/VP9',
+	'VIDEO/H265',
+	'VIDEO/HEVC',
+] as const
+
+export function sortVideoCodecPreferences(
+	codecs: RTCRtpCodec[]
+): RTCRtpCodec[] {
+	const order: ReadonlyMap<string, number> = new Map<string, number>(
+		preferredVideoCodecOrder.map((mimeType, index) => [mimeType, index] as const)
+	)
+
+	return [...codecs].sort((a, b) => {
+		const aOrder = order.get(a.mimeType.toUpperCase()) ?? Number.MAX_SAFE_INTEGER
+		const bOrder = order.get(b.mimeType.toUpperCase()) ?? Number.MAX_SAFE_INTEGER
+		return aOrder - bOrder
+	})
+}
+
+function getPreferredVideoCodecs(): RTCRtpCodec[] {
+	if (
+		typeof RTCRtpReceiver === 'undefined' ||
+		typeof RTCRtpReceiver.getCapabilities !== 'function'
+	) {
+		return []
+	}
+
+	const supportedCodecs = RTCRtpReceiver.getCapabilities('video')?.codecs ?? []
+	return sortVideoCodecPreferences(supportedCodecs)
+}
+
 export class EncryptionWorker {
 	get worker(): Worker {
 		invariant(
@@ -574,41 +608,14 @@ export function useE2EE({
 			registerRequiredKey('sender', senderKey)
 
 			if (kind === 'video') {
-				const capability = RTCRtpSender.getCapabilities('video')
-				const codecs = capability ? capability.codecs : []
-
-				const getMime = (codec: (typeof codecs)[number]) =>
-					codec.mimeType.toUpperCase()
-				const isRtx = (codec: (typeof codecs)[number]) =>
-					getMime(codec) === 'VIDEO/RTX'
-				const isH265 = (codec: (typeof codecs)[number]) => {
-					const mime = getMime(codec)
-					return mime === 'VIDEO/H265' || mime === 'VIDEO/HEVC'
-				}
-				const isH264 = (codec: (typeof codecs)[number]) =>
-					getMime(codec) === 'VIDEO/H264'
-				const isVp8 = (codec: (typeof codecs)[number]) =>
-					getMime(codec) === 'VIDEO/VP8'
-				const isVp9 = (codec: (typeof codecs)[number]) =>
-					getMime(codec) === 'VIDEO/VP9'
-
-				const h265Codecs = codecs.filter(isH265)
-				const h264Codecs = codecs.filter(isH264)
-				const vp8Codecs = codecs.filter(isVp8)
-				const vp9Codecs = codecs.filter(isVp9)
-				const rtxCodecs = codecs.filter(isRtx)
-
-				const isMobile =
-					/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-						navigator.userAgent
-					)
-
-				const preferredCodecs = isMobile
-					? [...vp8Codecs, ...vp9Codecs, ...h265Codecs, ...h264Codecs, ...rtxCodecs]
-					: [...h265Codecs, ...h264Codecs, ...vp8Codecs, ...vp9Codecs, ...rtxCodecs]
+				const preferredCodecs = getPreferredVideoCodecs()
 
 				if (preferredCodecs.length > 0) {
-					transceiver.setCodecPreferences(preferredCodecs)
+					try {
+						transceiver.setCodecPreferences(preferredCodecs)
+					} catch (error) {
+						console.warn('[E2EE] Failed to set video codec preferences', error)
+					}
 				}
 			}
 
@@ -646,7 +653,11 @@ export function useE2EE({
 	])
 
 	useEffect(() => {
-		if (!enabled || !joined || !audioWorker || !videoWorker) return
+		if (!enabled || !joined || !audioWorker || !videoWorker) {
+			console.log('[E2EE] Receiver transform effect skipped:', { enabled, joined, hasAudioWorker: !!audioWorker, hasVideoWorker: !!videoWorker })
+			return
+		}
+		console.log('[E2EE] Receiver transform subscription active')
 		const subscription = partyTracks.transceiver$.subscribe((transceiver) => {
 			console.log('[E2EE] Receiver transceiver check:', {
 				direction: transceiver.direction,
@@ -666,9 +677,16 @@ export function useE2EE({
 
 			registerRequiredKey('receiver', receiverKey)
 
-			if (receiverTransformsBoundRef.current.has(transceiver.receiver)) return
-			if (receiverTransformsPendingRef.current.has(transceiver.receiver)) return
+			if (receiverTransformsBoundRef.current.has(transceiver.receiver)) {
+				console.log(`[E2EE] Receiver ${kind} transform already bound, skipping`)
+				return
+			}
+			if (receiverTransformsPendingRef.current.has(transceiver.receiver)) {
+				console.log(`[E2EE] Receiver ${kind} transform already pending, skipping`)
+				return
+			}
 			receiverTransformsPendingRef.current.add(transceiver.receiver)
+			console.log(`[E2EE] Binding receiver ${kind} transform...`)
 
 			worker
 				.setupReceiverTransform(transceiver.receiver)
@@ -676,9 +694,11 @@ export function useE2EE({
 					receiverTransformsPendingRef.current.delete(transceiver.receiver)
 					receiverTransformsBoundRef.current.add(transceiver.receiver)
 					registerBoundKey('receiver', receiverKey)
+					console.log(`[E2EE] Receiver ${kind} transform bound successfully`)
 				})
 				.catch((error) => {
 					receiverTransformsPendingRef.current.delete(transceiver.receiver)
+					console.error(`[E2EE] Receiver ${kind} transform bind failed:`, error)
 					setLastError(
 						(error as Error)?.message ||
 							`Failed to bind ${kind} receiver transform`
@@ -809,6 +829,18 @@ export function useE2EE({
 			room.websocket.removeEventListener('message', handler)
 		}
 	}, [audioWorker, videoWorker, firstUser, joined, room.websocket])
+
+	useEffect(() => {
+		if (!enabled) return
+		console.log('[E2EE] coreReady changed:', coreReady, {
+			joined,
+			workerInitialized,
+			audioSafetyNumber: !!audioSafetyNumber,
+			videoSafetyNumber: !!videoSafetyNumber,
+			safetyNumberReady,
+			peerExchangeRequired,
+		})
+	}, [coreReady, enabled, joined, workerInitialized, audioSafetyNumber, videoSafetyNumber, safetyNumberReady, peerExchangeRequired])
 
 	return {
 		e2eeSafetyNumber: enabled
