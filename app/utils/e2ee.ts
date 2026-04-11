@@ -317,14 +317,16 @@ export class EncryptionWorker {
 		})
 	}
 
-	handleOutgoingEvents(onMessage: (data: string) => void) {
-		this.worker.addEventListener('message', (event) => {
+	handleOutgoingEvents(onMessage: (data: string) => void): () => void {
+		const listener = (event: MessageEvent) => {
 			const excludedEvents = ['workerReady', 'newSafetyNumber']
 			if (!excludedEvents.includes(event.data.type)) {
 				console.log('Message from worker in handleOutgoingEvents', event.data)
 				onMessage(JSON.stringify(event.data, replacer))
 			}
-		})
+		}
+		this.worker.addEventListener('message', listener)
+		return () => this.worker.removeEventListener('message', listener)
 	}
 
 	handleIncomingEvent(data: string) {
@@ -347,12 +349,14 @@ export class EncryptionWorker {
 		}
 	}
 
-	onNewSafetyNumber(handler: (safetyNumber: Uint8Array) => void) {
-		this.worker.addEventListener('message', (event) => {
+	onNewSafetyNumber(handler: (safetyNumber: Uint8Array) => void): () => void {
+		const listener = (event: MessageEvent) => {
 			if (event.data.type === 'newSafetyNumber') {
 				handler(event.data.hash)
 			}
-		})
+		}
+		this.worker.addEventListener('message', listener)
+		return () => this.worker.removeEventListener('message', listener)
 	}
 }
 
@@ -730,7 +734,7 @@ export function useE2EE({
 		if (!joined || !audioWorker || !videoWorker) return
 
 		const setupWorker = (worker: EncryptionWorker, type: 'audio' | 'video') => {
-			worker.onNewSafetyNumber((buffer) => {
+			const disposeSafetyNumber = worker.onNewSafetyNumber((buffer) => {
 				const nextSafetyNumber = arrayBufferToDecimal(
 					buffer as unknown as ArrayBuffer
 				)
@@ -746,7 +750,7 @@ export function useE2EE({
 					})
 				}
 			})
-			worker.handleOutgoingEvents((data) => {
+			const disposeOutgoing = worker.handleOutgoingEvents((data) => {
 				room.websocket.send(
 					JSON.stringify({
 						type: 'e2eeMlsMessage',
@@ -755,10 +759,14 @@ export function useE2EE({
 					})
 				)
 			})
+			return () => {
+				disposeSafetyNumber()
+				disposeOutgoing()
+			}
 		}
 
-		setupWorker(audioWorker, 'audio')
-		setupWorker(videoWorker, 'video')
+		const disposeAudio = setupWorker(audioWorker, 'audio')
+		const disposeVideo = setupWorker(videoWorker, 'video')
 
 		const handler = (event: MessageEvent) => {
 			const message = JSON.parse(event.data)
@@ -827,6 +835,8 @@ export function useE2EE({
 
 		return () => {
 			room.websocket.removeEventListener('message', handler)
+			disposeAudio()
+			disposeVideo()
 		}
 	}, [audioWorker, videoWorker, firstUser, joined, room.websocket])
 

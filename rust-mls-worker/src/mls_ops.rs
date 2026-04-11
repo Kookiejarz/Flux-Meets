@@ -226,10 +226,12 @@ impl WorkerState {
         // Process the message
         if let MlsMessageBodyIn::Welcome(w) = welcome.extract() {
             // If we can't process this Welcome, it's because it's not meant for us. Return early
-            let Ok(staged_join) =
-                StagedWelcome::new_from_welcome(&self.mls_provider, &config, w, Some(ratchet_tree))
-            else {
-                return WorkerResponse::default();
+            let staged_join = match StagedWelcome::new_from_welcome(&self.mls_provider, &config, w, Some(ratchet_tree)) {
+                Ok(j) => j,
+                Err(e) => {
+                    info!("join_group: Welcome not for this user or invalid ({}). Ignoring.", e);
+                    return WorkerResponse::default();
+                }
             };
 
             // Create a group from the processed welcome
@@ -239,6 +241,7 @@ impl WorkerState {
                     .expect("error joining group"),
             );
         } else {
+            info!("join_group: received non-Welcome message type, ignoring");
             return WorkerResponse::default();
         }
 
@@ -1122,12 +1125,12 @@ mod tests {
             // a totally random order
             let mut ciphertexts: Vec<_> =
                 (0..core::cmp::min(OUT_OF_ORDER_TOLERANCE, MAX_MESSAGE_SEQ_JUMP))
-                    .map(|_| sender.as_mut().unwrap().0.encrypt_app_msg_nofail(msg))
+                    .map(|_| sender.as_mut().unwrap().0.encrypt_app_msg_nofail(msg, 0))
                     .collect();
             ciphertexts.shuffle(&mut rand::thread_rng());
             // Open the ciphertexts
             ciphertexts.into_iter().for_each(|ct| {
-                receiver.as_mut().unwrap().0.decrypt_app_msg(&ct).unwrap();
+                receiver.as_mut().unwrap().0.decrypt_app_msg(&ct, 0).unwrap();
             });
 
             // Set the sender and receiver states back where they were
