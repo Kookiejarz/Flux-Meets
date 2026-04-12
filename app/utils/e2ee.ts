@@ -207,8 +207,19 @@ export class EncryptionWorker {
 	}
 
 	initializeAndCreateGroup(): Promise<void> {
-		this.worker.postMessage({ type: 'initializeAndCreateGroup', id: this.id })
-		return this._ready
+		// Resolve only after the WASM worker has actually created the MLS group,
+		// which is confirmed by the first newSafetyNumber event. Returning _ready
+		// (already resolved) would set workerInitialized before the group exists.
+		return new Promise<void>((resolve) => {
+			const handler = (event: MessageEvent) => {
+				if (event.data.type === 'newSafetyNumber') {
+					this._worker!.removeEventListener('message', handler)
+					resolve()
+				}
+			}
+			this._worker!.addEventListener('message', handler)
+			this.worker.postMessage({ type: 'initializeAndCreateGroup', id: this.id })
+		})
 	}
 
 	userJoined(keyPkg: Uint8Array) {
@@ -399,6 +410,7 @@ export function useE2EE({
 	const [videoSafetyNumber, setVideoSafetyNumber] = useState<string>()
 	const [joined, setJoined] = useState(false)
 	const [firstUser, setFirstUser] = useState(false)
+	const prevMeetingIdRef = useRef<string | null>(null)
 	const [audioWorkerInitialized, setAudioWorkerInitialized] = useState(false)
 	const [videoWorkerInitialized, setVideoWorkerInitialized] = useState(false)
 	const workerInitialized = audioWorkerInitialized && videoWorkerInitialized
@@ -718,6 +730,26 @@ export function useE2EE({
 		registerRequiredKey,
 		registerBoundKey,
 	])
+
+	// Reset E2EE join state when the meeting changes so that onJoin can be
+	// called again with the correct isFirstUser value for the new meeting.
+	// Room remounts on meetingId key change, but this is a safety net for any
+	// path where joined stays true across a meetingId transition.
+	const meetingId = room.roomState.meetingId
+	useEffect(() => {
+		if (!meetingId) return
+		if (prevMeetingIdRef.current === null) {
+			// First time we see a meetingId — no reset needed.
+			prevMeetingIdRef.current = meetingId
+			return
+		}
+		if (prevMeetingIdRef.current === meetingId) return
+		// meetingId changed while component stayed mounted.
+		prevMeetingIdRef.current = meetingId
+		setJoined(false)
+		setFirstUser(false)
+		resetVerificationState()
+	}, [meetingId, resetVerificationState])
 
 	const onJoin = useCallback(
 		(firstUser: boolean) => {

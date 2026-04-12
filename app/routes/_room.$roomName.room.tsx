@@ -128,10 +128,10 @@ function JoinedRoom({ bugReportsEnabled }: { bugReportsEnabled: boolean }) {
 	// 初始化端到端加密（仅在组件挂载时执行一次）
 	useMount(() => {
 		// Fallback for direct room entry: count all connected sessions, not just joined users.
-		const isFirstUser = shouldCreateE2EEGroup(
-			room.roomState.users,
-			room.websocket.id
-		)
+		// Mirror the lobby logic: if the group is already established, always join as a member.
+		const isFirstUser = room.roomState.e2eeGroupEstablished
+			? false
+			: shouldCreateE2EEGroup(room.roomState.users, room.websocket.id)
 		e2eeOnJoin(isFirstUser)
 	})
 
